@@ -150,7 +150,7 @@ META-INF/com/android/otacert
   likely yes, so repacked OTAs may fail signature checks unless the device is
   rooted and the root tool bypasses verification.
 
-## Live device findings (192.168.50.22, FW 3.0.0, PX30)
+## Live device findings (test panel, FW 3.0.0, PX30, 86P)
 
 Inspected via ADB root. Key bloat and resource consumers:
 

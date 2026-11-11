@@ -11,7 +11,7 @@
 #   ./build_firmware_release.sh <panel_ip> <version> [--publish]
 #
 # Example:
-#   ./build_firmware_release.sh 192.168.50.22 1.0.0 --publish
+#   ./build_firmware_release.sh <panel_ip> 1.0.0 --publish
 set -euo pipefail
 
 IP="${1:?usage: build_firmware_release.sh <panel_ip> <version> [--publish]}"
@@ -32,7 +32,7 @@ echo
 
 # ---- 1. verify the panel is in the debloated state --------------------
 echo "[1/5] checking panel state"
-KISS_OK=$($ADB shell "test -f /system/priv-app/Kiss/Kiss.apk && echo yes || echo no" | tr -d '\r')
+KISS_OK=$($ADB shell "su -c 'test -f /system/priv-app/Kiss/Kiss.apk && echo yes || echo no'" | tr -d '\r')
 KZ_OK=$($ADB shell "test -d /system/app/kz_app && echo yes || echo no" | tr -d '\r')
 if [ "$KISS_OK" != "yes" ] || [ "$KZ_OK" = "yes" ]; then
   echo "  panel is NOT debloated — running build_clean_firmware.sh first"
@@ -42,7 +42,7 @@ if [ "$KISS_OK" != "yes" ] || [ "$KZ_OK" = "yes" ]; then
   sleep 60
   adb connect "$TARGET" >/dev/null
   sleep 30
-  KISS_OK=$($ADB shell "test -f /system/priv-app/Kiss/Kiss.apk && echo yes || echo no" | tr -d '\r')
+KISS_OK=$($ADB shell "su -c 'test -f /system/priv-app/Kiss/Kiss.apk && echo yes || echo no'" | tr -d '\r')
   if [ "$KISS_OK" != "yes" ]; then
     echo "ERROR: debloat did not complete"; exit 1
   fi

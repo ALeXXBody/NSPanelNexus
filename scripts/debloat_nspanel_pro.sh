@@ -11,7 +11,7 @@
 # Usage: ./debloat_nspanel_pro.sh <ip> [--keep-sonoff]
 set -euo pipefail
 
-IP="${1:-192.168.50.22}"
+IP="${1:?usage: debloat_nspanel_pro.sh <panel_ip> [--keep-sonoff]}"
 KEEP_SONOFF="${2:-}"
 TARGET="$IP:5555"
 

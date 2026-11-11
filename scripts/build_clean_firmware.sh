@@ -12,7 +12,7 @@
 # Usage: ./build_clean_firmware.sh <ip> [--reboot]
 set -euo pipefail
 
-IP="${1:-192.168.50.22}"
+IP="${1:?usage: build_clean_firmware.sh <panel_ip> [--reboot]}"
 DO_REBOOT="${2:-}"
 TARGET="$IP:5555"
 
