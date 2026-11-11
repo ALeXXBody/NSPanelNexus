@@ -8,5 +8,6 @@ build/
 .ruff_cache/
 *.png
 !branding/*.png
+!custom_components/nspanel_nexus/brand/*.png
 .env
 device.json
