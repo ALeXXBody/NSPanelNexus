@@ -6,16 +6,20 @@ import org.json.JSONObject
 /** Persisted settings for the whole app. JSON-backed so remote config can patch it. */
 object Settings {
     private const val FILE = "nexus_settings.json"
+    private val lock = Any()
 
     private lateinit var ctx: Context
     private lateinit var json: JSONObject
 
     fun init(context: Context) {
-        ctx = context.applicationContext
-        json = try {
-            JSONObject(ctx.openFileInput(FILE).bufferedReader().readText())
-        } catch (e: Exception) {
-            JSONObject()
+        synchronized(lock) {
+            if (this::json.isInitialized) return   // one load per process
+            ctx = context.applicationContext
+            json = try {
+                JSONObject(ctx.openFileInput(FILE).bufferedReader().readText())
+            } catch (e: Exception) {
+                JSONObject()
+            }
         }
     }
 
@@ -31,7 +35,7 @@ object Settings {
         else -> false
     }
 
-    fun set(key: String, value: Any) {
+    fun set(key: String, value: Any) = synchronized(lock) {
         json.put(key, value)
         persist()
     }
@@ -41,20 +45,25 @@ object Settings {
     }
 
     /** Apply a partial JSON patch (remote config over MQTT). */
-    fun patch(patch: JSONObject) {
+    fun patch(patch: JSONObject) = synchronized(lock) {
         patch.keys().forEach { k ->
             json.put(k, patch.get(k))
         }
         persist()
     }
 
-    fun all(): JSONObject = JSONObject(json.toString())
+    fun all(): JSONObject = synchronized(lock) { JSONObject(json.toString()) }
 
     private fun persist() {
         ctx.openFileOutput(FILE, Context.MODE_PRIVATE).use {
             it.write(json.toString().toByteArray())
         }
     }
+
+    /** Last dashboard load failure, shown on the Setup page until fixed. */
+    var lastDashboardError: String
+        get() = get("last_dashboard_error", "")
+        set(v) = synchronized(lock) { json.put("last_dashboard_error", v); persist() }
 
     // Convenience accessors (normalised so a bare host/path also works)
     val deviceName: String get() = get("device_name", android.os.Build.MODEL)

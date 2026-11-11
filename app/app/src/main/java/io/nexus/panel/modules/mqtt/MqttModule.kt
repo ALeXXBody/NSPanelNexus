@@ -28,6 +28,11 @@ class MqttModule : Module {
     override val name = "mqtt"
 
     private var client: MqttClient? = null
+    @Volatile private var stopped = false
+    private val publishExecutor =
+        java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+            Thread(r, "nexus-mqtt-publish").apply { isDaemon = true }
+        }
     private val listeners = mutableMapOf<String, (JSONObject) -> Unit>()
 
     /** Callbacks for device commands: command -> handler */
@@ -46,6 +51,7 @@ class MqttModule : Module {
         val host = Settings.mqttHost
         Log.d("NexusMQTT", "start(): host=$host port=${Settings.mqttPort}")
         if (host.isBlank()) return
+        stopped = false
         // connect() and the qos=1 publishes block — never do them on the main thread
         Thread {
             try {
@@ -79,15 +85,26 @@ class MqttModule : Module {
             override fun deliveryComplete(token: IMqttDeliveryToken?) {}
         })
         c.connect(opts)
+        // if the module was stopped while we were connecting, clean up
+        if (stopped) {
+            try { c.disconnect() } catch (_: Exception) {}
+            try { c.close() } catch (_: Exception) {}
+        }
     }
 
     override fun stop() {
+        stopped = true
         try { client?.disconnect() } catch (_: Exception) {}
         try { client?.close() } catch (_: Exception) {}
         client = null
     }
 
     private fun onConnected(c: MqttClient) {
+        if (stopped || client !== c) {
+            // stale connection from a connect() that raced with stop()
+            try { c.disconnect() } catch (_: Exception) {}
+            return
+        }
         Log.d("NexusMQTT", "connected to ${Settings.mqttHost}:${Settings.mqttPort}")
         publish(base + "/status", "online", retain = true, qos = 1)
         publish(base + "/state/ip_address",
@@ -101,12 +118,13 @@ class MqttModule : Module {
     }
 
     fun publish(topic: String, payload: String, qos: Int = 0, retain: Boolean = false) {
-        // paho publish() with qos>=1 blocks for the ack — always off the main thread
+        // paho publish() with qos>=1 blocks for the ack — single executor,
+        // not a new thread per message (illuminance alone fires at ~1 Hz)
         val c = client ?: return
         val body = payload.toByteArray()
-        Thread {
+        publishExecutor.execute {
             try { c.publish(topic, body, qos, retain) } catch (_: Exception) {}
-        }.apply { isDaemon = true }.start()
+        }
     }
 
     fun event(kind: String, payload: JSONObject) {

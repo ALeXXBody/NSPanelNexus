@@ -71,8 +71,12 @@ class SensorModule : Module, SensorEventListener {
                 checkProximity(v)
             }
             Sensor.TYPE_LIGHT -> {
-                lastLux = event.values[0]
-                checkLight(lastLux)
+                val now = System.currentTimeMillis()
+                if (now - lastLuxPublish >= 1000) {   // max 1 publish/second
+                    lastLuxPublish = now
+                    lastLux = event.values[0]
+                    checkLight(lastLux)
+                }
             }
         }
     }
@@ -130,6 +134,7 @@ class SensorModule : Module, SensorEventListener {
     }
 
     private var lastLuxKind = ""
+    private var lastLuxPublish = 0L
 
     /** Hook for the display module: "someone walked up, wake the screen". */
     var onProximity: (() -> Unit)? = null

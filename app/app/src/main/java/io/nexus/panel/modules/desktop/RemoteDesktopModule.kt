@@ -306,11 +306,12 @@ function tok(){ return (location.hash || '#').slice(1); }
 
     private fun inject(kind: String, body: String) {
         val p = params(body)
+        fun num(key: String, def: Int = 0): Int = p[key]?.toIntOrNull() ?: def
         val cmd = when (kind) {
-            "tap" -> "input tap ${p["x"]} ${p["y"]}"
-            "swipe" -> "input swipe ${p["x1"]} ${p["y1"]} ${p["x2"]} ${p["y2"]} ${p["ms"] ?: "300"}"
-            "key" -> "input keyevent ${p["code"]}"
-            "text" -> "input text \"${p["text"]?.replace("\"", "")}\""
+            "tap" -> "input tap ${num("x")} ${num("y")}"
+            "swipe" -> "input swipe ${num("x1")} ${num("y1")} ${num("x2")} ${num("y2")} ${num("ms", 300)}"
+            "key" -> "input keyevent ${num("code")}"
+            "text" -> "input text \"${(p["text"] ?: "").replace(Regex("[^a-zA-Z0-9 ,.!?-]"), "")}\""
             else -> return
         }
         try { Runtime.getRuntime().exec(arrayOf("su", "-c", cmd)) } catch (_: Exception) {}

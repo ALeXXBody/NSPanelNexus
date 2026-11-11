@@ -36,6 +36,7 @@ class FleetModule : Module {
         if (running) "mdns + udp:5000" else "stopped"
 
     override fun start(context: Context) {
+        if (running) return   // already listening; a second start would rebind :5000
         running = true
         advertiseMdns(context)
         thread = Thread {

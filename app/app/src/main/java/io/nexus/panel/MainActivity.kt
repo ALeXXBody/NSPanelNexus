@@ -7,6 +7,9 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -47,6 +50,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Settings.init(this)
+        clearStaleHomePreference()
         NexusService.start(this)
 
         root = LinearLayout(this).apply {
@@ -64,10 +68,11 @@ class MainActivity : FragmentActivity() {
             setPadding(0, dp(10), 0, dp(10))
             setBackgroundColor(0xFF161B21.toInt())
         }
+        // double-tap the top bar to leave the dashboard (no-op in settings mode)
         titleBar?.setOnClickListener {
-            if (dashboardShown()) hideDashboard() else lastTap += System.currentTimeMillis().also {
-                if (it - lastTap < 400) { /* two taps in settings: nothing */ }
-            }
+            val now = System.currentTimeMillis()
+            if (now - lastTap < 400 && dashboardShown()) hideDashboard()
+            lastTap = now
         }
 
         // ---- dashboard layer (full screen, over everything) ---------------
@@ -75,7 +80,21 @@ class MainActivity : FragmentActivity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun onReceivedError(view: WebView, req: WebResourceRequest,
+                                             err: WebResourceError) {
+                    if (req.isForMainFrame) {
+                        runOnUiThread { dashboardLoadFailed(req.url.toString()) }
+                    }
+                }
+
+                override fun onReceivedHttpError(view: WebView, req: WebResourceRequest,
+                                                 resp: WebResourceResponse) {
+                    if (req.isForMainFrame) {
+                        runOnUiThread { dashboardLoadFailed(req.url.toString()) }
+                    }
+                }
+            }
             visibility = View.GONE
         }
         dashboardView = dash
@@ -162,7 +181,43 @@ class MainActivity : FragmentActivity() {
         titleBar?.text = "NSPanel Nexus"
     }
 
+    private fun dashboardLoadFailed(url: String) {
+        wvStop()
+        hideDashboard()
+        Settings.lastDashboardError = "Dashboard URL failed: $url"
+        // bring the user back to Setup where the URL can be fixed
+        showPage(0)
+        toastOnUi("Dashboard URL failed — fix it in Setup")
+    }
+
+    private fun wvStop() {
+        dashboardView?.let { wv ->
+            wv.stopLoading()
+            wv.loadDataWithBaseURL(null, "<html><body style='display:none'></body></html>",
+                "text/html", "utf-8", null)
+            wv.visibility = View.GONE
+        }
+    }
+
+    private fun toastOnUi(msg: String) {
+        runOnUiThread {
+            android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun dashboardShown(): Boolean = dashboardView?.visibility == View.VISIBLE
+
+    /**
+     * Earlier builds declared a HOME intent-filter; the system keeps that
+     * preference even after it is removed, which made every Home press show a
+     * resolver dialog. Clear our own preferred-activity record once per start.
+     */
+    private fun clearStaleHomePreference() {
+        try {
+            packageManager.clearPackagePreferredActivities(packageName)
+        } catch (_: Exception) {}
+    }
+
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 

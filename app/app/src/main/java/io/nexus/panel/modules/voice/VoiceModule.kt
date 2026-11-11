@@ -32,9 +32,24 @@ class VoiceModule : Module {
     private var streaming = false
     private var nextId = 1
 
-    override fun status(): String = if (ws != null) "ready" else "stopped"
+    private var appContext: Context? = null
+
+    override fun status(): String {
+        val granted = appContext?.let {
+            it.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+        } == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) return "needs RECORD_AUDIO (adb: pm grant io.nexus.panel android.permission.RECORD_AUDIO)"
+        return if (ws != null) "ready" else "ready (idle)"
+    }
 
     override fun start(context: Context) {
+        appContext = context.applicationContext
+        if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            // the module cannot ask for a runtime permission without an activity;
+            // surface it in status() so the user knows the one command to run
+            return
+        }
         val url = Settings.haUrl
         val token = Settings.haToken
         if (url.isBlank() || token.isBlank()) return
@@ -142,13 +157,17 @@ class VoiceModule : Module {
 
     private fun playUrl(url: String) {
         Thread {
+            var mp: MediaPlayer? = null
             try {
-                val mp = MediaPlayer()
+                mp = MediaPlayer()
                 mp.setDataSource(url)
                 mp.setOnPreparedListener { it.start() }
                 mp.setOnCompletionListener { it.release() }
+                mp.setOnErrorListener { _, _, _ -> mp?.release(); true }
                 mp.prepareAsync()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                mp?.release()
+            }
         }.start()
     }
 }

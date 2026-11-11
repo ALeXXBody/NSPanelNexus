@@ -2,6 +2,8 @@ package io.nexus.panel.modules.display
 
 import android.content.Context
 import android.os.PowerManager
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings as SysSettings
 import io.nexus.panel.core.Module
 import io.nexus.panel.core.ModuleManager
@@ -22,6 +24,8 @@ class DisplayModule : Module {
     private var sensorModule: SensorModule? = null
     private var pm: PowerManager? = null
     private var appContext: Context? = null
+    private val scheduler = Handler(Looper.getMainLooper())
+    private var scheduling = false
 
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
 
@@ -44,11 +48,42 @@ class DisplayModule : Module {
             if (target >= 0) setBrightness(target)
         }
         setBrightness(Settings.getInt("brightness", currentBrightness()))
+        startScheduleLoop()
     }
 
     override fun stop() {
+        scheduling = false
+        scheduler.removeCallbacksAndMessages(null)
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
+    }
+
+    /**
+     * Screen-on schedules: every 30 s, wake when inside the configured window
+     * (weekday/weekend), sleep when outside — only when the user enabled
+     * scheduling (any non-00:00 begin/end).
+     */
+    private fun startScheduleLoop() {
+        if (scheduling) return
+        scheduling = true
+        scheduler.post(object : Runnable {
+            override fun run() {
+                if (!scheduling) return
+                try {
+                    val now = java.util.Calendar.getInstance()
+                    val enabled = Settings.get("screen_on_weekday_begin", "00:00") != "00:00" ||
+                                  Settings.get("screen_on_weekend_begin", "00:00") != "00:00"
+                    if (enabled) {
+                        if (inScreenOnWindow(now)) {
+                            if (!isScreenOn) wake()
+                        } else if (isScreenOn) {
+                            sleep()
+                        }
+                    }
+                } catch (_: Exception) {}
+                scheduler.postDelayed(this, 30_000)
+            }
+        })
     }
 
     // ---- wake / sleep --------------------------------------------------

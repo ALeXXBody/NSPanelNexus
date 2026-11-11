@@ -66,8 +66,15 @@ class SetupFragment : androidx.fragment.app.Fragment() {
 
         // ---- actions ----
         col.addView(button(c, "Save", "Apply and restart the modules") {
+            Settings.lastDashboardError = ""   // retest on next load
             save()
         })
+        col.addView(button(c, "Test dashboard URL", "Check whether the dashboard loads (HTTP code)") {
+            testDashboardUrl(c)
+        })
+        if (Settings.lastDashboardError.isNotBlank()) {
+            col.addView(errorBanner(c, Settings.lastDashboardError))
+        }
 
         return ScrollView(c).apply { addView(col) }
     }
@@ -151,6 +158,42 @@ class SetupFragment : androidx.fragment.app.Fragment() {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
     }
+
+    private fun testDashboardUrl(c: Context) {
+        Thread {
+            try {
+                val url = Settings.dashboardUrl
+                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 4000
+                conn.readTimeout = 4000
+                conn.instanceFollowRedirects = false
+                val code = conn.responseCode
+                conn.disconnect()
+                android.os.Handler(c.mainLooper).post {
+                    android.widget.Toast.makeText(c,
+                        "HTTP $code for $url" + when {
+                            code in 200..299 -> " ✓"
+                            code in 300..399 -> " (redirect)"
+                            else -> " ✗ (check the url_path)"
+                        }, android.widget.Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                android.os.Handler(c.mainLooper).post {
+                    android.widget.Toast.makeText(c, "Failed: ${e.message}",
+                        android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun errorBanner(c: Context, text: String): View =
+        android.widget.TextView(c).apply {
+            this.text = text
+            setTextColor(0xFFFF8A8A.toInt())
+            textSize = 13f
+            setBackgroundColor(0xFF2A1616.toInt())
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+        }
 
     private fun button(c: Context, label: String, desc: String, onClick: () -> Unit): View =
         LinearLayout(c).apply {
