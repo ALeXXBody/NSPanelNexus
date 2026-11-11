@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nspanel-nexus"
+version = "0.1.0"
+description = "Unified control tool for Sonoff NSPanel Pro (Android): ADB + MQTT + Home Assistant, aggregating seaky Pro Tools, kiosk-satellite, Panel Assistant and more."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "ALeXXBody" }]
+keywords = ["nspanel", "nspanel-pro", "sonoff", "home-assistant", "mqtt", "adb", "android"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Home Automation",
+]
+dependencies = [
+  "paho-mqtt>=2.0",
+  "click>=8.1",
+  "rich>=13.0",
+  "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[project.scripts]
+nspanel-nexus = "nspanel_nexus.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["nspanel_nexus*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
