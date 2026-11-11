@@ -11,7 +11,7 @@
     :host{display:block;min-height:100%;background:#181a1f;
           font-family:Roboto,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;
           color:#e8ebef}
-    .topbar{display:flex;align-items:center;gap:14px;padding:0 18px;height:64px;
+    .topbar{display:flex;align-items:center;gap:14px;padding:0 18px;height:80px;
             background:#111318;border-bottom:1px solid #22262e;position:sticky;top:0;z-index:5}
     .topbar img{height:64px;width:64px;border-radius:14px;background:#0d1016;padding:4px}
     .topbar .name{font-size:22px;font-weight:700;color:#fff;letter-spacing:.3px;white-space:nowrap;line-height:1}
@@ -143,7 +143,7 @@
         remote_desktop: "sensor",
         illuminance: "sensor", ip_address: "sensor",
         uptime: "sensor", firmware: "sensor",
-        touch: "event", proximity: "event", light: "event",
+        touch: "event", proximity: "event", light_event: "event",
         presence: "binary_sensor",
       };
       Object.keys(candidates).forEach((obj) => {
@@ -161,7 +161,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.2</span>
+          <span class="ver">v0.4.3</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;

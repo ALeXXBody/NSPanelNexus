@@ -11,12 +11,18 @@ import java.net.URL
 import java.security.MessageDigest
 
 /**
- * Nexus OTA channel.
+ * Nexus OTA channel + firmware auto-discovery.
  *
  * The panel's own recovery enforces Sonoff's signing key, so a stock-OTA path
  * is impossible without it. Nexus ships its own: the module checks a manifest,
- * downloads the image, verifies size + sha256, backs up the current partition,
- * writes the new one and reboots.
+ * downloads the image, verifies size + sha256, writes it and reboots.
+ *
+ * On start, the module auto-discovers the running firmware:
+ *   - reads /data/nexus/version (written by nexus-updater.sh)
+ *   - if absent, probes for Nexus markers (KISS launcher, absence of Sonoff
+ *     apps, frp backdoor removal)
+ * The discovered version is published as the "firmware" sensor so HA can
+ * show it and so the firmware tab can offer updates.
  */
 class FirmwareModule : Module {
 
@@ -26,15 +32,48 @@ class FirmwareModule : Module {
 
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
 
-    override fun status(): String = "version=${Settings.get("nexus_version", "unknown")}"
+    override fun status(): String = "version=${currentFirmwareVersion()}"
 
     override fun start(context: Context) {
         val m = mqtt ?: return
+        // Auto-discover firmware on start
+        val ver = currentFirmwareVersion()
+        Settings.set("nexus_version", ver)
+        m.state("firmware", JSONObject().put("current", ver))
         m.onCommand["firmware:check"] = { _ -> checkForUpdate() }
         m.onCommand["firmware:install"] = { _ -> installPending() }
     }
 
     override fun stop() {}
+
+    // ---- firmware auto-discovery ---------------------------------------
+
+    /** Detect the running firmware version. */
+    fun currentFirmwareVersion(): String {
+        // 1. Written by nexus-updater.sh after a successful OTA
+        val versionFile = File("/data/nexus/version")
+        if (versionFile.exists()) {
+            val v = versionFile.readText().trim()
+            if (v.isNotEmpty()) return v
+        }
+        // 2. Probe for Nexus firmware markers
+        if (isNexusFirmware()) return "nexus (unknown version)"
+        // 3. Stock Sonoff firmware
+        return "stock (sonoff)"
+    }
+
+    /** Heuristic: is this panel running Nexus firmware? */
+    private fun isNexusFirmware(): Boolean {
+        // KISS launcher installed → Nexus
+        if (File("/system/priv-app/Kiss").exists() || File("/data/app/fr.neamar.kiss").exists()) return true
+        // Sonoff bloat removed → Nexus
+        if (!File("/system/app/kz_app").exists() && !File("/system/app/factoryApp").exists()) return true
+        // frp backdoor removed → Nexus
+        return try {
+            val rootsudaemon = File("/system/bin/rootsudaemon.sh")
+            !rootsudaemon.exists() || !rootsudaemon.readText().contains("frp")
+        } catch (_: Exception) { false }
+    }
 
     // ---- manifest -------------------------------------------------------
 
@@ -50,9 +89,9 @@ class FirmwareModule : Module {
                 val size = manifest.optLong("size")
                 val sha = manifest.optString("sha256")
                 mqtt?.state("firmware", JSONObject()
-                    .put("current", Settings.get("nexus_version", "unknown"))
+                    .put("current", currentFirmwareVersion())
                     .put("available", version))
-                if (version != Settings.get("nexus_version", "")) {
+                if (version != currentFirmwareVersion() && version != "nexus (unknown version)") {
                     downloadAndWrite(url, size, sha, version)
                 }
             } catch (_: Exception) {}
