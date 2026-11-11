@@ -147,9 +147,16 @@ class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
         panels = await _discover_udp()
+        names = [p.get("name") for p in panels if p.get("name")]
+        default = names[0] if names else DEFAULT_DEVICE_NAME
         return self.async_show_form(
             step_id="user",
-            data_schema=_schema(panels),
+            data_schema=vol.Schema({
+                # free text: typed names always work, even when LAN discovery
+                # answered — the discovered list goes in the description
+                vol.Required(CONF_DEVICE_NAME, default=default): str,
+                vol.Required(CONF_TOPIC_PREFIX, default=DEFAULT_TOPIC_PREFIX): str,
+            }),
             errors=errors,
             description_placeholders={"panels": _format(panels)},
         )
@@ -169,4 +176,10 @@ class NexusOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
-        return self.async_show_form(step_id="init", data_schema=_schema([]))
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Required(CONF_DEVICE_NAME, default=self.config_entry.data[CONF_DEVICE_NAME]): str,
+                vol.Required(CONF_TOPIC_PREFIX, default=self.config_entry.data.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)): str,
+            }),
+        )

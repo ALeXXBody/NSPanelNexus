@@ -30,18 +30,18 @@ async def _register_sidebar(hass: HomeAssistant) -> None:
     """Put NSPanel Nexus in HA's left sidebar as the panel manager."""
     # imported lazily: importing HA components at module import time blocks
     # the event loop (HA logs a "blocking call to import_module" warning)
-    from homeassistant.components import frontend, panel_custom
+    from homeassistant.components import panel_custom
     from homeassistant.components.http import StaticPathConfig
 
     js_url = PANEL_URL + "/panel.js"
     js_path = Path(__file__).parent / "www" / "nspanel-nexus-panel.js"
 
-    # serve the panel script
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig(js_url, str(js_path), False)]
-    )
-    # load it on every frontend page so the custom element exists
-    frontend.add_extra_js_url(hass, js_url)
+    # serve the panel script + brand images
+    brand_path = Path(__file__).parent / "www" / "brand"
+    await hass.http.async_register_static_paths([
+        StaticPathConfig(js_url, str(js_path), False),
+        StaticPathConfig(PANEL_URL + "/brand", str(brand_path), True),
+    ])
 
     await panel_custom.async_register_panel(
         hass,

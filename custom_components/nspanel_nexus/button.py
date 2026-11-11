@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.helpers.entity import EntityCategory
 
 from .entity import NexusEntity
 from .link import PanelLink
@@ -29,13 +30,13 @@ async def async_setup_entry(hass, entry, async_add_entities) -> None:
     link = hass.data["nspanel_nexus"][entry.entry_id]["link"]
     async_add_entities([
         NexusButton(link, "wake", "Wake", "wake_up", icon="mdi:screen-rotation",
-                    entity_category="config"),
+                    entity_category=EntityCategory.CONFIG),
         NexusButton(link, "sleep", "Sleep", "sleep", icon="mdi:sleep",
-                    entity_category="config"),
+                    entity_category=EntityCategory.CONFIG),
         NexusButton(link, "reboot", "Reboot", "reboot", icon="mdi:restart",
-                    entity_category="config"),
+                    entity_category=EntityCategory.CONFIG),
         NexusButton(link, "firmware_check", "Check firmware", "firmware:check",
-                    icon="mdi:cloud-download", entity_category="diagnostic"),
+                    icon="mdi:cloud-download", entity_category=EntityCategory.DIAGNOSTIC),
         NexusButton(link, "query_config", "Re-read config", "query",
-                    icon="mdi:cloud-question", entity_category="diagnostic"),
+                    icon="mdi:cloud-question", entity_category=EntityCategory.DIAGNOSTIC),
     ], False)
