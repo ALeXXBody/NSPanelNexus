@@ -43,7 +43,7 @@ async def _register_sidebar(hass: HomeAssistant) -> None:
     # load it on every frontend page so the custom element exists
     frontend.add_extra_js_url(hass, js_url)
 
-    panel_custom.async_register_panel(
+    await panel_custom.async_register_panel(
         hass,
         frontend_url_path=PANEL_URL.lstrip("/"),
         webcomponent_name="nspanel-nexus-manager",
@@ -84,7 +84,14 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
     hass.services.async_register(DOMAIN, "config_update", _config_update,
                                  schema=SERVICE_CONFIG_UPDATE_SCHEMA)
 
-    await _register_sidebar(hass)
+    # register the sidebar last, and never let a frontend problem disable
+    # the whole integration (entities keep working without it)
+    try:
+        await _register_sidebar(hass)
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("sidebar registration failed — integration continues")
+
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
