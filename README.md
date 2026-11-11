@@ -76,6 +76,7 @@ nspanel-nexus firmware flash system clean/system.img   # install / rollback
 - [NSPanel Pro hardware & rooting](research/NSPANEL_PRO_HARDWARE.md)
 - [Ecosystem & feature matrix](research/ECOSYSTEM.md)
 - [Feature matrix (Nexus vs. sources)](research/FEATURE_MATRIX.md)
+- [App & tool ecosystem research](research/APPS_RESEARCH.md)
 - [Firmware feasibility & debloat](research/FIRMWARE_RESEARCH.md)
 - [MQTT command reference](docs/MQTT_COMMANDS.md)
 - [Firmware: clean Android for NSPanel Pro](docs/FIRMWARE.md)
