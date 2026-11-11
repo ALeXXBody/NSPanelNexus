@@ -15,6 +15,8 @@ from .config import DeviceConfig
 from .mqtt import NexusMqtt
 from .screenshot import capture
 
+from .firmware_cli import firmware as firmware_group
+
 console = Console()
 CONFIG_PATH = Path.home() / ".config" / "nspanel-nexus" / "device.json"
 
@@ -176,6 +178,8 @@ def info():
     table.add_row("adb_connected", str(c.is_connected()))
     console.print(table)
 
+
+main.add_command(firmware_group)
 
 if __name__ == "__main__":
     main()
