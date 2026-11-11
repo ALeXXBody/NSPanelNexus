@@ -85,7 +85,7 @@ class RemoteDesktopModule : Module {
         Thread {
             try {
                 socket.tcpNoDelay = true
-                val input = socket.getInputStream()
+                val input = socket.getInputStream().buffered()
                 val requestLine = readLine(input) ?: return@Thread
                 val parts = requestLine.split(" ")
                 if (parts.size < 2) return@Thread
@@ -95,15 +95,16 @@ class RemoteDesktopModule : Module {
                 val path = rawPath.substringBefore('?')
                 // auth: token must match in the query string or a header
                 var headerToken: String? = null
-                val buffered = input.buffered()
-                buffered.mark(8192)
+                var body = ""
+                var len = 0
                 while (true) {
-                    val line = readLine(buffered) ?: break
+                    val line = readLine(input) ?: break
                     if (line.isEmpty()) break
+                    if (line.startsWith("Content-Length:", ignoreCase = true))
+                        len = line.substringAfter(':').trim().toIntOrNull() ?: 0
                     if (line.startsWith("X-Nexus-Token:", ignoreCase = true))
                         headerToken = line.substringAfter(':').trim()
                 }
-                buffered.reset()
                 val provided = query.substringBefore('&')
                     .split('&').firstOrNull { it.startsWith("token=") }
                     ?.substringAfter("token=") ?: headerToken ?: ""
@@ -112,13 +113,6 @@ class RemoteDesktopModule : Module {
                     out.write("HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n".toByteArray())
                     out.flush()
                     return@Thread
-                }
-                var body = ""
-                var len = 0
-                while (true) {
-                    val line = readLine(input) ?: break
-                    if (line.startsWith("Content-Length:")) len = line.substringAfter(':').trim().toIntOrNull() ?: 0
-                    if (line.isEmpty()) break
                 }
                 if (len > 0) {
                     val buf = ByteArray(len)
