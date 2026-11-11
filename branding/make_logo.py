@@ -16,8 +16,8 @@ BRAND_DIR = os.path.join(REPO, "branding")
 
 # Brand palette
 PANEL_BG = (13, 16, 22, 255)      # near-black blue
-ORANGE = (255, 140, 40, 255)      # brand orange
-ORANGE_GLOW = (255, 140, 40, 90)
+ACCENT = (255, 70, 30, 255)      # brand orange-red
+ACCENT_GLOW = (255, 70, 30, 90)
 WHITE = (240, 244, 248, 255)
 GRAY = (140, 150, 160, 255)
 
@@ -82,8 +82,8 @@ def _icon_layers(px, icon_cx, icon_cy, icon_size):
 
     glow = Image.new("RGBA", (px, px), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    rounded_rect(gd, icon_cx, icon_cy, icon_size, 0.18, 0.03, ORANGE_GLOW)
-    draw_circuit_n(gd, icon_cx, icon_cy, icon_size, ORANGE_GLOW, 0.03)
+    rounded_rect(gd, icon_cx, icon_cy, icon_size, 0.18, 0.03, ACCENT_GLOW)
+    draw_circuit_n(gd, icon_cx, icon_cy, icon_size, ACCENT_GLOW, 0.03)
     return base, glow
 
 
@@ -96,8 +96,8 @@ def make_logo(size=1024, with_text=True):
 
     icon_cx, icon_cy = px / 2, px * 0.355
     icon_size = px * 0.44
-    rounded_rect(d, icon_cx, icon_cy, icon_size, 0.18, 0.022, ORANGE)
-    draw_circuit_n(d, icon_cx, icon_cy, icon_size, ORANGE)
+    rounded_rect(d, icon_cx, icon_cy, icon_size, 0.18, 0.022, ACCENT)
+    draw_circuit_n(d, icon_cx, icon_cy, icon_size, ACCENT)
 
     if with_text:
         f_word = font(int(px * 0.105), "SemiBold")
@@ -107,7 +107,7 @@ def make_logo(size=1024, with_text=True):
         x = (px - (w1 + w2)) / 2
         y = px * 0.66
         d.text((x, y), t1, font=f_word, fill=WHITE)
-        d.text((x + w1, y), t2, font=f_word, fill=ORANGE)
+        d.text((x + w1, y), t2, font=f_word, fill=ACCENT)
 
         f_tag = font(int(px * 0.042), "Light")
         tag = "UNIFIED CONTROL"
@@ -129,8 +129,8 @@ def make_icon_only(size=512):
     base, glow = _icon_layers(px, px / 2, px / 2, px * 0.70)
     img, d = _compose_with_glow(base, glow, px)
     icon_cx, icon_cy, icon_size = px / 2, px / 2, px * 0.62
-    rounded_rect(d, icon_cx, icon_cy, icon_size, 0.18, 0.028, ORANGE)
-    draw_circuit_n(d, icon_cx, icon_cy, icon_size, ORANGE)
+    rounded_rect(d, icon_cx, icon_cy, icon_size, 0.18, 0.028, ACCENT)
+    draw_circuit_n(d, icon_cx, icon_cy, icon_size, ACCENT)
     return img.resize((size, size), Image.LANCZOS)
 
 
@@ -161,7 +161,7 @@ def _write_icon_svg(path, size=512):
 def main():
     os.makedirs(BRAND_DIR, exist_ok=True)
     logo = make_logo(1024)
-    logo.convert("RGB").save(os.path.join(BRAND_DIR, "nspanel-nexus-logo-orange.png"))
+    logo.convert("RGB").save(os.path.join(BRAND_DIR, "nspanel-nexus-logo-accent.png"))
 
     make_icon_only(512).convert("RGB").save(os.path.join(BRAND_DIR, "icon-512.png"))
     make_icon_only(192).convert("RGB").save(os.path.join(BRAND_DIR, "icon-192.png"))
