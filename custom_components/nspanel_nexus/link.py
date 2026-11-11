@@ -6,10 +6,8 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.json import json_dumps
 
 from .const import DOMAIN
 
@@ -40,9 +38,15 @@ class PanelLink:
 
     # ---- lifecycle -------------------------------------------------------
 
+    @property
+    def mqtt(self):
+        from homeassistant.components import mqtt
+
+        return mqtt
+
     async def async_start(self) -> None:
         self._unsubs.append(
-            await mqtt.async_subscribe(self.hass, f"{self.base}/status", self._on_status, 0)
+            await self.mqtt.async_subscribe(self.hass, f"{self.base}/status", self._on_status, 0)
         )
 
     async def async_stop(self) -> None:
@@ -66,27 +70,27 @@ class PanelLink:
     # ---- subscriptions ---------------------------------------------------
 
     async def async_subscribe_state(self, key: str, cb: Callable[[str], None], qos: int = 0):
-        return await mqtt.async_subscribe(self.hass, f"{self.base}/state/{key}", cb, qos)
+        return await self.mqtt.async_subscribe(self.hass, f"{self.base}/state/{key}", cb, qos)
 
     async def async_subscribe_event(self, kind: str, cb: Callable[[str], None], qos: int = 0):
-        return await mqtt.async_subscribe(self.hass, f"{self.base}/event/{kind}", cb, qos)
+        return await self.mqtt.async_subscribe(self.hass, f"{self.base}/event/{kind}", cb, qos)
 
     # ---- publishing ------------------------------------------------------
 
     async def async_command(self, command: str, **payload: Any) -> None:
-        await mqtt.async_publish(
+        await self.mqtt.async_publish(
             self.hass, f"{self.base}/command/device",
-            json_dumps({"command": command, **payload}), 0, False,
+            json.dumps({"command": command, **payload}), 0, False,
         )
 
     async def async_config_update(self, patch: dict[str, Any]) -> None:
-        await mqtt.async_publish(
-            self.hass, f"{self.base}/config/update", json_dumps(patch), 0, False,
+        await self.mqtt.async_publish(
+            self.hass, f"{self.base}/config/update", json.dumps(patch), 0, False,
         )
 
     async def async_config_query(self, keys: list[str] | None = None) -> None:
         payload = {} if not keys else {k: None for k in keys}
-        await mqtt.async_publish(self.hass, f"{self.base}/config/query", json_dumps(payload), 0, False)
+        await self.mqtt.async_publish(self.hass, f"{self.base}/config/query", json.dumps(payload), 0, False)
 
     def parse_json(self, payload: str) -> Any:
         try:

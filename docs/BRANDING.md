@@ -1,52 +1,46 @@
 # NSPanel Nexus — Home Assistant branding
 
-This is what makes HA pick the integration up **with its own name and logo**.
+## Where HA takes the integration icon from (HA 2026.11+ Marketplace)
 
-## What the integration already has (in `custom_components/nspanel_nexus/`)
-
-| File | What HA uses it for |
-|---|---|
-| `manifest.json` | the integration's identity: `name`, `domain`, `codeowners`, `documentation`, `issue_tracker`, `integration_type: device`, `iot_class: local_push`, `config_flow: true` |
-| `strings.json` | the Setup dialog title, field labels and descriptions HA displays |
-| `logo.png` (kept in `branding/`) | rendered on the Marketplace page via the README |
-
-HA shows the integration's **name** from the manifest everywhere (discovery
-prompt, Devices & services, entity prefixes). That part is complete and works
-as soon as the Marketplace/HACS copy is installed.
-
-## The one thing that needs a PR: the icon and logo
-
-Home Assistant does **not** read icons from the integration folder. The
-frontend pulls them from the official **Brands** repository:
+Custom integrations now ship their brand images **inside the integration**
+in a `brand/` folder. HA's Marketplace reads them straight from the
+integration's latest release, and serves them at:
 
 ```
-https://brands.home-assistant.io/_/nspanel_nexus/icon.png
-https://brands.home-assistant.io/_/nspanel_nexus/logo.png
+https://brands.home-assistant.io/marketplace/nspanel_nexus/icon.png
 ```
 
-For a custom integration you submit those assets yourself — one PR, and every
-HA install in the world shows the NSPanel Nexus logo next to the integration.
+An hourly sync function picks up whatever the latest release contains, so
+after publishing a release with the images the Marketplace shows the icon.
 
-## Ready-made assets (exact sizes the Brands repo requires)
+## What ships (in `custom_components/nspanel_nexus/brand/`)
 
-They are in `branding/ha-brands/`, already at the required dimensions:
+| File | Size | Notes |
+|---|---|---|
+| `icon.png` | 256×256 | light-theme tile |
+| `icon@2x.png` | 512×512 | |
+| `dark_icon.png` | 256×256 | dark-theme tile |
+| `dark_icon@2x.png` | 512×512 | |
+| `logo.png` | 512×256 | landscape, light theme |
+| `logo@2x.png` | 1024×512 | |
+| `dark_logo.png` | 512×256 | dark theme |
+| `dark_logo@2x.png` | 1024×512 | |
 
-| File | Size |
-|---|---|
-| `icon.png` | 256×256 |
-| `icon@2x.png` | 512×512 |
-| `logo.png` | 1024×1024 |
-| `logo@2x.png` | 2048×2048 |
-| `dark_logo.png` | 1024×1024 |
-| `dark_logo@2x.png` | 2048×2048 |
+All images meet the Brands spec: PNG, transparent/trimmed, icon 1:1 at
+256/512 px, logo landscape with shortest side 256/512 px, no Home Assistant
+branded artwork.
 
-## How to submit (5 minutes)
+Regenerate with `python3 branding/make_ha_brand.py`.
 
-1. Fork https://github.com/home-assistant/brands
-2. Create the folder: `brands/home-assistant.io/_/nspanel_nexus/`
-3. Copy the six PNGs above into it (unchanged names)
-4. Open a PR titled `Add nspanel_nexus brand`
-5. Once merged, `https://brands.home-assistant.io/_/nspanel_nexus/logo.png`
-   goes live and HA everywhere shows the branding automatically.
+## What HA reads from the integration folder for identity
 
-No change is needed in this repository for that — the assets are final.
+- `manifest.json` — `name`, `domain`, `codeowners`, `documentation`,
+  `issue_tracker`, `integration_type: device`, `iot_class`, `config_flow`
+- `strings.json` — Setup dialog title, field labels, descriptions
+
+## Legacy note
+
+Older guidance said to submit images to the `home-assistant/brands` repo
+(`custom_integrations/<domain>/`). Since HA 2026.3 the `brand/` folder inside
+the integration is the supported path; the Brands repo remains the fallback
+for HA versions before that.

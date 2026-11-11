@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 
 import voluptuous as vol
-from homeassistant.components import frontend, panel_custom
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 
@@ -30,6 +29,10 @@ SERVICE_CONFIG_UPDATE_SCHEMA = vol.Schema({
 @callback
 def _register_sidebar(hass: HomeAssistant) -> None:
     """Put NSPanel Nexus in HA's left sidebar as the panel manager."""
+    # imported lazily: importing HA components at module import time blocks
+    # the event loop (HA logs a "blocking call to import_module" warning)
+    from homeassistant.components import frontend, panel_custom
+
     js_path = Path(__file__).parent / "www" / "nspanel-nexus-panel.js"
     frontend.async_register_extra_module_url(
         hass, PANEL_URL + "/panel.js", str(js_path)

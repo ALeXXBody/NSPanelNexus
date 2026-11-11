@@ -9,7 +9,7 @@ import socket
 from typing import Any
 
 import voluptuous as vol
-from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
@@ -80,7 +80,7 @@ def _format(panels: list[dict[str, Any]]) -> str:
     return "\n".join(f"• {p.get('name')}  ({p.get('_ip')})" for p in panels)
 
 
-class NexusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the NSPanel Nexus config flow."""
 
     VERSION = 1
@@ -160,7 +160,7 @@ class NexusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return NexusOptionsFlow(config_entry)
 
 
-class NexusOptionsFlow(config_entries.OptionsFlow):
+class NexusOptionsFlow(OptionsFlow):
     """Allow changing the topic prefix later."""
 
     def __init__(self, config_entry) -> None:

@@ -10,3 +10,5 @@ DEFAULT_DEVICE_NAME = "nspanelpro"
 DEFAULT_TOPIC_PREFIX = "nspanelpro"
 
 STATE_ONLINE = "online"
+
+PLATFORMS = ["event", "sensor", "binary_sensor", "switch", "number", "button"]
