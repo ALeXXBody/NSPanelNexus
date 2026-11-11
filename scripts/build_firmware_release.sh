@@ -54,7 +54,7 @@ echo "[2/5] dumping /system"
 SYSTEM_IMG="$OUTDIR/system.img"
 $ADB shell "su -c 'dd if=/dev/block/mmcblk1p11 of=/data/nx.img bs=1048576 2>/dev/null; chmod 644 /data/nx.img; sync'" >/dev/null
 $ADB pull /data/nx.img "$SYSTEM_IMG" 2>&1 | tail -1
-$ADB shell "rm -f /data/nx.img"
+$ADB shell "su -c "rm -f /data/nx.img""
 
 HOST_MD5=$(md5sum "$SYSTEM_IMG" | cut -d' ' -f1)
 DEV_MD5=$($ADB shell "su -c 'md5sum /dev/block/mmcblk1p11'" | cut -d' ' -f1)
