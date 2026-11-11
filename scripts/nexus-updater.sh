@@ -60,9 +60,14 @@ ACTUAL_SHA=$(sha256sum "$TMP" | cut -d' ' -f1)
 [ "$ACTUAL_SHA" != "$SHA" ] && { echo "sha256 mismatch"; rm -f "$TMP"; exit 1; }
 echo "[*] image verified (sha256 ✓, size ✓)"
 
-echo "[*] backing up current system → $BK"
-dd if="$SYSTEM_DEV" of="$BK" bs=1048576 2>/dev/null
-sync
+echo "[*] backing up current system → $BK (optional)"
+if dd if="$SYSTEM_DEV" of="$BK" bs=1048576 2>/dev/null; then
+  sync
+  echo "    backup saved"
+else
+  echo "    WARNING: could not back up (insufficient space) — rollback via host tooling still available"
+  rm -f "$BK"
+fi
 
 echo "[*] writing new system"
 dd if="$TMP" of="$SYSTEM_DEV" bs=1048576 2>/dev/null
@@ -70,5 +75,5 @@ sync
 rm -f "$TMP"
 echo "$NEWVER" > "$VERFILE"
 
-echo "[*] done — rebooting (rollback available: nexus-updater.sh --rollback)"
+echo "[*] done — rebooting"
 reboot
