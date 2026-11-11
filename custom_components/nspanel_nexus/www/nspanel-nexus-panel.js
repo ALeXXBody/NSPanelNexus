@@ -140,9 +140,9 @@
         screen: "switch", brightness: "number",
         module_remote_desktop: "switch", module_voice: "switch", module_zigbee: "switch",
         remote_desktop: "sensor",
-        sensor_illuminance: "sensor", sensor_ip_address: "sensor",
-        sensor_uptime: "sensor", sensor_firmware: "sensor",
-        event_touch: "event", event_proximity: "event", event_light: "event",
+        illuminance: "sensor", ip_address: "sensor",
+        uptime: "sensor", firmware: "sensor",
+        touch: "event", proximity: "event", light: "event",
         presence: "binary_sensor",
       };
       Object.keys(candidates).forEach((obj) => {
@@ -216,14 +216,14 @@
                          : (entry ? (entry.title || "").replace(/^NSPanel /, "") : "panel");
         const ents = this._entityMap(entry, dev);
         const st = (id) => (ents[id] ? h.states[ents[id]] : null);
-        const probe = st("sensor_uptime") || st("sensor_ip_address");
+        const probe = st("uptime") || st("ip_address");
         const online = probe ? probe.state !== "unavailable" : true;
         const screen = st("screen");
         const bright = st("brightness");
         const rdp = st("module_remote_desktop");
         const url = st("remote_desktop");
-        const lux = st("sensor_illuminance");
-        const ip = st("sensor_ip_address");
+        const lux = st("illuminance");
+        const ip = st("ip_address");
 
         const card = document.createElement("div");
         card.className = "card " + (online ? "on" : "off");
@@ -281,7 +281,7 @@
         const data = (entry && (entry.data || entry.raw_data)) || null;
         const dev = data ? data.device_name : (entry.title || "").replace(/^NSPanel /, "");
         const ents = this._entityMap(entry, dev);
-        const cur = ents["sensor_firmware"] ? h.states[ents["sensor_firmware"]] : null;
+        const cur = ents["firmware"] ? h.states[ents["firmware"]] : null;
         const card = document.createElement("div");
         card.className = "card on";
         card.innerHTML = `
