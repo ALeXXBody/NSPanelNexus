@@ -1,0 +1,2 @@
+-keep class io.nexus.panel.** { *; }
+-dontwarn org.eclipse.paho.**

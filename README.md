@@ -71,6 +71,15 @@ nspanel-nexus firmware dump     # verified backup of every partition
 nspanel-nexus firmware flash system clean/system.img   # install / rollback
 ```
 
+## The AIO app
+
+`app/` — one Android app on the panel, every function a switch:
+MQTT (HA discovery, events, commands, remote config) · proximity/light sensors
+· display wake/sleep/brightness/schedules · HA dashboard kiosk · Assist voice
+satellite · Zigbee coordinator/router · Nexus OTA firmware · fleet discovery.
+
+See [app/PLAN.md](app/PLAN.md) for the phase plan and current status.
+
 ## Research
 
 - [NSPanel Pro hardware & rooting](research/NSPANEL_PRO_HARDWARE.md)
