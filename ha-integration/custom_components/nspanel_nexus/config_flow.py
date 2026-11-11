@@ -12,8 +12,11 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
-    DEFAULT_DEVICE_NAME, DEFAULT_TOPIC_PREFIX, DOMAIN,
-    CONF_DEVICE_NAME, CONF_TOPIC_PREFIX,
+    CONF_DEVICE_NAME,
+    CONF_TOPIC_PREFIX,
+    DEFAULT_DEVICE_NAME,
+    DEFAULT_TOPIC_PREFIX,
+    DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,7 +43,7 @@ async def _discover_panels() -> list[dict[str, Any]]:
                         name = info.get("name") or addr[0]
                         info["_ip"] = addr[0]
                         found[name] = info
-                    except (socket.timeout, ValueError):
+                    except (TimeoutError, ValueError):
                         break
         except OSError:
             pass
@@ -48,7 +51,7 @@ async def _discover_panels() -> list[dict[str, Any]]:
 
     try:
         return await loop.run_in_executor(None, _do)
-    except Exception:
+    except OSError:
         return []
 
 
@@ -100,7 +103,6 @@ class NexusOptionsFlow(config_entries.OptionsFlow):
 
 def _schema(panels: list[dict[str, Any]]):
     import voluptuous as vol
-    from homeassistant.const import CONF_NAME
 
     suggestions = {
         vol.Optional(CONF_DEVICE_NAME, default=DEFAULT_DEVICE_NAME): str,

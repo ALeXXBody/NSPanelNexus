@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import logging
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv
-import voluptuous as vol
 
-from .const import DOMAIN, CONF_DEVICE_NAME, CONF_TOPIC_PREFIX
+from .const import CONF_DEVICE_NAME, CONF_TOPIC_PREFIX, DOMAIN
 from .link import PanelLink
 
 _LOGGER = logging.getLogger(__name__)

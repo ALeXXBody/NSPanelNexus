@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from homeassistant.core import callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
 from .link import PanelLink
