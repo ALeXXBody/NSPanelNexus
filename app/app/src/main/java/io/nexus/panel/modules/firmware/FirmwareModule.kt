@@ -39,7 +39,8 @@ class FirmwareModule : Module {
     // ---- manifest -------------------------------------------------------
 
     fun checkForUpdate() {
-        val manifestUrl = Settings.get("nexus_manifest_url", "")
+        val manifestUrl = Settings.get("nexus_manifest_url",
+            "https://github.com/ALeXXBody/NSPanelNexus/releases/download/firmware-1.0.0/manifest.json")
         if (manifestUrl.isBlank()) return
         Thread {
             try {

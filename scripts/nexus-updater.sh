@@ -40,11 +40,10 @@ mkdir -p /data/nexus
 
 echo "[*] fetching manifest"
 curl -sL --fail "$URL" -o /data/nexus/manifest.json || { echo "manifest fetch failed"; exit 1; }
-NEWVER=$(grep -o '"version":"[^"]*"' /data/nexus/manifest.json | head -1 | cut -d'"' -f4)
-IMGURL=$(grep -o '"url":"[^"]*"' /data/nexus/manifest.json | head -1 | cut -d'"' -f4)
-SHA=$(grep -o '"sha256":"[^"]*"' /tmp/opencode/ha/manifest.json 2>/dev/null | head -1 | cut -d'"' -f4 || true)
-SHA=$(grep -o '"sha256":"[^"]*"' /data/nexus/manifest.json | head -1 | cut -d'"' -f4)
-SIZE=$(grep -o '"size":[0-9]*' /data/nexus/manifest.json | head -1 | cut -d':' -f2)
+NEWVER=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' /data/nexus/manifest.json | head -1 | sed 's/.*: *"\([^"]*\)"/\1/')
+IMGURL=$(grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' /data/nexus/manifest.json | head -1 | sed 's/.*: *"\([^"]*\)"/\1/')
+SHA=$(grep -o '"sha256"[[:space:]]*:[[:space:]]*"[^"]*"' /data/nexus/manifest.json | head -1 | sed 's/.*: *"\([^"]*\)"/\1/')
+SIZE=$(grep -o '"size"[[:space:]]*:[[:space:]]*[0-9]*' /data/nexus/manifest.json | head -1 | sed 's/.*: *//')
 echo "    version=$NEWVER size=$SIZE"
 
 CUR=$(cat "$VERFILE" 2>/dev/null || echo none)
