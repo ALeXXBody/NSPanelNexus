@@ -21,13 +21,13 @@ after publishing a release with the images the Marketplace shows the icon.
 | `icon@2x.png` | 512×512 | |
 | `dark_icon.png` | 256×256 | dark-theme tile |
 | `dark_icon@2x.png` | 512×512 | |
-| `logo.png` | 512×256 | landscape, light theme |
-| `logo@2x.png` | 1024×512 | |
-| `dark_logo.png` | 512×256 | dark theme |
-| `dark_logo@2x.png` | 1024×512 | |
+| `logo.png` | 640×320 | landscape 2:1, light theme |
+| `logo@2x.png` | 1280×640 | best display |
+| `dark_logo.png` | 640×320 | dark theme |
+| `dark_logo@2x.png` | 1280×640 | |
 
 All images meet the Brands spec: PNG, transparent/trimmed, icon 1:1 at
-256/512 px, logo landscape with shortest side 256/512 px, no Home Assistant
+256/512 px, logo landscape 2:1 (640×320, 1280×640), no Home Assistant
 branded artwork.
 
 Regenerate with `python3 branding/make_ha_brand.py`.

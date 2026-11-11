@@ -88,8 +88,8 @@ def main():
     for size, name in ((256, "icon.png"), (512, "icon@2x.png")):
         rounded_tile(size).save(os.path.join(OUT, name))
         rounded_tile(size).save(os.path.join(OUT, "dark_" + name))
-    # logos: landscape, shortest side 256 (normal) / 512 (@2x)
-    for w, h, name in ((512, 256, "logo.png"), (1024, 512, "logo@2x.png")):
+    # logos: landscape 2:1 — 640x320 (normal), 1280x640 (@2x "best display")
+    for w, h, name in ((640, 320, "logo.png"), (1280, 640, "logo@2x.png")):
         wordmark(w, h, ACCENT, WHITE).save(os.path.join(OUT, "dark_" + name))
         wordmark(w, h, ACCENT, (13, 16, 22, 255),
                  bg=(255, 255, 255, 255)).save(os.path.join(OUT, name))
