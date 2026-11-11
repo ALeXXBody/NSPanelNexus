@@ -8,37 +8,44 @@
  */
 (function () {
   const CSS = `
-    :host{display:block;color:var(--primary-text-color)}
-    .topbar{display:flex;align-items:center;gap:12px;padding:10px 18px;
-            background:#111318;border-bottom:1px solid #22262e}
-    .topbar img{height:38px;width:38px;border-radius:10px}
-    .topbar .name{font-size:18px;font-weight:700;color:#fff;letter-spacing:.3px}
-    .topbar .name b{color:#FF8C28;font-weight:700}
-    .tabs{display:flex;gap:4px;margin-left:26px}
-    .tab{padding:8px 16px;border-radius:8px;cursor:pointer;font-size:14px;color:#aab2bd}
-    .tab.active{background:#232830;color:#fff}
-    .body{padding:18px 22px;max-width:1400px}
-    h2{font-size:24px;font-weight:500;margin:6px 0 16px;color:#e8ebef}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
-    .card{background:#161a20;border:0;border-top:3px solid #757575;border-radius:4px;
-          padding:14px 16px;color:#dfe4ea;position:relative}
+    :host{display:block;min-height:100%;background:#181a1f;
+          font-family:Roboto,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;
+          color:#e8ebef}
+    .topbar{display:flex;align-items:center;gap:14px;padding:0 18px;height:64px;
+            background:#111318;border-bottom:1px solid #22262e;position:sticky;top:0;z-index:5}
+    .topbar img{height:42px;width:42px;border-radius:10px;background:#0d1016;padding:2px}
+    .topbar .name{font-size:20px;font-weight:700;color:#fff;letter-spacing:.3px;white-space:nowrap}
+    .topbar .name b{color:#FF8C28}
+    .tabs{display:flex;gap:2px;margin-left:34px}
+    .tab{padding:10px 18px;cursor:pointer;font-size:14px;color:#aab2bd;border-radius:0}
+    .tab:hover{color:#fff}
+    .tab.active{color:#fff;border-bottom:2px solid #FF8C28}
+    .body{padding:22px 30px;max-width:1500px}
+    h2{font-size:26px;font-weight:400;margin:4px 0 22px;color:#e8ebef}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+    .card{background:#22252b;border-radius:4px;border-top:3px solid #757575;
+          padding:14px 16px 12px;color:#dfe4ea;position:relative;
+          box-shadow:0 1px 3px rgba(0,0,0,.35)}
     .card.on{border-top-color:#2e9e44}
-    .card .pname{font-size:17px;font-weight:600;margin-bottom:8px;color:#f2f4f7}
-    .stat{display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0;color:#aab2bd}
-    .actions{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px}
-    .actions button, .btn{border:0;border-radius:4px;padding:8px 14px;cursor:pointer;
-           font-size:13px;background:#232830;color:#dfe4ea}
-    .actions button:hover,.btn:hover{background:#2c323b}
+    .card .pname{font-size:17px;font-weight:500;margin-bottom:10px;color:#f2f4f7}
+    .stat{display:flex;align-items:center;gap:8px;font-size:13px;margin:7px 0;color:#c3cad3}
+    .stat .ic{width:16px;text-align:center;color:#9aa2ad}
+    .gear{position:absolute;bottom:10px;right:12px;border:0;background:transparent;
+          color:#9aa2ad;font-size:17px;cursor:pointer;padding:4px}
+    .gear:hover{color:#fff}
+    .actions{display:none;margin-top:12px;padding-top:10px;border-top:1px solid #2c323b;
+             flex-wrap:wrap;gap:6px}
+    .card.open .actions{display:flex}
+    .actions button,.btn{border:0;border-radius:3px;padding:8px 14px;cursor:pointer;
+           font-size:13px;background:#2c323b;color:#dfe4ea}
+    .actions button:hover,.btn:hover{background:#363d47}
     .actions button.primary{background:#FF8C28;color:#111318;font-weight:600}
     .actions button.warn{background:#5d1d1d;color:#ff9b9b}
-    input[type=range]{width:150px;accent-color:#FF8C28;vertical-align:middle}
-    .pill{position:absolute;top:10px;right:12px;font-size:12px;color:#8fd19e}
-    .pill.off{color:#9aa2ad}
-    .field{margin:10px 0}
-    .field .lbl{font-size:12px;color:#8d97a3;margin-bottom:4px}
-    select{padding:8px;border-radius:4px;background:#232830;color:#dfe4ea;border:1px solid #2c323b}
+    input[type=range]{width:170px;accent-color:#FF8C28;vertical-align:middle}
+    select{padding:8px;border-radius:3px;background:#232830;color:#dfe4ea;border:1px solid #2c323b}
     .err{color:#ff8a8a;font-size:13px;white-space:pre-wrap}
     .about{font-size:13px;color:#aab2bd;line-height:1.6}
+    a{color:#FF8C28;text-decoration:none}
   `;
 
   // which entity unique_ids map to which row in a panel card
@@ -69,9 +76,15 @@
       this._schedule();
     }
 
-    _schedule() {
+    _schedule(force) {
+      const now = Date.now();
+      if (!force && now - this._lastRefresh < 5000) {
+        clearTimeout(this._t);
+        this._t = setTimeout(() => this._schedule(true), 5000 - (now - this._lastRefresh));
+        return;
+      }
       clearTimeout(this._t);
-      this._t = setTimeout(() => this._refresh(), 150);
+      this._t = setTimeout(() => this._refresh(), 120);
     }
 
     _skeleton() {
@@ -82,6 +95,7 @@
     async _refresh() {
       const h = this._hass;
       if (!h) return;
+      this._lastRefresh = Date.now();
       try {
         try {
           const ws = await h.callWS({ type: "config_entries/get", include_data: true });
@@ -116,35 +130,36 @@
       this._render();
     }
 
+    // hass.states is a Proxy — Object.keys() does NOT work on it.
+    // Entity ids are deterministic: <domain>.nspanel_<dev>_<obj>
     _entityMap(entry, dev) {
       const h = this._hass, out = {};
-      if (this._registry && this._registry.length) {
-        this._registry.forEach((r) => {
-          if (r.config_entry_id === entry.entry_id) {
-            const uid = (r.unique_id || "").replace("nexus_" + dev + "_", "");
-            out[uid] = r.entity_id;
-          }
-        });
-      }
-      if (!Object.keys(out).length) {
-        const prefix = "nexus." + String(dev).toLowerCase() + "_";
-        Object.keys(h.states).forEach((eid) => {
-          if (eid.startsWith(prefix)) out[eid.slice(prefix.length)] = eid;
-        });
-      }
+      const slug = String(dev).toLowerCase().replace(/[^a-z0-9_]+/g, "_");
+      const base = "nspanel_" + slug + "_";
+      const candidates = {
+        screen: "switch", brightness: "number",
+        module_remote_desktop: "switch", module_voice: "switch", module_zigbee: "switch",
+        remote_desktop: "sensor",
+        sensor_illuminance: "sensor", sensor_ip_address: "sensor",
+        sensor_uptime: "sensor", sensor_firmware: "sensor",
+        event_touch: "event", event_proximity: "event", event_light: "event",
+        presence: "binary_sensor",
+      };
+      Object.keys(candidates).forEach((obj) => {
+        const eid = candidates[obj] + "." + base + obj;
+        if (h.states[eid]) out[obj] = eid;
+      });
       return out;
     }
 
     _topbar() {
+      const tabs = [["panels","Panels"],["firmware","Firmware"],["settings","Settings"],["about","About"]]
+        .map(([id, label]) => `<div class="tab ${this._tab === id ? "active" : ""}" data-t="${id}">${label}</div>`)
+        .join("");
       return `<div class="topbar">
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <span class="name">NSPanel <b>Nexus</b></span>
-        <div class="tabs">
-          <div class="tab ${this._tab === "panels" ? "active" : ""}" data-t="panels">Panels</div>
-          <div class="tab ${this._tab === "firmware" ? "active" : ""}" data-t="firmware">Firmware</div>
-          <div class="tab ${this._tab === "settings" ? "active" : ""}" data-t="settings">Settings</div>
-          <div class="tab ${this._tab === "about" ? "active" : ""}" data-t="about">About</div>
-        </div>
+        <div class="tabs">${tabs}</div>
       </div>`;
     }
 
@@ -200,38 +215,40 @@
         card.className = "card " + (online ? "on" : "off");
         card.innerHTML = `
           <div class="pname">${dev}</div>
-          <span class="pill ${online ? "" : "off"}">${online ? "online" : "offline"}</span>
-          ${ip ? `<div class="stat">⌂ ${ip.state}</div>` : ""}
-          ${lux ? `<div class="stat">☀ ${lux.state} lx</div>` : ""}
-          <div class="field"><div class="lbl">Brightness ${bright ? bright.state : ""}</div>
-            <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br>
-          </div>
-          <div class="actions">
+          ${ip ? `<div class="stat"><span class="ic">⌂</span>${ip.state}</div>` : ""}
+          ${lux ? `<div class="stat"><span class="ic">☀</span>${lux.state} lx</div>` : ""}
+          ${probe ? `<div class="stat"><span class="ic">⏱</span>uptime ${probe.state} s</div>` : ""}
+          <div class="actions" style="display:flex;border:0;padding:6px 0 0">
             <button class="primary" data-act="screen">${screen && screen.state === "on" ? "Sleep" : "Wake"}</button>
-            <button data-act="rdp">${rdp && rdp.state === "on" ? "Remote desktop: on" : "Remote desktop: off"}</button>
+            <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br title="brightness">
+            ${rdp ? `<button data-act="rdp">${rdp.state === "on" ? "RD on" : "RD off"}</button>` : ""}
             ${url && url.state ? `<button data-act="open">Open</button>` : ""}
             <button class="warn" data-act="reboot">Reboot</button>
-          </div>`;
+          </div>
+`;
 
-        card.querySelector("[data-br]").onchange = (e) => {
+        const on = (sel, fn) => {
+          const el = card.querySelector(sel);
+          if (el) el.onclick = fn;
+        };
+        on("[data-br]", (e) => {
           if (ents["brightness"]) h.callService("number", "set_value",
             { entity_id: ents["brightness"], value: Number(e.target.value) });
-        };
-        card.querySelector("[data-act=screen]").onclick = () => {
+        });
+        on("[data-act=screen]", () => {
           if (ents["screen"]) h.callService("switch",
             screen && screen.state === "on" ? "turn_off" : "turn_on", { entity_id: ents["screen"] });
-          setTimeout(() => this._refresh(), 700);
-        };
-        card.querySelector("[data-act=rdp]").onclick = () => {
+          setTimeout(() => this._schedule(true), 700);
+        });
+        on("[data-act=rdp]", () => {
           if (ents["module_remote_desktop"]) h.callService("switch",
             rdp && rdp.state === "on" ? "turn_off" : "turn_on",
             { entity_id: ents["module_remote_desktop"] });
-          setTimeout(() => this._refresh(), 700);
-        };
-        const open = card.querySelector("[data-act=open]");
-        if (open) open.onclick = () => window.open(url.state, "_blank");
-        card.querySelector("[data-act=reboot]").onclick = () =>
-          h.callService("nspanel_nexus", "command", { device_name: dev, command: "reboot" });
+          setTimeout(() => this._schedule(true), 700);
+        });
+        on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
+        on("[data-act=reboot]", () =>
+          h.callService("nspanel_nexus", "command", { device_name: dev, command: "reboot" }));
 
         grid.appendChild(card);
       });

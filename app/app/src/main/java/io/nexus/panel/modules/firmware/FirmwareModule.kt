@@ -22,6 +22,8 @@ class FirmwareModule : Module {
 
     override val name = "firmware"
 
+    private val updateLock = Any()
+
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
 
     override fun status(): String = "version=${Settings.get("nexus_version", "unknown")}"
@@ -59,6 +61,12 @@ class FirmwareModule : Module {
     fun installPending() { checkForUpdate() }
 
     private fun downloadAndWrite(url: String, size: Long, sha: String, version: String) {
+        synchronized(updateLock) {
+            downloadAndWriteLocked(url, size, sha, version)
+        }
+    }
+
+    private fun downloadAndWriteLocked(url: String, size: Long, sha: String, version: String) {
         val tmp = File("/data/nexus/system.img.new")
         val dir = tmp.parentFile ?: return
         dir.mkdirs()

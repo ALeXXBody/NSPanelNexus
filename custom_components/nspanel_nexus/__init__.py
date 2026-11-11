@@ -95,6 +95,7 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    _LOGGER.info("setting up entry %s data=%s", entry.entry_id, dict(entry.data))
     link = PanelLink(
         hass,
         entry.data[CONF_DEVICE_NAME],
@@ -103,6 +104,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"link": link}
     await link.async_start()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _LOGGER.info("entry %s forwarded to %s", entry.entry_id, PLATFORMS)
     return True
 
 

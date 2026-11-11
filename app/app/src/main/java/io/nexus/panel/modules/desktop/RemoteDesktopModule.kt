@@ -42,10 +42,20 @@ class RemoteDesktopModule : Module {
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
     private val port: Int get() = Settings.getInt("remote_desktop_port", 8080)
 
-    override fun status(): String =
-        if (running) "http://<panel>:$port/" else "disabled"
+    /** Shared secret; the server refuses to start without one. */
+    private val token: String get() = Settings.get("remote_desktop_token", "")
+
+    override fun status(): String = when {
+        token.isBlank() -> "disabled (no token set)"
+        running -> "http://<panel>:$port/#$token"
+        else -> "stopped"
+    }
 
     override fun start(context: Context) {
+        if (token.isBlank()) {
+            // refuse to expose the panel's screen without a secret
+            return
+        }
         running = true
         thread = Thread {
             try {
@@ -80,7 +90,29 @@ class RemoteDesktopModule : Module {
                 val parts = requestLine.split(" ")
                 if (parts.size < 2) return@Thread
                 val method = parts[0]
-                val path = parts[1].substringBefore('?')
+                val rawPath = parts[1]
+                val query = if (rawPath.contains('?')) rawPath.substringAfter('?') else ""
+                val path = rawPath.substringBefore('?')
+                // auth: token must match in the query string or a header
+                var headerToken: String? = null
+                val buffered = input.buffered()
+                buffered.mark(8192)
+                while (true) {
+                    val line = readLine(buffered) ?: break
+                    if (line.isEmpty()) break
+                    if (line.startsWith("X-Nexus-Token:", ignoreCase = true))
+                        headerToken = line.substringAfter(':').trim()
+                }
+                buffered.reset()
+                val provided = query.substringBefore('&')
+                    .split('&').firstOrNull { it.startsWith("token=") }
+                    ?.substringAfter("token=") ?: headerToken ?: ""
+                if (provided != token) {
+                    val out = socket.getOutputStream()
+                    out.write("HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n".toByteArray())
+                    out.flush()
+                    return@Thread
+                }
                 var body = ""
                 var len = 0
                 while (true) {
@@ -185,7 +217,9 @@ body{margin:0;background:#111;color:#eee;font-family:monospace;text-align:center
 input.txt{width:55%;padding:6px}
 </style></head><body>
 <h3>NSPanel Nexus — remote desktop</h3>
-<img id="screen" src="/stream" alt="panel screen"
+<img id="screen" alt="panel screen">
+<script>if(!location.hash.slice(1)) location.hash = '#'+(prompt('Access token')||'');</script>
+<script>document.addEventListener('DOMContentLoaded',()=>{document.getElementById('screen').src='/stream?token='+tok();});</script>
      draggable="false" ondragstart="return false" oncontextmenu="return false">
 <p id="log">click to tap · drag to scroll · wheel to scroll</p>
 <p>
@@ -267,7 +301,8 @@ function tap(x,y){ post('/input/tap','x='+x+'&y='+y); log.textContent='tap '+x+'
 function swipe(x1,y1,x2,y2,ms){ post('/input/swipe','x1='+x1+'&y1='+y1+'&x2='+x2+'&y2='+y2+'&ms='+ms); log.textContent='swipe '+x1+','+y1+' -> '+x2+','+y2; }
 function key(c){ post('/input/key','code='+c); log.textContent='key '+c; }
 function sendText(t){ post('/input/text','text='+encodeURIComponent(t)); }
-function post(url,body){ fetch(url,{method:'POST',body:body}); }
+function post(url,body){ fetch(url,{method:'POST',body:body,headers:{'X-Nexus-Token':tok()}}); }
+function tok(){ return (location.hash || '#').slice(1); }
 </script></body></html>
 """.trimIndent()
         write(out, "200 OK", "text/html", html.toByteArray())

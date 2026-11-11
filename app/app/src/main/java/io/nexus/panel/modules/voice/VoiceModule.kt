@@ -30,7 +30,6 @@ class VoiceModule : Module {
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
     private var streaming = false
-    private val thread = ThreadLocal<Boolean>()
     private var nextId = 1
 
     override fun status(): String = if (ws != null) "ready" else "stopped"

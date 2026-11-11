@@ -27,6 +27,8 @@ class NexusButton(ButtonEntity, NexusEntity):
 
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
+    import logging
+    logging.getLogger(__name__).info('%s platform setup for entry', 'button')
     link = hass.data["nspanel_nexus"][entry.entry_id]["link"]
     async_add_entities([
         NexusButton(link, "wake", "Wake", "wake_up", icon="mdi:screen-rotation",

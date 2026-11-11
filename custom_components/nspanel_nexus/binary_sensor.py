@@ -9,6 +9,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.core import callback
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from .entity import NexusEntity
@@ -33,24 +34,22 @@ class NexusPresence(BinarySensorEntity, NexusEntity):
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self._unsub = await self._link.async_subscribe_event("proximity", self._on_event)
-        self.async_on_remove(self.async_track_expire())
+
+        @callback
+        def _expire(now) -> None:
+            if (self._last_trigger and
+                    dt_util.utcnow() - self._last_trigger > self._timeout):
+                self._attr_is_on = False
+                self.async_write_ha_state()
+
+        self.async_on_remove(
+            async_track_time_interval(self.hass, _expire, self._timeout))
+        self.async_on_remove(self._unsub)
 
     async def async_will_remove_from_hass(self) -> None:
         if self._unsub:
             self._unsub()
             self._unsub = None
-
-    def async_track_expire(self):
-        """Expire presence after the timeout without another trigger."""
-        async def _expire():
-            if (self._last_trigger and
-                    dt_util.utcnow() - self._last_trigger > self._timeout):
-                self._attr_is_on = False
-                self.async_write_ha_state()
-            self.async_schedule_update_ha_state(True)
-        # simple periodic re-check
-        from homeassistant.helpers.event import async_track_time_interval
-        return async_track_time_interval(self.hass, _expire, self._timeout)
 
     @callback
     def _on_event(self, msg) -> None:
@@ -60,5 +59,7 @@ class NexusPresence(BinarySensorEntity, NexusEntity):
 
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
+    import logging
+    logging.getLogger(__name__).info('%s platform setup for entry', 'binary_sensor')
     link = hass.data["nspanel_nexus"][entry.entry_id]["link"]
     async_add_entities([NexusPresence(link)], False)
