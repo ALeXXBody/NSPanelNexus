@@ -3,8 +3,7 @@
 files into /home/truenas_admin/NSPanelCore/branding/uploads/."""
 import os
 import re
-import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 UPLOAD_DIR = "/home/truenas_admin/NSPanelCore/branding/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)

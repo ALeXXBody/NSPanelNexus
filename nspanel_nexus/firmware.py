@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 from .adb import AdbClient
-from .config import DeviceConfig
 
 # Partition map of the NSPanel Pro (86P, PX30), read from /dev/block/by-name
 PARTITIONS = {

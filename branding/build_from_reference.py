@@ -12,11 +12,12 @@ Outputs:
   branding/splash-preview-eu.png / -us.png              panel startup splash previews
   docker/HMI_files/hmi_pictures/{eu,us}/tft{1..4}/6.png regenerated
 """
-from PIL import Image, ImageDraw, ImageFilter
 import base64
 import glob
 import io
 import os
+
+from PIL import Image, ImageDraw, ImageFilter
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REF_PATH = sorted(glob.glob(os.path.join(REPO, "branding", "uploads", "image_*")))[0]

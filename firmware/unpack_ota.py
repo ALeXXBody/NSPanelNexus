@@ -9,12 +9,12 @@ the transfer lists. Requires brotli (pip install brotli).
 """
 from __future__ import annotations
 
-import brotli
 import os
 import sys
 import zipfile
 from pathlib import Path
 
+import brotli
 
 BLOCK_SIZE = 4096
 
@@ -28,7 +28,6 @@ def sdat2img(transfer_list: Path, new_dat: Path, out_img: Path) -> None:
 
     lines = transfer_list.read_text().splitlines()
     # parse header
-    idx = 0
     # skip version + block size lines until commands
     # find first command line
     cmds = []

@@ -8,10 +8,11 @@ on a background matched to the artwork's own dark color.
 
 No redrawing, no tracing, no generated shapes — only crops of the original.
 """
-from PIL import Image, ImageDraw, ImageFilter
 import glob
 import os
 import sys
+
+from PIL import Image, ImageDraw, ImageFilter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_logo import CYAN, WHITE, GRAY, rounded_rect, draw_circuit_n, font  # noqa

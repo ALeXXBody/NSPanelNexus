@@ -8,8 +8,9 @@ Generates the master logo (neon circuit-N in a rounded square + wordmark +
   docker/icon.png / icon128.png / icon64.png / logo.png   (HA add-on icons)
   docker/web-ui/public icons (icon-512.png, icon-192.png)
 """
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import os
+
+from PIL import Image, ImageDraw, ImageFont
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRAND_DIR = os.path.join(REPO, "branding")

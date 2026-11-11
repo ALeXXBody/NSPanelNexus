@@ -7,13 +7,14 @@ Flat render of the USER'S EXACT artwork shape:
 - Compose the splash (EU 455x320, US 320x455) and the logo/icons from these
   flattened crops. Nothing is drawn by hand — only the user's own shapes.
 """
-from PIL import Image, ImageDraw, ImageFilter
-import numpy as np
 import os
 import sys
 
+import numpy as np
+from PIL import Image, ImageFilter
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import build_from_reference as b  # noqa  (provides REF paths + save_icons)
+import build_from_reference as b
 
 REPO = b.REPO
 FLAT_CYAN = (57, 200, 232)

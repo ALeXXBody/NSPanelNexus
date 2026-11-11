@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
-import subprocess
-import time
 from pathlib import Path
 
 import click
@@ -14,7 +11,7 @@ from rich.console import Console
 
 from .adb import AdbClient
 from .config import DeviceConfig
-from .firmware import PARTITIONS, PARTITION_SIZES, sha256
+from .firmware import PARTITION_SIZES, PARTITIONS, sha256
 
 console = Console()
 
@@ -58,7 +55,6 @@ def dump(out, parts):
         c.shell("rm -f /data/nx.dump")
         f = out / f"{name}.img"
         dev_md5 = c.shell(f"md5sum {dev}").stdout.split()[0]
-        ok = sha256(f)  # warm check only
         h = _md5(f)
         if h == dev_md5 and f.stat().st_size == size:
             console.print(f"  [green]ok[/green] {name}.img ({size} B, md5 {h[:12]}…)")
@@ -106,7 +102,7 @@ def flash(name, image, backup):
     c.push(image, "/data/nx.new")
     c.shell("chmod 644 /data/nx.new; sync")
     # verify the pushed image on device before writing
-    dev_sha = c.shell(f"sha256sum /data/nx.new").stdout.split()[0]
+    dev_sha = c.shell("sha256sum /data/nx.new").stdout.split()[0]
     if dev_sha != sha256(image):
         console.print("[red]pushed image hash mismatch — aborting[/red]")
         raise SystemExit(1)

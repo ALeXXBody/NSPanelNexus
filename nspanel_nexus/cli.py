@@ -12,10 +12,9 @@ from rich.table import Table
 
 from .adb import AdbClient
 from .config import DeviceConfig
+from .firmware_cli import firmware as firmware_group
 from .mqtt import NexusMqtt
 from .screenshot import capture
-
-from .firmware_cli import firmware as firmware_group
 
 console = Console()
 CONFIG_PATH = Path.home() / ".config" / "nspanel-nexus" / "device.json"
