@@ -9,5 +9,8 @@ build/
 *.png
 !branding/*.png
 !custom_components/nspanel_nexus/brand/*.png
+!custom_components/nspanel_nexus/www/brand/*.png
+/icon.png
+/logo.png
 .env
 device.json
