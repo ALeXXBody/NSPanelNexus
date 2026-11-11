@@ -65,8 +65,16 @@ nspanel-nexus screenshot -o panel.png
 - [NSPanel Pro hardware & rooting](research/NSPANEL_PRO_HARDWARE.md)
 - [Ecosystem & feature matrix](research/ECOSYSTEM.md)
 - [Feature matrix (Nexus vs. sources)](research/FEATURE_MATRIX.md)
+- [Firmware feasibility & debloat](research/FIRMWARE_RESEARCH.md)
 - [MQTT command reference](docs/MQTT_COMMANDS.md)
 - [Roadmap](docs/ROADMAP.md)
+
+## Debloat (rooted panels)
+
+Rooted panels ship with heavy Sonoff factory/test apps. `scripts/debloat_nspanel_pro.sh`
+installs the minimal KISS Launcher, sets it as default home, removes the bloat
+(including the 151 MB Sonoff control panel, optional), and reboots — keeping the
+panel fully functional and faster. Tested on a live NSPanel Pro (FW 3.0.0).
 
 ## Related projects
 
