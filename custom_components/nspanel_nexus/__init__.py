@@ -88,7 +88,7 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
     # the whole integration (entities keep working without it)
     try:
         await _register_sidebar(hass)
-    except Exception:  # noqa: BLE001
+    except Exception:
         _LOGGER.exception("sidebar registration failed — integration continues")
 
     return True
