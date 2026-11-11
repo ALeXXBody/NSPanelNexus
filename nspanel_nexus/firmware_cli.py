@@ -128,6 +128,59 @@ def manifest(images, version, out):
     console.print(f"wrote {out}")
 
 
+@firmware.command("build-release")
+@click.argument("panel_ip")
+@click.argument("version")
+@click.option("--publish", is_flag=True, help="Publish to GitHub Releases")
+@click.option("--out", default=".", type=click.Path(path_type=Path))
+def build_release(panel_ip, version, publish, out):
+    """Build a firmware release: debloat the panel, dump /system, package."""
+    import subprocess
+    script = Path(__file__).parent.parent.parent / "scripts" / "build_firmware_release.sh"
+    if not script.exists():
+        console.print("[red]scripts/build_firmware_release.sh not found[/red]")
+        raise SystemExit(1)
+    args = ["bash", str(script), panel_ip, version]
+    if publish:
+        args.append("--publish")
+    result = subprocess.run(args, check=False)
+    raise SystemExit(result.returncode)
+
+
+@firmware.command("install-release")
+@click.argument("manifest_url")
+@click.option("--force", is_flag=True)
+def install_release(manifest_url, force):
+    """OTA-update a panel from a release manifest (runs the updater script on the panel)."""
+    c = _adb()
+    updater_src = Path(__file__).parent.parent.parent / "scripts" / "nexus-updater.sh"
+    if not updater_src.exists():
+        console.print("[red]scripts/nexus-updater.sh not found[/red]")
+        raise SystemExit(1)
+    console.print("[cyan]pushing updater to the panel[/cyan]")
+    c.push(updater_src, "/data/local/tmp/nexus-updater.sh")
+    c.shell("chmod 755 /data/local/tmp/nexus-updater.sh")
+    flags = "--force" if force else ""
+    c.shell(f"su -c 'sh /data/local/tmp/nexus-updater.sh {manifest_url} {flags}'")
+    console.print("[green]OTA update started on the panel — it will download, verify, "
+                  "back up, write and reboot.[/green]")
+
+
+@firmware.command("rollback")
+def rollback():
+    """Roll back to the backup taken before the last OTA update."""
+    c = _adb()
+    updater_src = Path(__file__).parent.parent.parent / "scripts" / "nexus-updater.sh"
+    if not updater_src.exists():
+        console.print("[red]scripts/nexus-updater.sh not found[/red]")
+        raise SystemExit(1)
+    console.print("[yellow]rolling back to the previous firmware[/yellow]")
+    c.push(updater_src, "/data/local/tmp/nexus-updater.sh")
+    c.shell("chmod 755 /data/local/tmp/nexus-updater.sh")
+    c.shell("su -c 'sh /data/local/tmp/nexus-updater.sh --rollback'")
+    console.print("[green]rollback started — the panel will reboot[/green]")
+
+
 @firmware.command("serve")
 @click.argument("directory", type=click.Path(exists=True, path_type=Path))
 @click.option("--port", default=8089, type=int)

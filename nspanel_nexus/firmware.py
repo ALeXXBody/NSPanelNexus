@@ -116,3 +116,14 @@ def make_manifest(images: dict[str, Path], version: str, out: Path) -> None:
         },
     }
     out.write_text(json.dumps(manifest, indent=2))
+
+
+def make_single_manifest(image: Path, version: str, url: str, out: Path) -> None:
+    """Write an OTA manifest for one partition image (the firmware release format)."""
+    manifest = {
+        "version": version,
+        "url": url,
+        "size": image.stat().st_size,
+        "sha256": sha256(image),
+    }
+    out.write_text(json.dumps(manifest, indent=2))
