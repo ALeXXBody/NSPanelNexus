@@ -1,0 +1,39 @@
+command:
+  name: Send device command
+  description: Send a device command to a Nexus panel (wake_up, sleep, reboot, …).
+  target: {}
+  fields:
+    device_name:
+      name: Panel name
+      description: The panel name, as shown in the Nexus app.
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+    command:
+      name: Command
+      description: wake_up, sleep, reboot, listen, query, firmware:check, …
+      required: true
+      example: wake_up
+      selector:
+        text:
+
+config_update:
+  name: Update panel config
+  description: Change one or more settings on a Nexus panel.
+  target: {}
+  fields:
+    device_name:
+      name: Panel name
+      description: The panel name, as shown in the Nexus app.
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+    config:
+      name: Config
+      description: Settings to change, e.g. {"brightness":180} or {"module.remote_desktop.enabled":true}.
+      required: true
+      example: '{"brightness":180}'
+      selector:
+        object:

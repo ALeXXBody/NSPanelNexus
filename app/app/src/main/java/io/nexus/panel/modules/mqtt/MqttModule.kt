@@ -61,6 +61,9 @@ class MqttModule : Module {
         val host = Settings.mqttHost
         val id = "nexus-${Settings.topicId}-${System.currentTimeMillis()}"
         val c = MqttClient("tcp://$host:${Settings.mqttPort}", id, MemoryPersistence())
+        // assign before connect: onConnected fires from the paho thread and
+        // publishes immediately — it must see the client
+        client = c
         val opts = MqttConnectOptions().apply {
             isCleanSession = true
             isAutomaticReconnect = true
@@ -76,7 +79,6 @@ class MqttModule : Module {
             override fun deliveryComplete(token: IMqttDeliveryToken?) {}
         })
         c.connect(opts)
-        client = c
     }
 
     override fun stop() {
@@ -88,6 +90,8 @@ class MqttModule : Module {
     private fun onConnected(c: MqttClient) {
         Log.d("NexusMQTT", "connected to ${Settings.mqttHost}:${Settings.mqttPort}")
         publish(base + "/status", "online", retain = true, qos = 1)
+        publish(base + "/state/ip_address",
+            JSONObject().put("ip_address", localIp()).toString())
         c.subscribe(base + "/command/#", 1)
         c.subscribe(base + "/config/#", 1)
         publish(base + "/state/started_at",
@@ -134,6 +138,15 @@ class MqttModule : Module {
         out.opt("mqtt_pass")?.let { if (it.toString().isNotBlank()) out.put("mqtt_pass", "<set>") }
         return out
     }
+
+    /** The panel's own LAN address (first non-loopback IPv4). */
+    fun localIp(): String = try {
+        java.net.NetworkInterface.getNetworkInterfaces().asSequence()
+            .filter { it.isUp && !it.isLoopback }
+            .flatMap { it.inetAddresses.asSequence() }
+            .firstOrNull { !it.isLoopbackAddress && it is java.net.Inet4Address }
+            ?.hostAddress ?: "127.0.0.1"
+    } catch (_: Exception) { "127.0.0.1" }
 
     private fun publishDiscovery() {
         Log.d("NexusMQTT", "publishDiscovery() begin")

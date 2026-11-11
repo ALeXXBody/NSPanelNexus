@@ -59,7 +59,7 @@ class RemoteDesktopModule : Module {
                 running = false
             }
         }.apply { isDaemon = true; start() }
-        mqtt?.state("remote_desktop", JSONObject().put("url", "http://<panel>:$port/"))
+        mqtt?.state("remote_desktop", JSONObject().put("url", "http://${mqtt?.localIp()}:$port/"))
     }
 
     override fun stop() {
