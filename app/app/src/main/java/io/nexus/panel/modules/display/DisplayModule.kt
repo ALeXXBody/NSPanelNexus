@@ -21,6 +21,7 @@ class DisplayModule : Module {
     private var wakeLock: PowerManager.WakeLock? = null
     private var sensorModule: SensorModule? = null
     private var pm: PowerManager? = null
+    private var appContext: Context? = null
 
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
 
@@ -30,6 +31,7 @@ class DisplayModule : Module {
     }
 
     override fun start(context: Context) {
+        appContext = context.applicationContext
         pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         sensorModule = ModuleManager.get("sensors") as? SensorModule
         sensorModule?.onProximity = { wake() }
@@ -73,13 +75,13 @@ class DisplayModule : Module {
     // ---- brightness ----------------------------------------------------
 
     private fun currentBrightness(): Int = try {
-        SysSettings.getInt(null, SysSettings.System.SCREEN_BRIGHTNESS, 128)
+        SysSettings.System.getInt(appContext!!.contentResolver, SysSettings.System.SCREEN_BRIGHTNESS, 128)
     } catch (_: Exception) { 128 }
 
     fun setBrightness(value: Int) {
         val v = value.coerceIn(0, 255)
         try {
-            SysSettings.putInt(null, SysSettings.System.SCREEN_BRIGHTNESS, v)
+            SysSettings.System.putInt(appContext!!.contentResolver, SysSettings.System.SCREEN_BRIGHTNESS, v)
             mqtt?.state("brightness", JSONObject().put("brightness", v))
         } catch (_: SecurityException) {
             // WRITE_SETTINGS not granted — needs a one-time toggle or `adb shell appops set`

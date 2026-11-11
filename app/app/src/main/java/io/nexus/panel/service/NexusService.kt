@@ -12,6 +12,7 @@ import io.nexus.panel.R
 import io.nexus.panel.core.ModuleManager
 import io.nexus.panel.core.Settings
 import io.nexus.panel.modules.dashboard.DashboardModule
+import io.nexus.panel.modules.desktop.RemoteDesktopModule
 import io.nexus.panel.modules.display.DisplayModule
 import io.nexus.panel.modules.firmware.FirmwareModule
 import io.nexus.panel.modules.fleet.FleetModule
@@ -55,6 +56,7 @@ class NexusService : Service() {
         ModuleManager.register(SensorModule())
         ModuleManager.register(DisplayModule())
         ModuleManager.register(DashboardModule())
+        ModuleManager.register(RemoteDesktopModule())
         ModuleManager.register(VoiceModule())
         ModuleManager.register(ZigbeeModule())
         ModuleManager.register(FirmwareModule())

@@ -1,9 +1,11 @@
 package io.nexus.panel.modules.mqtt
 
 import android.content.Context
+import android.util.Log
 import io.nexus.panel.core.Module
 import io.nexus.panel.core.Settings
 import org.eclipse.paho.client.mqttv3.*
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import org.json.JSONObject
 
 /**
@@ -42,7 +44,21 @@ class MqttModule : Module {
 
     override fun start(context: Context) {
         val host = Settings.mqttHost
+        Log.d("NexusMQTT", "start(): host=$host port=${Settings.mqttPort}")
         if (host.isBlank()) return
+        // connect() and the qos=1 publishes block — never do them on the main thread
+        Thread {
+            try {
+                connectMqtt()
+                Log.d("NexusMQTT", "start(): connect() returned")
+            } catch (t: Throwable) {
+                Log.e("NexusMQTT", "connect failed", t)
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    private fun connectMqtt() {
+        val host = Settings.mqttHost
         val id = "nexus-${Settings.deviceName}-${System.currentTimeMillis()}"
         val c = MqttClient("tcp://$host:${Settings.mqttPort}", id, MemoryPersistence())
         val opts = MqttConnectOptions().apply {
@@ -51,9 +67,7 @@ class MqttModule : Module {
             keepAliveInterval = 60
             Settings.mqttUser?.let { userName = it }
             Settings.mqttPass?.let { password = it.toCharArray() }
-            willMessage = MqttMessage(base + "/status".toByteArray()).apply {
-                qos = 1; isRetained = true; payload = "offline".toByteArray()
-            }
+            setWill(base + "/status", "offline".toByteArray(), 1, true)
         }
         c.setCallback(object : MqttCallbackExtended {
             override fun connectComplete(reconnect: Boolean, serverURI: String) = onConnected(c)
@@ -72,6 +86,7 @@ class MqttModule : Module {
     }
 
     private fun onConnected(c: MqttClient) {
+        Log.d("NexusMQTT", "connected to ${Settings.mqttHost}:${Settings.mqttPort}")
         publish(base + "/status", "online", retain = true, qos = 1)
         c.subscribe(base + "/command/#", 1)
         c.subscribe(base + "/config/#", 1)
@@ -82,7 +97,12 @@ class MqttModule : Module {
     }
 
     fun publish(topic: String, payload: String, qos: Int = 0, retain: Boolean = false) {
-        client?.publish(topic, payload.toByteArray(), qos, retain)
+        // paho publish() with qos>=1 blocks for the ack — always off the main thread
+        val c = client ?: return
+        val body = payload.toByteArray()
+        Thread {
+            try { c.publish(topic, body, qos, retain) } catch (_: Exception) {}
+        }.apply { isDaemon = true }.start()
     }
 
     fun event(kind: String, payload: JSONObject) {
@@ -105,6 +125,8 @@ class MqttModule : Module {
     }
 
     private fun publishDiscovery() {
+        Log.d("NexusMQTT", "publishDiscovery() begin")
+        try {
         // built-in diagnostics entities every panel has
         discovery("sensor", "ip_address", JSONObject()
             .put("name", "IP address").put("state_topic", "$base/state/ip_address")
@@ -125,6 +147,10 @@ class MqttModule : Module {
         discovery("event", "light", JSONObject()
             .put("name", "Light").put("state_topic", "$base/event/light")
             .put("event_types", org.json.JSONArray().put("light_above").put("light_below").put("light_normal")))
+        } catch (t: Throwable) {
+            Log.e("NexusMQTT", "publishDiscovery failed", t)
+        }
+        Log.d("NexusMQTT", "publishDiscovery() done")
     }
 
     private fun onMessage(topic: String, message: MqttMessage) {

@@ -19,7 +19,8 @@ NexusService (foreground)
  ├── VoiceModule       Assist satellite: mic → HA pipeline, TTS → speaker
  ├── ZigbeeModule      coordinator/router via the panel's own zgateway
  ├── FirmwareModule    Nexus OTA channel (manifest + sha256, verified)
- └── FleetModule       UDP discovery · multi-panel
+ ├── FleetModule       UDP discovery · multi-panel
+ └── RemoteDesktopModule  browser remote desktop (live screen + click to tap)
 ```
 
 ## Status
@@ -34,6 +35,7 @@ NexusService (foreground)
 | Zigbee | ✅ coordinator/router | via the panel's zgateway |
 | Firmware/OTA | ✅ | verified dumps + rollback |
 | Fleet | ✅ UDP discovery | |
+| **Remote desktop** | ✅ | browser view of the live screen + click to tap, HOME/BACK/POWER/text — on/off by its own switch |
 
 ## Build
 

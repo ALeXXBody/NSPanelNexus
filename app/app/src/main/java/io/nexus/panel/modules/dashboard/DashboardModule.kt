@@ -2,6 +2,7 @@ package io.nexus.panel.modules.dashboard
 
 import android.content.Context
 import io.nexus.panel.core.Module
+import io.nexus.panel.core.ModuleManager
 import io.nexus.panel.core.Settings
 import io.nexus.panel.modules.mqtt.MqttModule
 import org.json.JSONObject

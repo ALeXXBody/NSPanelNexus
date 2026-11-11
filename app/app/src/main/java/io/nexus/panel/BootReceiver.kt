@@ -3,6 +3,7 @@ package io.nexus.panel
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import io.nexus.panel.service.NexusService
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
