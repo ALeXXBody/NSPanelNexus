@@ -149,3 +149,41 @@ META-INF/com/android/otacert
 - Whether the updater verifies partition hashes/signatures (otacert present) —
   likely yes, so repacked OTAs may fail signature checks unless the device is
   rooted and the root tool bypasses verification.
+
+## Live device findings (192.168.50.22, FW 3.0.0, PX30)
+
+Inspected via ADB root. Key bloat and resource consumers:
+
+- `/system/app/kz_app` — **151 MB** APK (odex included). Package
+  `com.eWeLinkControlPanel` (Sonoff control panel, "eWeLinkControlPannel" v3.0.0).
+  This is the main Sonoff bloat that makes the device sluggish.
+- `/system/app/WebView` — 328 MB (needed for HA companion / Fully Kiosk; keep).
+- `/system/app/factoryApp` — `com.eWeLinkNSPro.dev` (Sonoff dev/factory app).
+- `/system/app/RkDeviceTest` — `com.rockchip.devicetest`.
+- `/system/priv-app/StressTest` — `com.cghs.stresstest`.
+- `/system/priv-app/DeviceTest` — `com.DeviceTest`.
+- `/system/app/ThomassRoom` — `com.android.gl2jni` (GL test).
+- `/oem/bundled_persist-app/CoolKit_22101317` — `com.smatek.test` (CoolKit test app).
+- `/vendor/app/Rk4kVideoPlayer`, `RkApkinstaller`.
+
+Running processes consuming RAM at idle include `com.rockchip.devicetest`,
+`com.cghs.stresstest`, `com.smatek.test`, plus webview sandboxes.
+
+`/system` partition is **100% full** (1.3 GB used of 1.4 GB); `/data` has 2.4 GB
+free. System is `userdebug` and `su` is available, so remounting read-write and
+removing bloat in place is possible.
+
+### Debloat approach (implemented)
+
+`scripts/debloat_nspanel_pro.sh <ip>` remounts `/system`/`/vendor`/`/oem`
+read-write, removes the bloat directories above (optionally keeping the Sonoff
+control panel via `--keep-sonoff`), disables test packages, syncs, and reboots.
+This is the practical "firmware" improvement available without a full reflash:
+it frees ~200+ MB on `/system` and removes background test services.
+
+### Why not a full clean firmware
+
+The Sonoff OTA is a standard Android block-based OTA; we could unpack it,
+remove bloat, and repack, but signature verification (`otacert`) will reject
+repacked images on stock devices. Rooted devices bypass this via the root tool,
+so in-place debloat on a rooted panel is the reliable path today.
