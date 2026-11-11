@@ -44,3 +44,6 @@ NexusService (foreground)
 adb connect <panel>:5555
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
+
+**Full code audit** — 31 findings across the HA integration, the panel UI and
+this app; all fixed and verified: [docs/AUDIT.md](../docs/AUDIT.md)
