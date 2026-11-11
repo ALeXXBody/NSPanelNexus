@@ -6,7 +6,7 @@ from pathlib import Path
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 
 from .const import CONF_DEVICE_NAME, CONF_TOPIC_PREFIX, DOMAIN, PLATFORMS
 from .link import PanelLink
@@ -26,27 +26,31 @@ SERVICE_CONFIG_UPDATE_SCHEMA = vol.Schema({
 })
 
 
-@callback
-def _register_sidebar(hass: HomeAssistant) -> None:
+async def _register_sidebar(hass: HomeAssistant) -> None:
     """Put NSPanel Nexus in HA's left sidebar as the panel manager."""
     # imported lazily: importing HA components at module import time blocks
     # the event loop (HA logs a "blocking call to import_module" warning)
     from homeassistant.components import frontend, panel_custom
+    from homeassistant.components.http import StaticPathConfig
 
+    js_url = PANEL_URL + "/panel.js"
     js_path = Path(__file__).parent / "www" / "nspanel-nexus-panel.js"
-    frontend.async_register_extra_module_url(
-        hass, PANEL_URL + "/panel.js", str(js_path)
+
+    # serve the panel script
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(js_url, str(js_path), False)]
     )
+    # load it on every frontend page so the custom element exists
+    frontend.add_extra_js_url(hass, js_url)
+
     panel_custom.async_register_panel(
         hass,
         frontend_url_path=PANEL_URL.lstrip("/"),
+        webcomponent_name="nspanel-nexus-manager",
         sidebar_title="NSPanel Nexus",
         sidebar_icon="mdi:tablet-dashboard",
-        js_url=PANEL_URL + "/panel.js",
-        config={
-            "domain": DOMAIN,
-            "title": "NSPanel Nexus",
-        },
+        js_url=js_url,
+        config={"domain": DOMAIN, "title": "NSPanel Nexus"},
         require_admin=True,
     )
 
@@ -80,8 +84,7 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
     hass.services.async_register(DOMAIN, "config_update", _config_update,
                                  schema=SERVICE_CONFIG_UPDATE_SCHEMA)
 
-    _register_sidebar(hass)
-    return True
+    await _register_sidebar(hass)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

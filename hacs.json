@@ -3,6 +3,6 @@
   "name": "NSPanel Nexus",
   "documentation": "https://github.com/ALeXXBody/NSPanelNexus",
   "iot_class": "local_push",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "render_readme": true
 }
