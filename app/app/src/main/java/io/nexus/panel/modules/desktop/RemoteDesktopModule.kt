@@ -175,34 +175,76 @@ class RemoteDesktopModule : Module {
     private fun serveIndex(out: OutputStream) {
         val html = """
 <!doctype html><html><head><meta charset="utf-8"><title>NSPanel Nexus remote desktop</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 body{margin:0;background:#111;color:#eee;font-family:monospace;text-align:center}
-#screen{width:100%;max-width:480px;cursor:crosshair}
+#screen{width:100%;max-width:480px;cursor:crosshair;touch-action:none;user-select:none}
 #log{font-size:12px;color:#888;height:2em}
+.btn{background:#FF8C28;border:0;color:#000;padding:8px 14px;margin:2px;font-family:monospace;font-size:13px}
+input.txt{width:55%;padding:6px}
 </style></head><body>
 <h3>NSPanel Nexus — remote desktop</h3>
 <img id="screen" src="/stream" alt="panel screen">
-<p id="log">click the screen to tap</p>
+<p id="log">click to tap · drag to scroll · wheel to scroll</p>
 <p>
-<button onclick="key(3)">HOME</button>
-<button onclick="key(4)">BACK</button>
-<button onclick="key(26)">POWER</button>
-<form onsubmit="sendText(this.text.value);return false">
-<input name="text" placeholder="text…" style="width:60%">
-<button>send</button></form>
+<button class="btn" onclick="key(3)">HOME</button>
+<button class="btn" onclick="key(4)">BACK</button>
+<button class="btn" onclick="key(26)">POWER</button>
+<button class="btn" onclick="scrollBy(0,-1)">&#8593; up</button>
+<button class="btn" onclick="scrollBy(0,1)">&#8595; down</button>
 </p>
+<form onsubmit="sendText(this.text.value);return false">
+<input class="txt" name="text" placeholder="text…">
+<button class="btn">send</button></form>
 <script>
 const img=document.getElementById('screen'), log=document.getElementById('log');
-img.addEventListener('click',e=>{
+const W=480, H=480;
+
+/* ---- click to tap, drag to scroll ---- */
+let down=null;
+img.addEventListener('mousedown',e=>{ down={x:e.clientX,y:e.clientY,t:Date.now()}; });
+img.addEventListener('mouseup',e=>{
+  if(!down) return;
   const r=img.getBoundingClientRect();
-  const x=Math.round((e.clientX-r.left)/r.width*480);
-  const y=Math.round((e.clientY-r.top)/r.height*480);
-  tap(x,y);
+  const sx=down.x, sy=down.y, ex=e.clientX, ey=e.clientY;
+  const dx=ex-sx, dy=ey-sy;
+  const px=(v)=>Math.round(v/W*480);
+  const py=(v)=>Math.round(v/H*480);
+  if(Math.hypot(dx,dy)<12){ tap(px(sx),py(sy)); }
+  else { swipe(px(sx),py(sy),px(ex),py(ey), 400); }
+  down=null;
 });
-function tap(x,y){post('/input/tap','x='+x+'&y='+y); log.textContent='tap '+x+','+y;}
-function key(c){post('/input/key','code='+c); log.textContent='key '+c;}
-function sendText(t){post('/input/text','text='+encodeURIComponent(t));}
-function post(url,body){fetch(url,{method:'POST',body:body});}
+/* touch: same idea on touch screens */
+img.addEventListener('touchstart',e=>{ const t=e.touches[0]; down={x:t.clientX,y:t.clientY}; }, {passive:false});
+img.addEventListener('touchend',e=>{
+  if(!down) return;
+  const t=e.changedTouches[0];
+  const r=img.getBoundingClientRect();
+  const dx=t.clientX-down.x, dy=t.clientY-down.y;
+  const px=(v)=>Math.round(v/W*480), py=(v)=>Math.round(v/H*480);
+  if(Math.hypot(dx,dy)<12){ tap(px(down.x),py(down.y)); }
+  else { swipe(px(down.x),py(down.y),px(t.clientX),py(t.clientY),400); }
+  down=null;
+}, {passive:false});
+
+/* ---- wheel / trackpad scroll ---- */
+img.addEventListener('wheel',e=>{
+  e.preventDefault();
+  scrollBy(0, Math.sign(e.deltaY));
+}, {passive:false});
+
+function scrollBy(_,dir){
+  // dir>0 = scroll down  (finger moves UP on Android)
+  if(dir>0) swipe(240,340,240,140, 260);
+  else      swipe(240,140,240,340, 260);
+}
+
+/* ---- send ---- */
+function tap(x,y){ post('/input/tap','x='+x+'&y='+y); log.textContent='tap '+x+','+y; }
+function swipe(x1,y1,x2,y2,ms){ post('/input/swipe','x1='+x1+'&y1='+y1+'&x2='+x2+'&y2='+y2+'&ms='+ms); log.textContent='swipe '+x1+','+y1+' -> '+x2+','+y2; }
+function key(c){ post('/input/key','code='+c); log.textContent='key '+c; }
+function sendText(t){ post('/input/text','text='+encodeURIComponent(t)); }
+function post(url,body){ fetch(url,{method:'POST',body:body}); }
 </script></body></html>
 """.trimIndent()
         write(out, "200 OK", "text/html", html.toByteArray())
