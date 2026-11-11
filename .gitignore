@@ -7,5 +7,6 @@ build/
 .pytest_cache/
 .ruff_cache/
 *.png
+!branding/*.png
 .env
 device.json
