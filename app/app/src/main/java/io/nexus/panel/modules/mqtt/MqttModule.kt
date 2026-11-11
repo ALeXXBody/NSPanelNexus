@@ -33,7 +33,7 @@ class MqttModule : Module {
     /** Callbacks for device commands: command -> handler */
     val onCommand = mutableMapOf<String, (JSONObject) -> Unit>()
 
-    val base: String get() = "${Settings.topicPrefix}/${Settings.deviceName}"
+    val base: String get() = "${Settings.topicPrefix}/${Settings.topicId}"
     val haPrefix: String get() = Settings.get("ha_topic_prefix", "homeassistant")
 
     override fun status(): String = when {
@@ -59,7 +59,7 @@ class MqttModule : Module {
 
     private fun connectMqtt() {
         val host = Settings.mqttHost
-        val id = "nexus-${Settings.deviceName}-${System.currentTimeMillis()}"
+        val id = "nexus-${Settings.topicId}-${System.currentTimeMillis()}"
         val c = MqttClient("tcp://$host:${Settings.mqttPort}", id, MemoryPersistence())
         val opts = MqttConnectOptions().apply {
             isCleanSession = true
@@ -114,14 +114,25 @@ class MqttModule : Module {
     }
 
     fun discovery(component: String, objectId: String, payload: JSONObject) {
-        val uid = "nexus_${Settings.deviceName}_$objectId"
+        val uid = "nexus_${Settings.topicId}_$objectId"
         payload.put("unique_id", uid)
         payload.put("device", JSONObject()
-            .put("identifiers", org.json.JSONArray().put("nspanelpro_${Settings.deviceName}"))
+            .put("identifiers", org.json.JSONArray().put("nspanelpro_${Settings.topicId}"))
             .put("name", Settings.deviceName)
             .put("manufacturer", "Sonoff")
             .put("model", "NSPanel Pro"))
         publish("$haPrefix/$component/$uid/config", payload.toString(), qos = 0, retain = true)
+    }
+
+    /** Called when HA changes the panel's settings over MQTT. */
+    var onConfigUpdated: ((JSONObject) -> Unit)? = null
+
+    /** Config with secrets masked — the config topic is readable by anyone on the broker. */
+    fun maskedConfig(): JSONObject {
+        val out = Settings.all()
+        out.opt("ha_token")?.let { if (it.toString().isNotBlank()) out.put("ha_token", "<set>") }
+        out.opt("mqtt_pass")?.let { if (it.toString().isNotBlank()) out.put("mqtt_pass", "<set>") }
+        return out
     }
 
     private fun publishDiscovery() {
@@ -168,7 +179,8 @@ class MqttModule : Module {
                 }
                 relative.startsWith("config/update") -> {
                     Settings.patch(JSONObject(text))
-                    publish(base + "/config", Settings.all().toString(), qos = 1, retain = true)
+                    onConfigUpdated?.invoke(JSONObject(text))
+                    publish(base + "/config", maskedConfig().toString(), qos = 1, retain = true)
                 }
                 relative.startsWith("config/query") -> {
                     val filter = if (text.isBlank()) JSONObject() else JSONObject(text)
@@ -177,6 +189,9 @@ class MqttModule : Module {
                         filter.keys().forEach { k -> out.put(k, Settings.all().opt(k)) }
                         out
                     }
+                    // never expose secrets over a topic anyone can read
+                    answer.opt("ha_token")?.let { if (it.toString().isNotBlank()) answer.put("ha_token", "<set>") }
+                    answer.opt("mqtt_pass")?.let { if (it.toString().isNotBlank()) answer.put("mqtt_pass", "<set>") }
                     publish(base + "/config", answer.toString(), qos = 1, retain = true)
                 }
             }

@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add an NSPanel Nexus panel",
+        "description": "Panels that answered on the LAN:\n\n{panels}\n\nEnter the panel name exactly as the Nexus app shows it.",
+        "data": {
+          "device_name": "Panel name",
+          "topic_prefix": "MQTT topic prefix"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "NSPanel Nexus options",
+        "data": {
+          "device_name": "Panel name",
+          "topic_prefix": "MQTT topic prefix"
+        }
+      }
+    }
+  }
+}

@@ -75,7 +75,26 @@ class NexusService : Service() {
         mqtt.onCommand["default_app"] = { _ -> launchDashboard() }
         mqtt.onCommand["listen"] = { _ -> voice?.startListening() }
         mqtt.onCommand["discover"] = { _ -> fleet?.start(this) }
-        mqtt.onCommand["query"] = { _ -> mqtt.publish(mqtt.base + "/config", Settings.all().toString(), qos = 1, retain = true) }
+        mqtt.onCommand["reboot"] = { _ -> runCommand("reboot") }
+        mqtt.onCommand["adb"] = { _ -> runCommand("settings put global adb_enabled 1") }
+        mqtt.onCommand["query"] = { _ ->
+            mqtt.publish(mqtt.base + "/config", mqtt.maskedConfig().toString(), qos = 1, retain = true)
+        }
+
+        // settings changed remotely: apply brightness + module switches live
+        mqtt.onConfigUpdated = { patch ->
+            patch.optInt("brightness", -1).takeIf { it >= 0 }?.let { display?.setBrightness(it) }
+            ModuleManager.all().forEach { m ->
+                val key = "module.${m.name}.enabled"
+                if (patch.has(key)) ModuleManager.applyDesired(this, m.name)
+            }
+        }
+    }
+
+    private fun runCommand(cmd: String) {
+        try {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+        } catch (_: Exception) {}
     }
 
     private fun launchDashboard() {
