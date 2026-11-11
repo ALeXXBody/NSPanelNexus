@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="branding/nspanel-nexus-logo.png" alt="NSPanel Nexus" width="320">
+
 # NSPanel Nexus
 
 **Unified control plane for the Sonoff NSPanel Pro (Android) — ADB + MQTT + Home Assistant.**
