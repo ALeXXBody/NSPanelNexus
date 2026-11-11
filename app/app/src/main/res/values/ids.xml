@@ -4,4 +4,5 @@
     <item name="module_switch" type="id"/>
     <item name="diag_body" type="id"/>
     <item name="content" type="id"/>
+    <item name="pages" type="id"/>
 </resources>

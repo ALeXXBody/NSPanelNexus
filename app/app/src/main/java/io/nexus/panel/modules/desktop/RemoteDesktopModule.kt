@@ -217,8 +217,8 @@ img.addEventListener('pointerup',e=>{
   const dx=e.clientX-sx, dy=e.clientY-sy;
   const px=v=>Math.round((v-r.left)/r.width*W);
   const py=v=>Math.round((v-r.top)/r.height*H);
-  if(Math.hypot(dx,dy)<12){ tap(px(sx),py(sy)); }
-  else { swipe(px(sx),py(sy),px(e.clientX),py(e.clientY),400); }
+  if(Math.hypot(dx,dy)<6){ tap(px(sx),py(sy)); }
+  else { swipe(px(sx),py(sy),px(e.clientX),py(e.clientY),Math.min(600, Math.max(250, Math.hypot(dx,dy)))); }
 });
 img.addEventListener('pointercancel',()=>{ down=null; });
 /* safety net: if pointerup escapes the image, still handle it */
@@ -229,20 +229,38 @@ document.addEventListener('pointerup',e=>{
   const dx=e.clientX-d.x, dy=e.clientY-d.y;
   const px=v=>Math.round((v-r.left)/r.width*W);
   const py=v=>Math.round((v-r.top)/r.height*H);
-  if(Math.hypot(dx,dy)<12){ tap(px(d.x),py(d.y)); }
-  else { swipe(px(d.x),py(d.y),px(e.clientX),py(e.clientY),400); }
+  if(Math.hypot(dx,dy)<6){ tap(px(d.x),py(d.y)); }
+  else { swipe(px(d.x),py(d.y),px(e.clientX),py(e.clientY),Math.min(600, Math.max(250, Math.hypot(dx,dy)))); }
 });
 
-/* ---- wheel / trackpad scroll ---- */
-img.addEventListener('wheel',e=>{
-  e.preventDefault();
-  scrollBy(0, Math.sign(e.deltaY));
-}, {passive:false});
-
-function scrollBy(_,dir){
-  if(dir>0) swipe(240,340,240,140,260);   // scroll down  = finger moves up
-  else      swipe(240,140,240,340,260);
+/* ---- scroll: wheel, keys, drag ---- */
+let pendingScroll = 0, scrollTimer = null;
+function queueScroll(dir){
+  pendingScroll += dir;
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(()=>{
+    const steps = Math.min(Math.abs(pendingScroll), 5);
+    for(let i=0;i<steps;i++){
+      setTimeout(()=>doSwipeForScroll(pendingScroll>0?1:-1), i*140);
+    }
+    pendingScroll = 0;
+  }, 60);
 }
+function doSwipeForScroll(dir){
+  // dir>0 = scroll down = finger moves UP on the panel
+  if(dir>0) swipe(240,360,240,140,300);
+  else      swipe(240,140,240,360,300);
+}
+function scrollBy(_,dir){ queueScroll(dir); }
+
+document.addEventListener('wheel',e=>{
+  e.preventDefault();
+  queueScroll(Math.sign(e.deltaY));
+}, {passive:false});
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'){ e.preventDefault(); queueScroll(1); }
+  if(e.key==='ArrowUp'){ e.preventDefault(); queueScroll(-1); }
+});
 
 /* ---- send ---- */
 function tap(x,y){ post('/input/tap','x='+x+'&y='+y); log.textContent='tap '+x+','+y; }
