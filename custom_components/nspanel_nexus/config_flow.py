@@ -1,22 +1,21 @@
-"""Config flow: add a Nexus panel by name and topic prefix (with LAN discovery)."""
+"""Config flow: add a Nexus panel (LAN discovery, mDNS or by name)."""
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
+import re
 import socket
 from typing import Any
 
+import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
-    CONF_DEVICE_NAME,
-    CONF_TOPIC_PREFIX,
-    DEFAULT_DEVICE_NAME,
-    DEFAULT_TOPIC_PREFIX,
-    DOMAIN,
+    DEFAULT_DEVICE_NAME, DEFAULT_TOPIC_PREFIX, DOMAIN,
+    CONF_DEVICE_NAME, CONF_TOPIC_PREFIX,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,7 +24,12 @@ DISCOVERY_PORT = 5000
 DISCOVERY_TIMEOUT = 2.0
 
 
-async def _discover_panels() -> list[dict[str, Any]]:
+def topic_safe(name: str) -> str:
+    """Same sanitisation the panel app uses for its MQTT topic base."""
+    return re.sub(r"[^A-Za-z0-9_-]+", "_", name).strip("_ ") or "nspanel"
+
+
+async def _discover_udp() -> list[dict[str, Any]]:
     """Ask the LAN for Nexus panels (FleetModule replies on UDP 5000)."""
     loop = asyncio.get_running_loop()
 
@@ -43,7 +47,7 @@ async def _discover_panels() -> list[dict[str, Any]]:
                         name = info.get("name") or addr[0]
                         info["_ip"] = addr[0]
                         found[name] = info
-                    except (TimeoutError, ValueError):
+                    except (socket.timeout, ValueError):
                         break
         except OSError:
             pass
@@ -55,16 +59,81 @@ async def _discover_panels() -> list[dict[str, Any]]:
         return []
 
 
+def _schema(panels: list[dict[str, Any]]):
+    options: dict[Any, Any] = {
+        vol.Optional(CONF_DEVICE_NAME, default=DEFAULT_DEVICE_NAME): str,
+        vol.Optional(CONF_TOPIC_PREFIX, default=DEFAULT_TOPIC_PREFIX): str,
+    }
+    if panels:
+        names = [p.get("name") for p in panels if p.get("name")]
+        if names:
+            options[vol.Optional(CONF_DEVICE_NAME, default=names[0])] = vol.In(names)
+    return vol.Schema(options)
+
+
+def _format(panels: list[dict[str, Any]]) -> str:
+    if not panels:
+        return "No panels answered on the LAN. Enter the panel name shown in the Nexus app."
+    return "\n".join(f"• {p.get('name')}  ({p.get('_ip')})" for p in panels)
+
+
 class NexusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the NSPanel Nexus config flow."""
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        self._discovered: dict[str, Any] = {}
+
+    # ---- mDNS (HA shows "New device discovered") -------------------------
+
+    async def async_step_zeroconf(self, discovery_info) -> FlowResult:
+        props = {}
+        for k, v in getattr(discovery_info, "properties", {}).items():
+            key = k.decode() if isinstance(k, bytes) else k
+            val = v.decode() if isinstance(v, bytes) else v
+            props[key] = val
+        name = props.get("name") or (discovery_info.name or "").split(".")[0]
+        topic = props.get("topic") or ""
+        prefix = topic.split("/")[0] if topic else DEFAULT_TOPIC_PREFIX
+        device = topic.split("/", 1)[1] if "/" in topic else topic_safe(name)
+
+        await self.async_set_unique_id(device)
+        self._abort_if_unique_id_configured()
+        self._discovered = {
+            CONF_DEVICE_NAME: device,
+            CONF_TOPIC_PREFIX: prefix,
+            "friendly": name,
+        }
+        self.context["title_placeholders"] = {"name": name}
+        return await self.async_step_zeroconf_confirm()
+
+    async def async_step_zeroconf_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                title=f"NSPanel {user_input[CONF_DEVICE_NAME]}",
+                data={
+                    CONF_DEVICE_NAME: user_input[CONF_DEVICE_NAME],
+                    CONF_TOPIC_PREFIX: user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX),
+                },
+            )
+        return self.async_show_form(
+            step_id="zeroconf_confirm",
+            data_schema=vol.Schema({
+                vol.Required(CONF_DEVICE_NAME, default=self._discovered[CONF_DEVICE_NAME]): str,
+                vol.Required(CONF_TOPIC_PREFIX, default=self._discovered[CONF_TOPIC_PREFIX]): str,
+            }),
+            description_placeholders={"name": self._discovered.get("friendly", "")},
+        )
+
+    # ---- manual add ------------------------------------------------------
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         errors: dict[str, str] = {}
-
         if user_input is not None:
-            device = user_input[CONF_DEVICE_NAME].strip()
+            device = topic_safe(user_input[CONF_DEVICE_NAME])
             await self.async_set_unique_id(device)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
@@ -74,8 +143,7 @@ class NexusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_TOPIC_PREFIX: user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX),
                 },
             )
-
-        panels = await _discover_panels()
+        panels = await _discover_udp()
         return self.async_show_form(
             step_id="user",
             data_schema=_schema(panels),
@@ -99,25 +167,3 @@ class NexusOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
         return self.async_show_form(step_id="init", data_schema=_schema([]))
-
-
-def _schema(panels: list[dict[str, Any]]):
-    import voluptuous as vol
-
-    suggestions = {
-        vol.Optional(CONF_DEVICE_NAME, default=DEFAULT_DEVICE_NAME): str,
-        vol.Optional(CONF_TOPIC_PREFIX, default=DEFAULT_TOPIC_PREFIX): str,
-    }
-    if panels:
-        names = [p.get("name") for p in panels if p.get("name")]
-        if names:
-            suggestions[vol.Optional(CONF_DEVICE_NAME, default=names[0])] = vol.In(names)
-    return vol.Schema(suggestions)
-
-
-def _format(panels: list[dict[str, Any]]) -> str:
-    if not panels:
-        return "No panels answered on the LAN. Enter the panel name shown in the Nexus app."
-    return "\n".join(
-        f"• {p.get('name')}  ({p.get('_ip')})" for p in panels
-    )

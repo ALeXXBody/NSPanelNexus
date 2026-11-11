@@ -1,5 +1,6 @@
 {
   "config": {
+    "title": "NSPanel Nexus",
     "step": {
       "user": {
         "title": "Add an NSPanel Nexus panel",
@@ -8,7 +9,18 @@
           "device_name": "Panel name",
           "topic_prefix": "MQTT topic prefix"
         }
+      },
+      "zeroconf_confirm": {
+        "title": "Discovered NSPanel {name}",
+        "description": "Panel **{name}** was found on the network. Confirm the MQTT settings to add it.",
+        "data": {
+          "device_name": "Panel name",
+          "topic_prefix": "MQTT topic prefix"
+        }
       }
+    },
+    "abort": {
+      "already_configured": "This panel is already set up."
     }
   },
   "options": {

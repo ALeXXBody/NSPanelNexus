@@ -82,10 +82,17 @@ See [app/PLAN.md](app/PLAN.md) for the phase plan and current status.
 
 ## Home Assistant integration
 
+<img src="branding/nspanel-nexus-logo-accent.png" alt="NSPanel Nexus" width="220">
+
+
 `custom_components/nspanel_nexus/` — install from the **HA Marketplace**
 (HA 2026.11+) or HACS: the panel appears as a device with touch/proximity/light
 events, presence, brightness, screen wake/sleep, remote desktop, voice and
 Zigbee switches, and reboot/firmware buttons.
+
+Branding (name/logo/icon in HA) is documented in
+[docs/BRANDING.md](docs/BRANDING.md) — the integration assets are ready, one PR
+to the official Brands repo makes the logo appear in every HA install.
 
 See [docs/HA_INTEGRATION.md](docs/HA_INTEGRATION.md).
 
