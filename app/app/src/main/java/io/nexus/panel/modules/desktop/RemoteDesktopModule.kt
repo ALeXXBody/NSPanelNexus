@@ -178,13 +178,15 @@ class RemoteDesktopModule : Module {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 body{margin:0;background:#111;color:#eee;font-family:monospace;text-align:center}
-#screen{width:100%;max-width:480px;cursor:crosshair;touch-action:none;user-select:none}
+#screen{width:100%;max-width:480px;cursor:crosshair;touch-action:none;user-select:none;
+        -webkit-user-drag:none;-webkit-touch-callout:none}
 #log{font-size:12px;color:#888;height:2em}
 .btn{background:#FF8C28;border:0;color:#000;padding:8px 14px;margin:2px;font-family:monospace;font-size:13px}
 input.txt{width:55%;padding:6px}
 </style></head><body>
 <h3>NSPanel Nexus — remote desktop</h3>
-<img id="screen" src="/stream" alt="panel screen">
+<img id="screen" src="/stream" alt="panel screen"
+     draggable="false" ondragstart="return false" oncontextmenu="return false">
 <p id="log">click to tap · drag to scroll · wheel to scroll</p>
 <p>
 <button class="btn" onclick="key(3)">HOME</button>
@@ -200,32 +202,36 @@ input.txt{width:55%;padding:6px}
 const img=document.getElementById('screen'), log=document.getElementById('log');
 const W=480, H=480;
 
-/* ---- click to tap, drag to scroll ---- */
+/* ---- pointer: click = tap, drag = swipe ---- */
 let down=null;
-img.addEventListener('mousedown',e=>{ down={x:e.clientX,y:e.clientY,t:Date.now()}; });
-img.addEventListener('mouseup',e=>{
-  if(!down) return;
-  const r=img.getBoundingClientRect();
-  const sx=down.x, sy=down.y, ex=e.clientX, ey=e.clientY;
-  const dx=ex-sx, dy=ey-sy;
-  const px=(v)=>Math.round(v/W*480);
-  const py=(v)=>Math.round(v/H*480);
-  if(Math.hypot(dx,dy)<12){ tap(px(sx),py(sy)); }
-  else { swipe(px(sx),py(sy),px(ex),py(ey), 400); }
-  down=null;
+img.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  try { img.setPointerCapture(e.pointerId); } catch(_){}
+  down={x:e.clientX,y:e.clientY};
 });
-/* touch: same idea on touch screens */
-img.addEventListener('touchstart',e=>{ const t=e.touches[0]; down={x:t.clientX,y:t.clientY}; }, {passive:false});
-img.addEventListener('touchend',e=>{
+img.addEventListener('pointerup',e=>{
   if(!down) return;
-  const t=e.changedTouches[0];
   const r=img.getBoundingClientRect();
-  const dx=t.clientX-down.x, dy=t.clientY-down.y;
-  const px=(v)=>Math.round(v/W*480), py=(v)=>Math.round(v/H*480);
-  if(Math.hypot(dx,dy)<12){ tap(px(down.x),py(down.y)); }
-  else { swipe(px(down.x),py(down.y),px(t.clientX),py(t.clientY),400); }
+  const sx=down.x, sy=down.y;
   down=null;
-}, {passive:false});
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  const px=v=>Math.round((v-r.left)/r.width*W);
+  const py=v=>Math.round((v-r.top)/r.height*H);
+  if(Math.hypot(dx,dy)<12){ tap(px(sx),py(sy)); }
+  else { swipe(px(sx),py(sy),px(e.clientX),py(e.clientY),400); }
+});
+img.addEventListener('pointercancel',()=>{ down=null; });
+/* safety net: if pointerup escapes the image, still handle it */
+document.addEventListener('pointerup',e=>{
+  if(!down) return;
+  const d=down; down=null;
+  const r=img.getBoundingClientRect();
+  const dx=e.clientX-d.x, dy=e.clientY-d.y;
+  const px=v=>Math.round((v-r.left)/r.width*W);
+  const py=v=>Math.round((v-r.top)/r.height*H);
+  if(Math.hypot(dx,dy)<12){ tap(px(d.x),py(d.y)); }
+  else { swipe(px(d.x),py(d.y),px(e.clientX),py(e.clientY),400); }
+});
 
 /* ---- wheel / trackpad scroll ---- */
 img.addEventListener('wheel',e=>{
@@ -234,9 +240,8 @@ img.addEventListener('wheel',e=>{
 }, {passive:false});
 
 function scrollBy(_,dir){
-  // dir>0 = scroll down  (finger moves UP on Android)
-  if(dir>0) swipe(240,340,240,140, 260);
-  else      swipe(240,140,240,340, 260);
+  if(dir>0) swipe(240,340,240,140,260);   // scroll down  = finger moves up
+  else      swipe(240,140,240,340,260);
 }
 
 /* ---- send ---- */
