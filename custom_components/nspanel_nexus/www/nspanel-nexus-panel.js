@@ -13,9 +13,10 @@
           color:#e8ebef}
     .topbar{display:flex;align-items:center;gap:14px;padding:0 18px;height:64px;
             background:#111318;border-bottom:1px solid #22262e;position:sticky;top:0;z-index:5}
-    .topbar img{height:42px;width:42px;border-radius:10px;background:#0d1016;padding:2px}
-    .topbar .name{font-size:20px;font-weight:700;color:#fff;letter-spacing:.3px;white-space:nowrap}
+    .topbar img{height:64px;width:64px;border-radius:14px;background:#0d1016;padding:4px}
+    .topbar .name{font-size:22px;font-weight:700;color:#fff;letter-spacing:.3px;white-space:nowrap;line-height:1}
     .topbar .name b{color:#FF8C28}
+    .topbar .ver{font-size:11px;color:#8d97a3;margin-top:2px}
     .tabs{display:flex;gap:2px;margin-left:34px}
     .tab{padding:10px 18px;cursor:pointer;font-size:14px;color:#aab2bd;border-radius:0}
     .tab:hover{color:#fff}
@@ -158,7 +159,10 @@
         .join("");
       return `<div class="topbar">
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
-        <span class="name">NSPanel <b>Nexus</b></span>
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <span class="name">NSPanel <b>Nexus</b></span>
+          <span class="ver">v0.4.2</span>
+        </div>
         <div class="tabs">${tabs}</div>
       </div>`;
     }
