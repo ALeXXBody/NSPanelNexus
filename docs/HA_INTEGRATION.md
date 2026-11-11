@@ -37,8 +37,9 @@ Plus a **service** `nspanel_nexus.command` to send any device command
 
 ## Install
 
-**HACS (custom repository):** add `https://github.com/ALeXXBody/NSPanelNexus`
-as a custom repository with category **Integration**, then restart HA.
+**Marketplace (HA 2026.11+):** Settings → Marketplace → Add from link →
+`https://github.com/ALeXXBody/NSPanelNexus`, install **NSPanel Nexus**, restart HA.
+On older HA versions use HACS (custom repository, category Integration).
 
 **Manual:** copy `custom_components/nspanel_nexus/` into your HA
 `config/custom_components/` folder and restart.

@@ -80,6 +80,15 @@ satellite · Zigbee coordinator/router · Nexus OTA firmware · fleet discovery.
 
 See [app/PLAN.md](app/PLAN.md) for the phase plan and current status.
 
+## Home Assistant integration
+
+`custom_components/nspanel_nexus/` — install from the **HA Marketplace**
+(HA 2026.11+) or HACS: the panel appears as a device with touch/proximity/light
+events, presence, brightness, screen wake/sleep, remote desktop, voice and
+Zigbee switches, and reboot/firmware buttons.
+
+See [docs/HA_INTEGRATION.md](docs/HA_INTEGRATION.md).
+
 ## Research
 
 - [NSPanel Pro hardware & rooting](research/NSPANEL_PRO_HARDWARE.md)
