@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="branding/nspanel-nexus-logo.png" alt="NSPanel Nexus" width="320">
+<img src="branding/nspanel-nexus-logo.png?v=2" alt="NSPanel Nexus" width="320">
 
 # NSPanel Nexus
 
