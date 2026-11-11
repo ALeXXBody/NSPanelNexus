@@ -60,6 +60,17 @@ nspanel-nexus mqtt switch switch_1 on
 nspanel-nexus screenshot -o panel.png
 ```
 
+## Clean firmware
+
+`nspanel-nexus firmware` builds and installs a **clean Android** for the panel:
+no Sonoff apps, KISS Launcher baked in, frp backdoor disabled — verified working
+on a live panel. See [docs/FIRMWARE.md](docs/FIRMWARE.md).
+
+```bash
+nspanel-nexus firmware dump     # verified backup of every partition
+nspanel-nexus firmware flash system clean/system.img   # install / rollback
+```
+
 ## Research
 
 - [NSPanel Pro hardware & rooting](research/NSPANEL_PRO_HARDWARE.md)
@@ -67,6 +78,7 @@ nspanel-nexus screenshot -o panel.png
 - [Feature matrix (Nexus vs. sources)](research/FEATURE_MATRIX.md)
 - [Firmware feasibility & debloat](research/FIRMWARE_RESEARCH.md)
 - [MQTT command reference](docs/MQTT_COMMANDS.md)
+- [Firmware: clean Android for NSPanel Pro](docs/FIRMWARE.md)
 - [Roadmap](docs/ROADMAP.md)
 
 ## Debloat (rooted panels)
