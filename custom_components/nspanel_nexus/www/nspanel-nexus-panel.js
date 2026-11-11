@@ -64,7 +64,7 @@
       this._registry = null;
       this._error = null;
       this._loading = false;
-      this._expanded = null;
+      this._addForm = null;   // config-flow state when adding a panel
     }
 
     setConfig() { /* not needed */ }
@@ -173,6 +173,14 @@
       body.className = "body";
       root.appendChild(body);
 
+      if (this._addForm) {           // an add-panel flow is open: keep it on screen
+        this._renderAddFlowView(body);
+        return;
+      }
+      if (this._toast) {
+        body.innerHTML += `<div class="card about" id="toast">${this._toast}</div>`;
+        this._toast = null;
+      }
       if (this._error) {
         body.innerHTML = `<div class="err">${this._error}</div>
           <div class="about">Fix the integration setup, then reload.</div>`;
@@ -194,8 +202,14 @@
 
     _renderPanels(body) {
       const h = this._hass;
-      body.innerHTML = `<h2>Panels</h2><div class="grid" id="grid"></div>`;
+      body.innerHTML = `<h2>Panels</h2>
+        <div class="actions" style="display:flex;flex-wrap:wrap;gap:6px;margin:-12px 0 16px">
+          <button class="btn primary" id="add">+ Add panel</button>
+          <span id="msg" class="about"></span>
+        </div>
+        <div class="grid" id="grid"></div>`;
       const grid = body.querySelector("#grid");
+      body.querySelector("#add").onclick = () => this._startAddFlow();
       this._entries.forEach((entry) => {
         const data = (entry && (entry.data || entry.raw_data)) || null;
         const dev = data ? (data.device_name || entry.title || "panel")
@@ -224,6 +238,7 @@
             ${rdp ? `<button data-act="rdp">${rdp.state === "on" ? "RD on" : "RD off"}</button>` : ""}
             ${url && url.state ? `<button data-act="open">Open</button>` : ""}
             <button class="warn" data-act="reboot">Reboot</button>
+            <button class="warn" data-act="remove" title="Unlink this panel from Home Assistant">Unlink</button>
           </div>
 `;
 
@@ -249,6 +264,10 @@
         on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
         on("[data-act=reboot]", () =>
           h.callService("nspanel_nexus", "command", { device_name: dev, command: "reboot" }));
+        on("[data-act=remove]", () => {
+          if (!confirm(`Unlink ${dev} from Home Assistant? The panel itself is not touched.`)) return;
+          this._deleteEntry(entry.entry_id);
+        });
 
         grid.appendChild(card);
       });
@@ -304,6 +323,120 @@
         <a href="https://github.com/ALeXXBody/NSPanelNexus" target="_blank" rel="noreferrer"
            style="color:#FF8C28">Project repository</a>
       </div>`;
+    }
+
+    // ---- add panel (config flow, rendered in this panel) ----------------
+
+    async _startAddFlow() {
+      const h = this._hass;
+      if (!h) return;
+      try {
+        // config flows run over REST (the websocket command does not exist)
+        const flow = await h.callApi("POST", "config/config_entries/flow",
+          { handler: "nspanel_nexus" });
+        this._addForm = flow;
+        this._renderAddFlow();
+      } catch (e) {
+        this._flash("Could not start the setup flow: " + (e && e.message || e));
+      }
+    }
+
+    async _submitAddFlow(payload) {
+      const h = this._hass;
+      if (!h || !this._addForm) return;
+      try {
+        const result = await h.callApi("POST",
+          "config/config_entries/flow/" + this._addForm.flow_id, payload);
+        if (result.type === "create_entry") {
+          this._addForm = null;
+          this._flash("Panel added: " + (result.title || ""));
+          await this._schedule(true), this._refresh();
+        } else if (result.type === "form") {
+          this._addForm = result;
+          this._renderAddFlow(result.errors);
+        } else if (result.type === "abort") {
+          this._flash(result.reason === "already_configured"
+            ? "This panel is already linked." : "Aborted: " + result.reason);
+          this._addForm = null;
+          this._render();
+        }
+      } catch (e) {
+        this._renderAddFlow({ base: e && e.message || String(e) });
+      }
+    }
+
+    _renderAddFlow(errors) {
+      const root = this.shadowRoot.querySelector(".body") || this.shadowRoot;
+      const flow = this._addForm;
+      const schema = (flow.data_schema || []);
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="pname">Add panel</div>
+        ${schema.map((f) => `
+          <div class="field"><div class="lbl">${f.name}</div>
+            ${f.type === "select"
+              ? `<select name="${f.name}">${(f.options || []).map((o) =>
+                    `<option value="${o[0]}" ${o[0] === f.default ? "selected" : ""}>${o[1]}</option>`).join("")}</select>`
+              : `<input class="txt" name="${f.name}" value="${f.default || ""}">`}
+          </div>`).join("")}
+        ${errors && errors.base ? `<div class="err">${errors.base}</div>` : ""}
+        ${errors ? Object.keys(errors).filter((k) => k !== "base").map((k) =>
+             `<div class="err">${k}: ${errors[k]}</div>`).join("") : ""}
+        <div class="actions" style="display:flex">
+          <button class="btn primary" id="submit">Add</button>
+          <button class="btn" id="cancel">Cancel</button>
+        </div>`;
+      card.querySelector("#cancel").onclick = () => {
+        this._addForm = null;
+        this._render();
+      };
+      card.querySelector("#submit").onclick = () => {
+        const payload = {};
+        card.querySelectorAll("[name]").forEach((el) => { payload[el.name] = el.value; });
+        this._submitAddFlow(payload);
+      };
+      root.appendChild(card);
+    }
+
+    // ---- remove panel (delete config entry) -----------------------------
+
+    async _deleteEntry(entryId) {
+      const h = this._hass;
+      if (!h) return;
+      try {
+        const r = await fetch(`/api/config/config_entries/entry/${entryId}`, {
+          method: "DELETE",
+          headers: { Authorization: "Bearer " + this._token(), },
+        });
+        if (r.ok) {
+          this._flash("Panel removed.");
+          await this._refresh();
+        } else {
+          this._flash("Delete failed: HTTP " + r.status);
+        }
+      } catch (e) {
+        this._flash("Delete failed: " + (e && e.message || e));
+      }
+    }
+
+    _token() {
+      for (const k of Object.keys(localStorage)) {
+        try {
+          const v = JSON.parse(localStorage.getItem(k));
+          if (v && v.access_token) return v.access_token;
+        } catch (_) {}
+      }
+      return null;
+    }
+
+    _flash(msg) {
+      const m = this.shadowRoot.querySelector("#msg");
+      if (m) m.textContent = msg;
+      else {
+        this._toast = msg;
+        this._render();
+      }
     }
   }
 
