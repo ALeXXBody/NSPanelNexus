@@ -35,7 +35,8 @@ manage many panels, and stop juggling five different tools.
 - **MQTT (seaky protocol)**: wake/sleep/reboot/launcher, switches, brightness,
   hostname, config query/update
 - **CLI**: `nspanel-nexus init | adb-connect | shell | install | screenshot | mqtt … | info`
-- **Research docs**: hardware, rooting, firmware-version guidance, ecosystem matrix
+- **Research docs**: hardware, rooting, firmware-version guidance, ecosystem matrix, firmware feasibility
+- **Firmware tooling**: `firmware/unpack_ota.py` unpacks Sonoff block-based OTA zips into per-partition images
 
 ## Install
 
