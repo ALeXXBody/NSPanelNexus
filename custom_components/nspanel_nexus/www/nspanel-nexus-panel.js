@@ -56,6 +56,7 @@
     .modal.compact .actions button,.modal.compact .btn{padding:4px 8px;font-size:12px}
     .modal.compact h3{font-size:16px;margin:0 0 6px}
     .modal.compact .stat{font-size:12px;margin:4px 0}
+    .modal .grid{grid-template-columns:1fr;gap:12px} /* modal cards use full popup width */
     .setgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
     @media (max-width:700px){.setgrid{grid-template-columns:1fr}}
     .rdbox{background:#1a1e25;border:1px solid #2c323b;border-radius:8px;padding:10px 12px;margin:0 0 10px}
@@ -131,7 +132,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.45";
+      return v || "v0.4.46";
     }
 
     connectedCallback() {

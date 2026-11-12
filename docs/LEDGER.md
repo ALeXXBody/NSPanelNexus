@@ -148,6 +148,7 @@ User: "remote desktop should be activated/deactivated from Settings! and the tok
 - [x] T2: token stays in Settings (both the quick RD-section token AND the full-form remote_desktop_token field); card no longer asks for token (points to Settings instead)
 - [x] T3: wider + more compact: modal 900px already, add 2-column field grid, tighter paddings, RD box styling; single column under 700px
 - [x] T4: verify (ruff + node --check + py_compile), bump + release
+- [x] T5: OBSERVED via headless render — settings card squeezed into narrow left grid column (`.grid` auto-fill), fix: single-column full-width grid inside modal; re-render to confirm, then bump + release
 
 ### 2.9 Panels-first sidebar redesign (user: firmware/settings pages are useless, remove them)
 
@@ -233,6 +234,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 18 | 2026-11-13 | Full firmware configuration from the app: text/number/select entities, all module switches, sidebar Settings form, Android token masking + dashboard/rd hot-apply. Verified live: modules state, config round-trip 170→180, secrets masked | v0.4.39 |
 | 19 | 2026-11-13 | Panels-first redesign: card = RD image + Info/Settings/Remote only; all data/actions in popups; wider+compact Settings; RD on/off + token in Settings | v0.4.44 |
 | 20 | 2026-11-13 | Settings rework: RD section pinned at top (on/off toggle, token+port, Save RD, Browser token, Open remote); token stays in full form; 2-column compact grid, 900px modal | v0.4.45 |
+| 21 | 2026-11-13 | OBSERVED via headless render: settings card squeezed into narrow grid column (`.grid` auto-fill); fixed with `.modal .grid{1fr}` single-column; re-rendered to confirm full-width | v0.4.46 |
 
 ---
 
@@ -312,6 +314,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.39 | 2026-11-13 | Full firmware configuration from the Nexus app (15 text + 7 number + zigbee select, all module switches, sidebar Settings form with Load/Save-all, Android secret masking + dashboard/rd hot-apply) |
 | v0.4.44 | 2026-11-13 | Panels-first redesign: card = RD image + Info/Settings/Remote; all data/actions in popups; wider+compact Settings |
 | v0.4.45 | 2026-11-13 | Settings rework: RD section on top (on/off + token + Save RD + Browser token + Open remote); 2-column compact grid |
+| v0.4.46 | 2026-11-13 | Settings modal cards full-width (`.modal .grid` single column); verified with headless render |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
