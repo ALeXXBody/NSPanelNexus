@@ -159,7 +159,7 @@
       const candidates = {
         screen: ["switch", "screen"],
         brightness: ["number", "brightness"],
-        remote_desktop_switch: ["switch", "module_remote_desktop"],
+        remote_desktop_switch: ["switch", "remote_desktop"],
         remote_desktop_url: ["sensor", "remote_desktop"],
         illuminance: ["sensor", "illuminance"],
         ip_address: ["sensor", "ip_address"],
@@ -186,7 +186,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.10</span>
+          <span class="ver">v0.4.11</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -289,7 +289,7 @@
           if (btn) btn.textContent = turningOff ? "Wake" : "Sleep";
           if (ents["screen"]) h.callService("switch",
             turningOff ? "turn_off" : "turn_on", { entity_id: ents["screen"] });
-          setTimeout(() => this._schedule(true), 300);
+          setTimeout(() => this._schedule(true), 1000);
         });
         on("[data-act=rdp]", () => {
           const btn = card.querySelector("[data-act=rdp]");
@@ -298,7 +298,7 @@
           if (ents["remote_desktop_switch"]) h.callService("switch",
             turningOff ? "turn_off" : "turn_on",
             { entity_id: ents["remote_desktop_switch"] });
-          setTimeout(() => this._schedule(true), 300);
+          setTimeout(() => this._schedule(true), 1000);
         });
         on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
         on("[data-act=reboot]", () =>
