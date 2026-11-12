@@ -190,7 +190,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.25</span>
+          <span class="ver">v0.4.26</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -250,7 +250,7 @@
       body.querySelector("#add").onclick = () => this._startAddFlow();
       this._entries.forEach((entry) => {
         const data = (entry && (entry.data || entry.raw_data)) || null;
-        const rawDev = data ? (data.device_name || entry.title || "panel")
+        const rawDev = data ? (data.device_name || (entry.title || "").replace(/^NSPanel /, "") || "panel")
                             : (entry ? (entry.title || "").replace(/^NSPanel /, "") : "panel");
         const dev = rawDev;  // friendly name for display
         const devSafe = rawDev.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "panel";  // topic-safe for services/entities
@@ -458,16 +458,9 @@
       const h = this._hass;
       if (!h) return;
       try {
-        const r = await fetch(`/api/config/config_entries/entry/${entryId}`, {
-          method: "DELETE",
-          headers: { Authorization: "Bearer " + this._token(), },
-        });
-        if (r.ok) {
-          this._flash("Panel removed.");
-          await this._refresh();
-        } else {
-          this._flash("Delete failed: HTTP " + r.status);
-        }
+        await h.callApi("DELETE", "config/config_entries/entry/" + entryId);
+        this._flash("Panel removed.");
+        await this._refresh();
       } catch (e) {
         this._flash("Delete failed: " + (e && e.message || e));
       }

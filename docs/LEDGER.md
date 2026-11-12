@@ -66,7 +66,22 @@ The app can also send commands back to the firmware.
 | A16 | Options flow with auto-reload | ✅ Done | async_update_options reloads entry |
 | A17 | Retained state messages | ✅ Done | HA receives last values on (re)subscribe |
 
-### 2.3 Cross-cutting (both halves)
+### 2.3 Request — sidebar panel blank page (2026-11-12)
+
+| # | Request | Status |
+|---|---------|--------|
+| P1 | Sidebar manager must never render blank; always show content or a readable error | 🔧 In progress |
+| P2 | Use the modern panel load path (`module_url`), not the deprecated `js_url` | 🔧 In progress |
+| P3 | Replace REST calls that 404 (`config/entity_registry/list`) with WebSocket API calls | 🔧 In progress |
+| P4 | Version line read from the panel config, not hardcoded | 🔧 In progress |
+| P5 | Verify in a real browser (Playwright + Chromium) | 🔧 In progress |
+
+**Evidence:** `GET /api/config/entity_registry/list` returns 404 (WS-only
+endpoint); the panel swallows it. `js_url` is the legacy load path and is
+deprecated in current HA frontend. A run showed
+`<nspanel-nexus-manager>` present but empty.
+
+### 2.4 Cross-cutting (both halves)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
