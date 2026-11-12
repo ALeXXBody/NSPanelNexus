@@ -152,6 +152,23 @@ verbatim instead of a generic "Dashboard URL failed" toast.
 - [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
 - [ ] H3: docs update, bump + release
 
+### 2.22 Inverted-colors "dark mode" is wrong (user, 2026-11-13)
+
+The previous dark mode inverted the whole page with hue-rotate (looks like a photo
+negative: images wrong, colors wrong, everything inverted). That is not a dark
+theme — it is a hack. Remove it entirely. HA already supports dark themes natively
+via the `selectedTheme` (or the `default_dark_theme`), so the panel should just
+set that on login/injection instead of filtering the page. Keep the `dark_mode`
+toggle as a user preference but have it drive the HA theme selection, not a CSS
+filter.
+
+- [x] I1: delete the invert filter + probe machinery; remove the Setup toggle's
+      side effects (no recreate needed)
+- [x] I2: inject the HA dark theme on login and on page load when dark_mode is on
+      (use the standard `frontend/set_user_data` theme key, or pass ?theme=...);
+      verify native dark renders (no inversion) live
+- [x] I3: docs update, bump + release
+
 ### 2.21 Android system navigation bar visible over the kiosk (user, 2026-11-13)
 
 User: the bottom navigation bar (back/home/recents) is still visible while HA is the
@@ -384,6 +401,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 28 | 2026-11-13 | Firmware chrome hidden by default (pages container GONE until 6-tap exit; Return-to-HA only in firmware mode) — fixes bottom nav bar always visible + app backgrounding on tap; verified live | v0.4.53 |
 | 29 | 2026-11-13 | PIN pad false trigger fixed: exit gesture now requires 6 taps in the top-left corner (80x80); normal dashboard use no longer accumulates taps; leftover test PIN '0208' cleared from the panel | v0.4.54 |
 | 30 | 2026-11-13 | Android system navigation bar hidden in kiosk mode (immersive sticky, re-applied on window focus, restored in firmware mode); verified live | v0.4.55 |
+| 31 | 2026-11-13 | Removed the inverted-colors 'dark mode' hack; dark mode now selects HA's native dark theme (no inversion, media stays normal); verified live | v0.4.56 |
 
 ---
 
@@ -473,6 +491,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.53 | 2026-11-13 | Chrome hidden by default; 6-tap exit reveals it (live-verified) |
 | v0.4.54 | 2026-11-13 | Exit gesture restricted to top-left corner; test PIN cleared |
 | v0.4.55 | 2026-11-13 | Immersive mode: nav bar hidden in kiosk, restored in firmware (live-verified) |
+| v0.4.56 | 2026-11-13 | Dark mode via HA native theme (no inversion); media stays normal |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to

@@ -90,10 +90,15 @@ object HaAuth {
         })
     }
 
-    /** JS that installs a token pair into the HA frontend session (key verified on-device HA). */
-    fun injectJs(tokens: JSONObject): String {
+    /** JS that installs a token pair into the HA frontend session (key verified on-device HA)
+     *  and, when dark is requested, selects HA's native dark theme so the
+     *  dashboard renders dark without any colour inversion. */
+    fun injectJs(tokens: JSONObject, dark: Boolean): String {
         val raw = tokens.toString().replace("\\", "\\\\").replace("'", "\\'")
-        return "try{localStorage.setItem('hassTokens','$raw');}catch(e){}"
+        val theme = if (dark) "{\"dark\":\"default\"}" else "null"
+        return "try{localStorage.setItem('hassTokens','$raw');" +
+            "window.localStorage.setItem('selectedTheme',JSON.stringify($theme));" +
+            "}catch(e){}"
     }
 
     fun isLoggedIn(): Boolean = Settings.get("ha_refresh_token", "").isNotBlank()

@@ -112,7 +112,7 @@ class SetupFragment : androidx.fragment.app.Fragment() {
         })
         col.addView(dl)
         col.addView(TextView(c).apply {
-            text = "Darkens the dashboard for night use (media is kept normal). Takes effect on the next dashboard load."
+            text = "Use HA's native dark theme (recommended) instead of the light one. Takes effect on the next dashboard load / login."
             setTextColor(0xFF8B97A5.toInt())
             textSize = 11f
             setPadding(0, dp(2), 0, dp(6))
