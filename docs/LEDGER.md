@@ -144,10 +144,10 @@ Transport already exists (config_update service + Settings.patch); what's missin
 
 User: "remote desktop should be activated/deactivated from Settings! and the token tab should stay there as well. you have to rework the Settings pop-up to be wider and more compact"
 
-- [ ] T1: dedicated Remote-desktop section pinned at TOP of Settings popup: on/off toggle (module_remote_desktop switch, applies immediately), token field (password, empty = unchanged) + port field, Save-RD-only button, Open-remote button when RD on
-- [ ] T2: token stays in Settings (both the quick RD-section token AND the full-form remote_desktop_token field); card no longer asks for token (points to Settings instead)
-- [ ] T3: wider + more compact: modal 900px already, add 2-column field grid, tighter paddings, RD box styling; single column under 700px
-- [ ] T4: verify (ruff + node --check + py_compile), bump + release
+- [x] T1: dedicated Remote-desktop section pinned at TOP of Settings popup: on/off toggle (module_remote_desktop switch, applies immediately), token field (password, empty = unchanged) + port field, Save-RD-only button, Open-remote button when RD on
+- [x] T2: token stays in Settings (both the quick RD-section token AND the full-form remote_desktop_token field); card no longer asks for token (points to Settings instead)
+- [x] T3: wider + more compact: modal 900px already, add 2-column field grid, tighter paddings, RD box styling; single column under 700px
+- [x] T4: verify (ruff + node --check + py_compile), bump + release
 
 ### 2.9 Panels-first sidebar redesign (user: firmware/settings pages are useless, remove them)
 
@@ -232,6 +232,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 17 | 2026-11-13 | UnitOfLuminance/UnitOfTime ImportError on user's HA → version-proof unit import with string fallback | v0.4.38 |
 | 18 | 2026-11-13 | Full firmware configuration from the app: text/number/select entities, all module switches, sidebar Settings form, Android token masking + dashboard/rd hot-apply. Verified live: modules state, config round-trip 170→180, secrets masked | v0.4.39 |
 | 19 | 2026-11-13 | Panels-first redesign: card = RD image + Info/Settings/Remote only; all data/actions in popups; wider+compact Settings; RD on/off + token in Settings | v0.4.44 |
+| 20 | 2026-11-13 | Settings rework: RD section pinned at top (on/off toggle, token+port, Save RD, Browser token, Open remote); token stays in full form; 2-column compact grid, 900px modal | v0.4.45 |
 
 ---
 
@@ -309,6 +310,8 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.37 | 2026-11-13 | Sidebar-first add flow (empty state keeps +Add), setup hardening (migration/listener never fail setup), cross-scheme duplicate guard |
 | v0.4.38 | 2026-11-13 | Version-proof sensor units (ImportError fix from live user log) |
 | v0.4.39 | 2026-11-13 | Full firmware configuration from the Nexus app (15 text + 7 number + zigbee select, all module switches, sidebar Settings form with Load/Save-all, Android secret masking + dashboard/rd hot-apply) |
+| v0.4.44 | 2026-11-13 | Panels-first redesign: card = RD image + Info/Settings/Remote; all data/actions in popups; wider+compact Settings |
+| v0.4.45 | 2026-11-13 | Settings rework: RD section on top (on/off + token + Save RD + Browser token + Open remote); 2-column compact grid |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
