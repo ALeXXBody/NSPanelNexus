@@ -148,9 +148,9 @@ Probed the user's HA directly:
 
 So backend+frontend are live; remaining suspects: (a) RD token never saved into entry options (Save RD required once after 0.4.47), (b) WS signer failing, (c) stream `<img>` destroyed+recreated on every 5s refresh (confirmed in `_refresh` → `_render` full rebuild) — even a working stream would restart constantly.
 
-- [ ] D1: persistent per-entry `<img>` node re-adopted across re-renders (no 5s stream restart); prune nodes for removed entries
-- [ ] D2: exact failure reasons in the UI: signer errors shown verbatim; img errors probed with fetch to report 502 (token/panel) vs 403 (stale signature) distinctly
-- [ ] D3: verify (ruff/node + headless: two renders share one live img node; proxy unit tests re-run), docs update, bump + release
+- [x] D1: persistent per-entry `<img>` node re-adopted across re-renders (no 5s stream restart); prune nodes for removed entries
+- [x] D2: exact failure reasons in the UI: signer errors shown verbatim; img errors probed with fetch to report 502 (token/panel) vs 403 (stale signature) distinctly
+- [x] D3: verify (ruff/node + headless: two renders share one live img node; proxy unit tests re-run), docs update, bump + release
 
 ### 2.11 Live RD stream must work over https (user: "make it work as it is now", 2026-11-13)
 
@@ -260,6 +260,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 20 | 2026-11-13 | Settings rework: RD section pinned at top (on/off toggle, token+port, Save RD, Browser token, Open remote); token stays in full form; 2-column compact grid, 900px modal | v0.4.45 |
 | 21 | 2026-11-13 | OBSERVED via headless render: settings card squeezed into narrow grid column (`.grid` auto-fill); fixed with `.modal .grid{1fr}` single-column; re-rendered to confirm full-width | v0.4.46 |
 | 22 | 2026-11-13 | HA-side RD proxy (same-origin signed URLs, server-side token) so live screen works over https/remote; fixed missing `module_remote_desktop` entity-map alias (RD toggle was dead); verified: 6 proxy unit tests + live E2E (real panel screen in card) | v0.4.47 |
+| 23 | 2026-11-13 | Probed user HA: frontend v0.4.47 live + proxy registered (403). Fixed stream restart every 5s refresh (persistent re-adopted img node, proven sameNode across rebuilds); exact failure reasons in UI (fetch probe: 502 token/panel vs 403 stale signature vs setup error); square NSPanel Pro placeholder | v0.4.48 |
 
 ---
 
@@ -341,6 +342,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.45 | 2026-11-13 | Settings rework: RD section on top (on/off + token + Save RD + Browser token + Open remote); 2-column compact grid |
 | v0.4.46 | 2026-11-13 | Settings modal cards full-width (`.modal .grid` single column); verified with headless render |
 | v0.4.47 | 2026-11-13 | RD proxy (signed same-origin URLs, server-side token, HA-authed input); fixed dead RD module toggle alias; proxy unit-tested + live E2E verified |
+| v0.4.48 | 2026-11-13 | Persistent stream node across refreshes; exact UI failure reasons; square placeholder; verified headless (sameNode) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
