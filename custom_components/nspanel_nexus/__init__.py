@@ -65,7 +65,11 @@ async def _register_sidebar(hass: HomeAssistant) -> None:
         # module_url is the modern load path; js_url is deprecated (and can
         # be dropped by newer frontends, which left the panel element
         # undefined and the page blank).
-        module_url=js_url,
+        # The ?v= cache-buster is required: this URL never changed between
+        # releases, so a browser that cached an older panel.js kept running it
+        # (older builds used REST entity-registry calls that 404 on HA 2026.11
+        # and never rendered). Bump = guaranteed cache miss.
+        module_url=f"{js_url}?v={version}",
         config={"domain": DOMAIN, "title": "NSPanel Nexus", "version": version},
         require_admin=True,
     )
