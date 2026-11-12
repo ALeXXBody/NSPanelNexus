@@ -140,6 +140,18 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.12 Still not working — proper diagnosis (user, 2026-11-13)
+
+Probed the user's HA directly:
+- `/nspanel-nexus/panel.js` serves **v0.4.47** with the proxy code → frontend is current
+- `/api/nspanel_nexus/rd/…` answers **403** unsigned on both LAN-http and public-https → proxy view is registered and enforcing auth (404 would mean old code)
+
+So backend+frontend are live; remaining suspects: (a) RD token never saved into entry options (Save RD required once after 0.4.47), (b) WS signer failing, (c) stream `<img>` destroyed+recreated on every 5s refresh (confirmed in `_refresh` → `_render` full rebuild) — even a working stream would restart constantly.
+
+- [ ] D1: persistent per-entry `<img>` node re-adopted across re-renders (no 5s stream restart); prune nodes for removed entries
+- [ ] D2: exact failure reasons in the UI: signer errors shown verbatim; img errors probed with fetch to report 502 (token/panel) vs 403 (stale signature) distinctly
+- [ ] D3: verify (ruff/node + headless: two renders share one live img node; proxy unit tests re-run), docs update, bump + release
+
 ### 2.11 Live RD stream must work over https (user: "make it work as it is now", 2026-11-13)
 
 Root cause (verified by me): panel serves `http://192.168.50.22:8080/stream?token=…` fine (HTTP 200, valid MJPEG).

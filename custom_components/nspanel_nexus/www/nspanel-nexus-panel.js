@@ -132,7 +132,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.47";
+      return v || "v0.4.48";
     }
 
     connectedCallback() {
@@ -353,35 +353,73 @@
       return this._panelSvg() + `<div class="about" style="margin:8px 0">${this._esc(msg)}</div>`;
     }
 
-    _resolveRDStream(scopeEl, entryId) {
-      const img = scopeEl.querySelector('[data-rd="img"]');
-      if (!img) return;
+    _adoptRDStream(card, entryId, dev, devSafe) {
+      // One persistent <img> per panel, re-adopted into each rebuilt card so the
+      // 5-second sidebar refresh never restarts a playing stream.
+      // Must run AFTER the card is attached (slot needs to be connected).
+      const slot = card.querySelector('[data-rd="img"]');
+      if (!slot || !slot.isConnected) return;
+      this._rdImgs = this._rdImgs || {};
+      // Drop nodes for panels that no longer exist.
+      const known = {};
+      (this._entries || []).forEach((e) => { known[e.entry_id] = true; });
+      Object.keys(this._rdImgs).forEach((k) => { if (!known[k]) delete this._rdImgs[k]; });
+      const rec = this._rdImgs[entryId];
+      if (rec && !rec.dead && rec.url) {
+        slot.replaceWith(rec.img);  // move the live node — stream continues
+        return;
+      }
+      if (rec && !rec.dead) return;  // signer fetch already in flight; it will attach itself
+      const img = document.createElement("img");
+      img.className = "rdimg";
+      img.alt = "live panel screen";
+      img.title = "Click to open remote desktop";
+      img.onclick = () => this._openRemote(dev, devSafe, entryId);
+      const cur = this._rdImgs[entryId] = { img, dead: false, url: null };
+      const failHere = (html) => {
+        const w = slot.isConnected ? slot.closest('[data-rd="wrap"]') : null;
+        if (w) w.innerHTML = html;
+      };
       this._rdUrl(entryId, "stream").then((url) => {
-        if (!img.isConnected) return;
+        if (cur.dead) return;
+        cur.url = url;
         img.onerror = () => {
-          const wrap = img.closest('[data-rd="wrap"]');
-          if (wrap) wrap.innerHTML = this._rdFailHtml("Live screen unavailable (panel unreachable). If this persists, re-save the RD token in Settings.");
+          cur.dead = true;
+          // The image failed: ask the proxy itself why (status is exact).
+          fetch(url).then((r) => {
+            try { r.body && r.body.cancel(); } catch (_) {}
+            const why = r.status === 502 ? "the panel is unreachable, or the RD token is not saved yet — press Save RD in Settings"
+              : r.status === 403 ? "the signed URL was rejected — reload the page and retry"
+              : "the proxy answered HTTP " + r.status;
+            failHere(this._rdFailHtml("Live screen unavailable (" + why + ")."));
+          }).catch(() => {
+            failHere(this._rdFailHtml("Live screen unavailable (panel unreachable). If this persists, re-save the RD token in Settings."));
+          });
         };
         img.src = url;
-      }).catch(() => {
-        if (!img.isConnected) return;
-        const wrap = img.closest('[data-rd="wrap"]');
-        if (wrap) wrap.innerHTML = this._rdFailHtml("Live screen unavailable — save the RD token in Settings first.");
+        // The card may have been rebuilt while signing; adopt wherever this entry's live slot is.
+        try {
+          const live = this.shadowRoot.querySelector(`[data-rd="img"][data-eid="${entryId}"]`);
+          if (live && live.isConnected) live.replaceWith(img);
+        } catch (_) {}
+      }).catch((e) => {
+        cur.dead = true;
+        delete this._rdImgs[entryId];  // allow retry on next rebuild, not a stuck dead node
+        failHere(this._rdFailHtml("Live screen unavailable (setup error: " + this._esc((e && e.message) || e) + ")."));
       });
     }
     _panelSvg() {
-      return `<svg viewBox="0 0 240 320" width="100%" style="display:block;border-radius:6px;background:#0d1016" role="img" aria-label="NSPanel Pro (remote desktop off)">
-        <!-- NSPanel Pro: 3.95 inch portrait, ~3:4, thin bezel, top status bar -->
-        <rect x="12" y="8" width="216" height="304" rx="14" fill="#1a1d24" stroke="#2a2f3a" stroke-width="1.5"/>
-        <rect x="20" y="16" width="200" height="288" rx="10" fill="#0f1218"/>
-        <rect x="20" y="16" width="200" height="22" rx="10" fill="#161a22"/>
-        <circle cx="40" cy="27" r="3" fill="#2e9e44"/>
-        <text x="52" y="31" fill="#8d97a3" font-family="sans-serif" font-size="10">NSPanel Pro</text>
-        <text x="200" y="31" text-anchor="end" fill="#8d97a3" font-family="sans-serif" font-size="10">--:--</text>
-        <text x="120" y="150" text-anchor="middle" fill="#FF8C28" font-family="monospace" font-size="22" font-weight="bold">remote desktop</text>
-        <text x="120" y="178" text-anchor="middle" fill="#8d97a3" font-family="monospace" font-size="14">off</text>
-        <rect x="80" y="260" width="80" height="24" rx="12" fill="#2c323b"/>
-        <text x="120" y="276" text-anchor="middle" fill="#aab2bd" font-family="sans-serif" font-size="10">tap to wake</text>
+      return `<svg viewBox="0 0 240 240" width="100%" style="display:block;border-radius:6px;background:#0d1016" role="img" aria-label="NSPanel Pro (remote desktop off)">
+        <!-- NSPanel Pro: 3.95 inch square 480x480, thin bezel, top status bar -->
+        <rect x="8" y="8" width="224" height="224" rx="14" fill="#1a1d24" stroke="#2a2f3a" stroke-width="1.5"/>
+        <rect x="16" y="16" width="208" height="208" rx="10" fill="#0f1218"/>
+        <rect x="16" y="16" width="208" height="22" rx="10" fill="#161a22"/>
+        <circle cx="36" cy="27" r="3" fill="#2e9e44"/>
+        <text x="48" y="31" fill="#8d97a3" font-family="sans-serif" font-size="10">NSPanel Pro</text>
+        <text x="204" y="31" text-anchor="end" fill="#8d97a3" font-family="sans-serif" font-size="10">--:--</text>
+        <text x="120" y="118" text-anchor="middle" fill="#FF8C28" font-family="monospace" font-size="20" font-weight="bold">remote desktop</text>
+        <text x="120" y="144" text-anchor="middle" fill="#8d97a3" font-family="monospace" font-size="14">off</text>
+        <rect x="88" y="196" width="64" height="8" rx="4" fill="#2c323b"/>
       </svg>`;
     }
 
@@ -541,7 +579,7 @@
         if (!rdp || !rdpOn) {
           rdHtml = this._panelSvg() + `<div class="about" style="margin:8px 0">Remote desktop is off — turn it on in Settings.</div>`;
         } else {
-          rdHtml = `<img class="rdimg" data-rd="img" alt="live panel screen" title="Click to open remote desktop">`;
+          rdHtml = `<img class="rdimg" data-rd="img" data-eid="${entry.entry_id}" style="display:none" alt="">`;
         }
         card.innerHTML = `
           <div data-rd="wrap">${rdHtml}</div>
@@ -594,9 +632,7 @@
             .catch((err) => console.error("Nexus rdp failed:", err));
           setTimeout(() => this._schedule(true), 1000);
         });
-        on("[data-rd=img]", () => this._openRemote(dev, devSafe, entry.entry_id));
         on("[data-act=remote]", () => this._openRemote(dev, devSafe, entry.entry_id));
-        if (rdpOn) this._resolveRDStream(card, entry.entry_id);
         on("[data-act=reboot]", () => {
           h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" })
             .catch((e) => { console.error("reboot failed:", e); alert("Reboot command failed: " + (e && e.message || e)); }); });
@@ -648,6 +684,7 @@
         });
 
         grid.appendChild(card);
+        if (rdpOn) this._adoptRDStream(card, entry.entry_id, dev, devSafe);
       });
     }
 
