@@ -132,7 +132,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.56";
+      return v || "v0.4.57";
     }
 
     connectedCallback() {
@@ -855,7 +855,12 @@
               <option value="router" ${val === "router" ? "selected" : ""}>router</option>
             </select></div>`;
         }
-        html += `</div><div class="field"><div class="lbl">Modules (on/off apply immediately)</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+        html += `</div><div class="field"><div class="lbl">Dark mode (HA native dark theme)</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn" data-dark="toggle">off</button>
+            <span class="about">Sends dark_mode to the panel; the dashboard reloads in dark.</span>
+          </div></div>
+          <div class="field"><div class="lbl">Modules (on/off apply immediately)</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
         this._moduleToggles.forEach(([key, label]) => {
           const sw = st(key);
           const isOn = sw && sw.state === "on";
@@ -950,6 +955,29 @@
               msg("");
             } catch (e) { msg("RD save failed: " + (e && e.message || e)); }
           };
+        }
+
+        {
+          const darkBtn = card.querySelector('[data-dark="toggle"]');
+          if (darkBtn) {
+            const dm = st("cfg_dark_mode");
+            const dmOn = dm && dm.state === "on";
+            darkBtn.textContent = dmOn ? "on" : "off";
+            darkBtn.classList.toggle("primary", dmOn);
+            darkBtn.onclick = async () => {
+              const turnOn = darkBtn.textContent.trim() !== "on";
+              darkBtn.textContent = turnOn ? "on" : "off";
+              darkBtn.classList.toggle("primary", turnOn);
+              msg("Saving dark mode…");
+              try {
+                await h.callService("nspanel_nexus", "config_update",
+                  { device_name: devSafe, config: { dark_mode: turnOn } });
+                flash("Dark mode: " + (turnOn ? "on" : "off"));
+                setTimeout(() => this._schedule(true), 1500);
+                msg("");
+              } catch (e) { msg("Dark toggle failed: " + (e && e.message || e)); }
+            };
+          }
         }
 
         card.querySelectorAll("[data-mod]").forEach((btn) => {

@@ -55,6 +55,7 @@ class MainActivity : FragmentActivity() {
     private var pendingInject = false
     private var lastInjectUrl: String? = null
     private var firmwareShown = false
+    companion object { @Volatile var instance: MainActivity? = null }
 
     private fun applyImmersive(hide: Boolean) {
         try {
@@ -104,6 +105,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Settings.init(this)
+        instance = this
         // clearStaleHomePreference() — see below
         NexusService.start(this)
 
@@ -612,6 +614,7 @@ class MainActivity : FragmentActivity() {
                 it.onWake = null
             }
         } catch (_: Exception) {}
+        instance = null
         super.onDestroy()
     }
 

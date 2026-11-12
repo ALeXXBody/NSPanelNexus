@@ -116,6 +116,18 @@ class NexusService : Service() {
                         }
                     } catch (_: Exception) {}
                     try {
+                        if (patch.has("dark_mode")) {
+                            val wantDark = Settings.getBool("dark_mode", true)
+                            // night mode applies at activity creation; recreate the UI
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                try {
+                                    val act = io.nexus.panel.MainActivity.instance
+                                    act?.recreate()
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    } catch (_: Exception) {}
+                    try {
                         if (patch.has("remote_desktop_token") || patch.has("remote_desktop_port")) {
                             ModuleManager.stop("remote_desktop")
                             if (Settings.moduleEnabled("remote_desktop")) ModuleManager.start("remote_desktop", this)

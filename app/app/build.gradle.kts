@@ -12,7 +12,7 @@ android {
         minSdk = 27          // NSPanel Pro ships Android 8.1
         targetSdk = 27       // keep the 8.x permission model on the panel
         versionCode = 2
-        versionName = "0.4.56"
+        versionName = "0.4.57"
     }
 
     buildTypes {
