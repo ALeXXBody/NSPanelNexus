@@ -484,11 +484,12 @@
       const h = this._hass;
       if (!h) return;
       try {
-        await h.callWS({ type: "config_entries/delete", entry_id: entryId });
+        await h.callApi("DELETE", "config/config_entries/entry/" + entryId);
         this._flash("Panel removed.");
         await this._refresh();
       } catch (e) {
-        this._flash("Delete failed: " + (e && e.message || e));
+        console.error("Delete failed:", e);
+        this._flash("Delete failed: " + (e && e.message || e) + "\n\nPlease remove manually: Settings → Devices & services → NSPanel Nexus → Delete");
       }
     }
 
