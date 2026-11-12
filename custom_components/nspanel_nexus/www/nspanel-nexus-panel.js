@@ -68,10 +68,10 @@
   `;
 
   // which entity unique_ids map to which row in a panel card
-  const OBJ_IDS = ["screen", "brightness", "module_remote_desktop", "remote_desktop",
+  const OBJ_IDS = ["screen", "brightness", "module_remote_desktop", "sensor_remote_desktop",
     "sensor_illuminance", "sensor_uptime", "sensor_ip_address", "sensor_firmware",
     "event_touch", "event_proximity", "event_light", "presence",
-    "module_voice", "module_zigbee", "module_remote_desktop"];
+    "module_voice", "module_zigbee"];
 
   class NexusPanelManager extends HTMLElement {
     constructor() {
@@ -155,18 +155,25 @@
       const h = this._hass, out = {};
       const slug = String(dev).toLowerCase().replace(/[^a-z0-9_]+/g, "_");
       const base = "nspanel_" + slug + "_";
+      // key -> [domain, suffix]
       const candidates = {
-        screen: "switch", brightness: "number",
-        module_remote_desktop: "switch", module_voice: "switch", module_zigbee: "switch",
-        remote_desktop: "sensor",
-        illuminance: "sensor", ip_address: "sensor",
-        uptime: "sensor", firmware: "sensor",
-        touch: "event", proximity: "event", light_event: "event",
-        presence: "binary_sensor",
+        screen: ["switch", "screen"],
+        brightness: ["number", "brightness"],
+        remote_desktop_switch: ["switch", "remote_desktop"],
+        remote_desktop_url: ["sensor", "remote_desktop"],
+        illuminance: ["sensor", "illuminance"],
+        ip_address: ["sensor", "ip_address"],
+        uptime: ["sensor", "uptime"],
+        firmware: ["sensor", "firmware"],
+        touch: ["event", "touch"],
+        proximity: ["event", "proximity"],
+        light_event: ["event", "light_event"],
+        presence: ["binary_sensor", "presence"],
       };
-      Object.keys(candidates).forEach((obj) => {
-        const eid = candidates[obj] + "." + base + obj;
-        if (h.states[eid]) out[obj] = eid;
+      Object.keys(candidates).forEach((key) => {
+        const [domain, suffix] = candidates[key];
+        const eid = domain + "." + base + suffix;
+        if (h.states[eid]) out[key] = eid;
       });
       return out;
     }
@@ -179,7 +186,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.7</span>
+          <span class="ver">v0.4.8</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -237,13 +244,14 @@
         const dev = data ? (data.device_name || entry.title || "panel")
                          : (entry ? (entry.title || "").replace(/^NSPanel /, "") : "panel");
         const ents = this._entityMap(entry, dev);
+        console.log("NSPanel Nexus: device=", dev, "ents=", JSON.stringify(ents));
         const st = (id) => (ents[id] ? h.states[ents[id]] : null);
         const probe = st("uptime") || st("ip_address");
         const online = probe ? probe.state !== "unavailable" : true;
         const screen = st("screen");
         const bright = st("brightness");
-        const rdp = st("module_remote_desktop");
-        const url = st("remote_desktop");
+        const rdp = st("remote_desktop_switch");
+        const url = st("remote_desktop_url");
         const lux = st("illuminance");
         const ip = st("ip_address");
 
@@ -287,9 +295,9 @@
           const btn = card.querySelector("[data-act=rdp]");
           const turningOff = rdp && rdp.state === "on";
           if (btn) btn.textContent = turningOff ? "RD off" : "RD on";
-          if (ents["module_remote_desktop"]) h.callService("switch",
+          if (ents["remote_desktop_switch"]) h.callService("switch",
             turningOff ? "turn_off" : "turn_on",
-            { entity_id: ents["module_remote_desktop"] });
+            { entity_id: ents["remote_desktop_switch"] });
           setTimeout(() => this._schedule(true), 300);
         });
         on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
