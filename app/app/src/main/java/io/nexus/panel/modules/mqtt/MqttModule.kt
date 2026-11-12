@@ -29,6 +29,8 @@ class MqttModule : Module {
 
     private var client: MqttClient? = null
     @Volatile private var stopped = false
+    private val startMs = System.currentTimeMillis()
+    private var uptimeThread: Thread? = null
     private val publishExecutor =
         java.util.concurrent.Executors.newSingleThreadExecutor { r ->
             Thread(r, "nexus-mqtt-publish").apply { isDaemon = true }
@@ -94,6 +96,8 @@ class MqttModule : Module {
 
     override fun stop() {
         stopped = true
+        uptimeThread?.interrupt()
+        uptimeThread = null
         try { client?.disconnect() } catch (_: Exception) {}
         try { client?.close() } catch (_: Exception) {}
         client = null
@@ -113,6 +117,16 @@ class MqttModule : Module {
         c.subscribe(base + "/config/#", 1)
         publish(base + "/state/started_at",
             JSONObject().put("started_at", System.currentTimeMillis()).toString())
+        // periodic uptime publisher
+        uptimeThread?.interrupt()
+        uptimeThread = Thread {
+            while (!stopped) {
+                val secs = (System.currentTimeMillis() - startMs) / 1000
+                publish(base + "/state/uptime",
+                    JSONObject().put("uptime", secs).toString())
+                try { Thread.sleep(60000) } catch (_: InterruptedException) { break }
+            }
+        }.apply { isDaemon = true; start() }
         // re-publish HA discovery so entities exist
         publishDiscovery()
     }
