@@ -47,7 +47,15 @@
     .rdimg{width:100%;border-radius:6px;background:#0d1016;min-height:120px;display:block;cursor:pointer}
     .rdbtnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
     .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto}
-    .modal{background:#22252b;border-radius:8px;max-width:640px;width:100%;padding:18px 20px;color:#dfe4ea;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+    .modal{background:#22252b;border-radius:8px;max-width:900px;width:100%;padding:14px 18px;color:#dfe4ea;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+    .modal.compact .field{margin:4px 0}
+    .modal.compact input.txt,.modal.compact select{padding:4px 6px;font-size:12px}
+    .modal.compact .lbl{font-size:11px;margin-bottom:1px}
+    .modal.compact .pname{font-size:15px;margin-bottom:6px}
+    .modal.compact .about{font-size:11px;margin:4px 0}
+    .modal.compact .actions button,.modal.compact .btn{padding:4px 8px;font-size:12px}
+    .modal.compact h3{font-size:16px;margin:0 0 6px}
+    .modal.compact .stat{font-size:12px;margin:4px 0}
     .modal h3{margin:0 0 12px;font-size:18px;color:#fff}
     .modal .x{float:right;border:0;background:transparent;color:#9aa2ad;font-size:18px;cursor:pointer}
     .field{margin:10px 0}
@@ -113,7 +121,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.43";
+      return v || "v0.4.44";
     }
 
     connectedCallback() {
@@ -310,7 +318,7 @@
       this.shadowRoot.appendChild(veil);
       this._modal = veil;
       try { veil.focus(); } catch (_) {}
-      return veil.querySelector(".mbody");
+      return veil;
     }
 
     _closeModal() {
@@ -355,7 +363,9 @@
     }
 
     _openRemote(dev, devSafe, rdBase, rdToken) {
-      const body = this._openModal(dev + " — remote desktop");
+      const veil = this._openModal(dev + " — remote desktop");
+      if (!veil) return;
+      const body = veil.querySelector(".mbody");
       if (!body) return;
       if (!rdBase) { body.innerHTML = `<div class="about">Waiting for the panel IP address…</div>`; return; }
       let token = rdToken || this._rdToken(devSafe);
@@ -403,7 +413,9 @@
     }
 
     _openInfoModal(dev, devSafe, ents, h) {
-      const body = this._openModal(dev + " — info");
+      const veil = this._openModal(dev + " — info");
+      if (!veil) return;
+      const body = veil.querySelector(".mbody");
       if (!body) return;
       const renderInfo = () => {
         const cur = (id) => (ents[id] ? h.states[ents[id]] : null);
@@ -451,7 +463,11 @@
     }
 
     _openSettingsModal(dev, devSafe, ents, entry, h) {
-      const body = this._openModal(dev + " — settings");
+      const veil = this._openModal(dev + " — settings");
+      if (!veil) return;
+      const modal = veil.querySelector(".modal");
+      if (modal) modal.classList.add("compact");
+      const body = veil.querySelector(".mbody");
       if (!body) return;
       this._renderSettingsForEntry(body, entry, dev, devSafe, ents, h);
     }
@@ -503,7 +519,7 @@
         } else if (!rdBase) {
           rdHtml = `<div class="about" style="margin:8px 0">Waiting for the panel IP address…</div>`;
         } else if (!rdToken) {
-          rdHtml = this._panelSvg() + `<div class="about" style="margin:8px 0">Remote desktop is on. <button class="btn" data-rd="token">Set access token</button> to show the live screen.</div>`;
+          rdHtml = this._panelSvg() + `<div class="about" style="margin:8px 0">Remote desktop is on. Set the token in <b>Settings</b> to show the live screen.</div>`;
         } else {
           rdHtml = `<img class="rdimg" data-rd="img" src="${rdBase}stream?token=${encodeURIComponent(rdToken)}" alt="live panel screen" title="Click to open remote desktop">`;
         }
@@ -560,17 +576,11 @@
         });
         on("[data-rd=img]", () => this._openRemote(dev, devSafe, rdBase, rdToken));
         on("[data-act=remote]", () => this._openRemote(dev, devSafe, rdBase, rdToken));
-        on("[data-rd=token]", () => {
-          const t = this._rdSetToken(devSafe);
-          if (t != null) setTimeout(() => this._schedule(true), 300);
-        });
         {
           const img = card.querySelector("[data-rd=img]");
           if (img) img.onerror = () => {
             const wrap = card.querySelector('[data-rd="wrap"]');
-            if (wrap) wrap.innerHTML = `<div class="about" style="margin:8px 0">Live screen unavailable (wrong token or panel unreachable). <button class="btn" data-rd="token2">Set token</button></div>`;
-            const b2 = card.querySelector('[data-rd="token2"]');
-            if (b2) b2.onclick = () => { const t = this._rdSetToken(devSafe); if (t != null) setTimeout(() => this._schedule(true), 300); };
+            if (wrap) wrap.innerHTML = `<div class="about" style="margin:8px 0">Live screen unavailable (wrong token or panel unreachable). Set the token in <b>Settings</b>.</div>`;
           };
         }
         on("[data-act=reboot]", () => {
@@ -582,7 +592,9 @@
         });
 
         on("[data-act=info]", () => {
-          const body = this._openModal(dev + " — info");
+          const veil = this._openModal(dev + " — info");
+          if (!veil) return;
+          const body = veil.querySelector(".mbody");
           if (!body) return;
           const renderInfo = () => {
             const cur = (id) => (ents[id] ? h.states[ents[id]] : null);
@@ -612,7 +624,11 @@
         });
 
         on("[data-act=settings]", () => {
-          const body = this._openModal(dev + " — settings");
+          const veil = this._openModal(dev + " — settings");
+          if (!veil) return;
+          const modal = veil.querySelector(".modal");
+          if (modal) modal.classList.add("compact");
+          const body = veil.querySelector(".mbody");
           if (!body) return;
           this._renderSettingsForEntry(body, entry, dev, devSafe, ents, h);
         });
