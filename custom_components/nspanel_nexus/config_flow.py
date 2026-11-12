@@ -115,10 +115,11 @@ class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         if user_input is not None:
+            device = topic_safe(user_input[CONF_DEVICE_NAME])
             return self.async_create_entry(
-                title=f"NSPanel {user_input[CONF_DEVICE_NAME]}",
+                title=f"NSPanel {device}",
                 data={
-                    CONF_DEVICE_NAME: user_input[CONF_DEVICE_NAME],
+                    CONF_DEVICE_NAME: device,
                     CONF_TOPIC_PREFIX: user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX),
                 },
             )
@@ -175,6 +176,8 @@ class NexusOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
+            user_input = dict(user_input)
+            user_input[CONF_DEVICE_NAME] = topic_safe(user_input[CONF_DEVICE_NAME])
             return self.async_create_entry(title="", data=user_input)
         return self.async_show_form(
             step_id="init",
