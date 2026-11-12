@@ -129,6 +129,7 @@ all aligned before the commit).
 | 7 | 2026-11-11 | Blank page, constructor not initialized | v0.4.23, v0.4.24 |
 | 8 | 2026-11-12 | (re-verification pass) | — |
 | 9 | 2026-11-12 | (re-verification pass) | — |
+| 10 | 2026-11-12 | CRITICAL: topic_safe not applied in async_setup_entry — MQTT topic mismatch | v0.4.29 |
 | 10 | 2026-11-12 | `js_url` legacy load path, REST `config/entity_registry/list` 404, hardcoded version, blank before `hass` arrives | v0.4.27 |
 
 ---
