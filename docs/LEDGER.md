@@ -124,26 +124,26 @@ all aligned before the commit).
 ### 2.6 Open-item repair batch (user: "please start working on them")
 
 Remaining open items being repaired now (each verified, no dirty fixes):
-- [ ] O1: Touch event dead (entity exists, never published) → publish throttled tap from MainActivity dispatchTouchEvent
-- [ ] O2: Module switches optimistic-only (HA goes stale) → retained `state/modules` doc published by Android; switches subscribe + sync
-- [ ] O3: `unique_id` ignores prefix (same name/different prefix collide) → qualify new-entry unique_ids with prefix; existing entries untouched
-- [ ] O4: `device_info` identifiers ignore prefix (two prefixes merge into one HA device) → identifiers include prefix (entities move once, history kept)
-- [ ] O5: Zigbee permit_join via wrong broker → dedicated local-broker publish (127.0.0.1) with graceful fallback
-- [ ] O6: Firmware version via `su` on UI thread → updater chmods version file readable; app reads direct first, su fallback with timeout
-- [ ] O7: Release version-drift class → `scripts/bump_version.sh` single source (manifest/hacs/panel/Android)
+- [x] O1: Touch event dead (entity exists, never published) → publish throttled tap from MainActivity dispatchTouchEvent
+- [x] O2: Module switches optimistic-only (HA goes stale) → retained `state/modules` doc published by Android; switches subscribe + sync
+- [x] O3: `unique_id` ignores prefix (same name/different prefix collide) → qualify new-entry unique_ids with prefix; existing entries untouched
+- [x] O4: `device_info` identifiers ignore prefix (two prefixes merge into one HA device) → identifiers include prefix (entities move once, history kept)
+- [x] O5: Zigbee permit_join via wrong broker → dedicated local-broker publish (127.0.0.1) with graceful fallback
+- [x] O6: Firmware version via `su` on UI thread → updater chmods version file readable; app reads direct first, su fallback with timeout
+- [x] O7: Release version-drift class → `scripts/bump_version.sh` single source (manifest/hacs/panel/Android)
 
 Parallel audits from 4 angles (HA linkages / panel.js / Android / versions).
 Fix list for this pass (verify each, no dirty fixes):
-- [ ] H1: `_link_for` normalize with topic_safe; PanelLink defence sanitize
-- [ ] H2: wire `add_update_listener` so options save reloads
-- [ ] H3: options defaults from merged data+options; zeroconf topic segment sanitize
-- [ ] H4: single `topic_safe()` in const.py
-- [ ] H5: sensor units (`LIGHT_LUX`->`UnitOfLuminance`, `s`->`UnitOfTime`), number int, DOMAIN const
-- [ ] P1: panel.js prefer `entry.options.device_name`; registry fallback entity map
-- [ ] P2: fallback `panel`->`nspanel`; debounce brightness + .catch; url guard; online default; suspend refresh while addForm; fix double-refresh; escape dev; select shape; remove dead `_token`+logs; drop dead OBJ_ID
-- [ ] F1: Android route ip/started/uptime via `state()` (retain); exact `command/device` match
-- [ ] F2: DisplayModule NPE guard; SetupFragment test current field; Firmware fallback try/catch; Voice Assist proto fix
-- [ ] V1: bump manifest/hacs/panel together; Android BuildConfig version; backfill LEDGER; untrack .gradle; ignore ha-brands
+- [x] H1: `_link_for` normalize with topic_safe; PanelLink defence sanitize
+- [x] H2: wire `add_update_listener` so options save reloads
+- [x] H3: options defaults from merged data+options; zeroconf topic segment sanitize
+- [x] H4: single `topic_safe()` in const.py
+- [x] H5: sensor units (`LIGHT_LUX`->`UnitOfLuminance`, `s`->`UnitOfTime`), number int, DOMAIN const
+- [x] P1: panel.js prefer `entry.options.device_name`; registry fallback entity map
+- [x] P2: fallback `panel`->`nspanel`; debounce brightness + .catch; url guard; online default; suspend refresh while addForm; fix double-refresh; escape dev; select shape; remove dead `_token`+logs; drop dead OBJ_ID
+- [x] F1: Android route ip/started/uptime via `state()` (retain); exact `command/device` match
+- [x] F2: DisplayModule NPE guard; SetupFragment test current field; Firmware fallback try/catch; Voice Assist proto fix
+- [x] V1: bump manifest/hacs/panel together; Android BuildConfig version; backfill LEDGER; untrack .gradle; ignore ha-brands
 
 ---
 
@@ -179,6 +179,8 @@ Fix list for this pass (verify each, no dirty fixes):
 | 11 | 2026-11-12 | `js_url` legacy load path, REST `config/entity_registry/list` 404, hardcoded version, blank before `hass` arrives | v0.4.27 |
 | 12 | 2026-11-12 | Stale browser cache masking new panel.js (unversioned module URL) | v0.4.31 |
 | 13 | 2026-11-13 | Full 4-angle audit (HA linkages / panel.js / Android / versions): _link_for not normalized, update listener not wired, options defaults stale, zeroconf segment raw, 3x topic_safe copies, deprecated units, float churn, DOMAIN hardcode, registry fallback missing, fallback panel/nspanel, brightness debounce, url guard, online default, form wipe, double refresh, XSS, select shape, dead token/logs/OBJ_ID, Android retain/exact-match/NPE/stale-URL/version-crash/OTA-su/Voice-proto, .gradle tracked, ha-brands untracked, LEDGER gaps, Android version frozen | v0.4.33 |
+| 14 | 2026-11-13 | Full 4-angle REPAIR applied + verified (ruff/node/gradle green); v0.4.34 cut but tag pointed at pre-fix commit, re-shipped as below | v0.4.34 |
+| 15 | 2026-11-13 | Open-item repairs: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified config-entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh single source | v0.4.35 |
 
 ---
 
@@ -197,10 +199,11 @@ Fix list for this pass (verify each, no dirty fixes):
 ### Known issues to investigate
 - [x] HA sidebar blank page — fixed in v0.4.27 (`module_url` + immediate skeleton + WS registry)
 - [x] Unlink Delete 401 / Unknown command — REST DELETE is the only valid path; WS `config_entries/delete` does not exist. Keep callApi DELETE + manual-remove fallback (v0.4.32)
-- [ ] DisplayModule publishes state with retry (hacky, should use MQTT connect callback)
-- [ ] FirmwareModule reads version via su (should be readable by app)
-- [ ] VoiceModule publishEntities() is no-op (phase 2)
-- [ ] ZigbeeModule doesn't publish state to HA (local only)
+- [x] DisplayModule retry publish — replaced with queue-until-connected in MqttModule + connect-time state flush (v0.4.35)
+- [x] FirmwareModule reads version via su — updater now chmods 644; app reads direct first, su fallback with timeout (v0.4.35)
+- [ ] VoiceModule publishEntities() is no-op (phase 2 — Assist satellite entity is a Wyoming-protocol concern, not MQTT discovery)
+- [x] ZigbeeModule local publish — dedicated panel-local broker publish with graceful fallback (v0.4.35)
+- [ ] Entity unique_ids remain device-only (same name on 2 prefixes collides on one platform) — accepted edge; entry unique_ids + device identifiers are prefix-qualified since v0.4.35
 
 ---
 
@@ -245,7 +248,8 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.31 | 2026-11-12 | Cache-busted panel module URL (`panel.js?v=<version>`) — a stale cached panel.js can no longer mask a release |
 | v0.4.32 | 2026-11-12 | Unlink back to callApi DELETE + helpful manual-remove message |
 | v0.4.33 | 2026-11-13 | 4-angle full audit: HA normalization/update-listener/options/units, panel registry fallback/debounce/XSS/select-shape, Android retain/exact-match/NPE/Voice-proto/OTA-su, versions aligned, .gradle untracked |
-| v0.4.31 | 2026-11-12 | Cache-busted panel module URL (`panel.js?v=<version>`) — a stale cached panel.js can no longer mask a release |
+| v0.4.34 | 2026-11-13 | 4-angle audit REPAIR applied (ruff/node/gradle green); tag pointed at pre-fix commit so fixes re-shipped in .35 |
+| v0.4.35 | 2026-11-13 | Open-item repairs: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
