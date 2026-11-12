@@ -113,7 +113,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.40";
+      return v || "v0.4.41";
     }
 
     connectedCallback() {
@@ -397,6 +397,60 @@
       if (im2) im2.onerror = () => { if (log) log.textContent = "Live screen unavailable (wrong token or panel unreachable)."; };
     }
 
+    _openInfoModal(dev, devSafe, ents, h) {
+      const body = this._openModal(dev + " — info");
+      if (!body) return;
+      const renderInfo = () => {
+        const cur = (id) => (ents[id] ? h.states[ents[id]] : null);
+        const screen = cur("screen"); const bright = cur("brightness");
+        const rdp = cur("remote_desktop_switch"); const firmware = cur("firmware");
+        const lux = cur("illuminance"); const ip = cur("ip_address");
+        const probe = cur("uptime") || ip;
+        body.innerHTML = `
+          <div class="stat"><span class="ic">⌂</span>IP: ${ip ? ip.state : "—"}</div>
+          <div class="stat"><span class="ic">☀</span>Ambient: ${lux ? lux.state + " lx" : "—"}</div>
+          <div class="stat"><span class="ic">⏱</span>Uptime: ${probe ? probe.state + " s" : "—"}</div>
+          <div class="stat"><span class="ic">📺</span>Screen: ${screen ? screen.state : "—"}</div>
+          <div class="stat"><span class="ic">☀</span>Brightness: ${bright ? bright.state : "—"}</div>
+          <div class="stat"><span class="ic">📡</span>Remote desktop: ${rdp ? rdp.state : "—"}</div>
+          <div class="stat"><span class="ic">🧠</span>Firmware: ${firmware ? firmware.state : "—"}</div>
+          <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px">
+            <button class="btn primary" data-act="wake">${screen && screen.state === "on" ? "Sleep" : "Wake"}</button>
+            <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br2 title="brightness" style="max-width:180px">
+            <button class="btn" data-act="fwcheck">Check firmware</button>
+            <button class="btn" data-act="reboot2">Reboot</button>
+            <button class="btn" data-act="unlink" style="opacity:.7">Unlink</button>
+          </div>`;
+          const wake = body.querySelector("[data-act=wake]");
+          if (wake) wake.onclick = () => {
+            const turningOff = screen && screen.state === "on";
+            wake.textContent = turningOff ? "Wake" : "Sleep";
+            if (ents["screen"]) h.callService("switch", turningOff ? "turn_off" : "turn_on", { entity_id: ents["screen"] }).catch(e => alert(e && e.message || e));
+            setTimeout(() => this._schedule(true), 1000);
+          };
+          const br2 = body.querySelector("[data-br2]");
+          if (br2 && ents["brightness"]) {
+            br2.oninput = (e) => {
+              h.callService("number", "set_value", { entity_id: ents["brightness"], value: Number(e.target.value) }).catch(err => console.error(err));
+            };
+          }
+          const fw = body.querySelector("[data-act=fwcheck]");
+          if (fw) fw.onclick = () => h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "firmware:check" }).catch(e => alert(e && e.message || e));
+          const rb = body.querySelector("[data-act=reboot2]");
+          if (rb) rb.onclick = () => { if (!confirm("Reboot " + dev + "?")) return; h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" }).catch(e => alert(e && e.message || e)); };
+          const ul = body.querySelector("[data-act=unlink]");
+          if (ul) ul.onclick = () => { if (!confirm("Unlink " + dev + "?")) return; this._deleteEntry(entry.entry_id); this._closeModal(); };
+      };
+      renderInfo();
+      const infoTimer = setInterval(() => { if (!this._modal) { clearInterval(infoTimer); return; } renderInfo(); }, 3000);
+    }
+
+    _openSettingsModal(dev, devSafe, ents, entry, h) {
+      const body = this._openModal(dev + " — settings");
+      if (!body) return;
+      this._renderSettingsForEntry(body, entry, dev, devSafe, ents, h);
+    }
+
     _renderPanels(body) {
       const h = this._hass;
 
@@ -449,22 +503,11 @@
           rdHtml = `<img class="rdimg" data-rd="img" src="${rdBase}stream?token=${encodeURIComponent(rdToken)}" alt="live panel screen" title="Click to open remote desktop">`;
         }
         card.innerHTML = `
-          <div class="pname">${this._esc(dev)}</div>
           <div data-rd="wrap">${rdHtml}</div>
-          ${ip ? `<div class="stat"><span class="ic">⌂</span>${ip.state}</div>` : ""}
-          ${lux ? `<div class="stat"><span class="ic">☀</span>${lux.state} lx</div>` : ""}
-          ${probe ? `<div class="stat"><span class="ic">⏱</span>uptime ${probe.state} s</div>` : ""}
-          <div class="actions" style="display:flex;border:0;padding:6px 0 0">
-            <button class="primary" data-act="screen">${screen && screen.state === "on" ? "Sleep" : "Wake"}</button>
-            <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br title="brightness">
-            ${rdp ? `<button data-act="rdp">${rdpOn ? "RD on" : "RD off"}</button>` : ""}
-            <button class="warn" data-act="reboot">Reboot</button>
-            <button class="warn" data-act="remove" title="Unlink this panel from Home Assistant">Unlink</button>
-          </div>
-          <div class="actions" style="display:flex;border:0;padding:6px 0 0">
-            ${rdpOn && rdBase ? `<button class="btn primary" data-act="remote">Remote</button>` : ""}
+          <div class="actions" style="display:flex;border:0;padding:6px 0 0;justify-content:center">
             <button class="btn" data-act="info">Info</button>
             <button class="btn" data-act="settings">Settings</button>
+            ${rdpOn && rdBase ? `<button class="btn primary" data-act="remote">Remote</button>` : ""}
           </div>
 `;
 
