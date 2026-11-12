@@ -263,6 +263,7 @@
     _renderPanels(body) {
       const h = this._hass;
       console.log('Nexus: _renderPanels called, entries=', this._entries && this._entries.length);
+      console.log('Nexus: hass available=', !!h, 'callService=', typeof h?.callService, 'callWS=', typeof h?.callWS, 'callApi=', typeof h?.callApi);
       body.innerHTML = `<h2>Panels</h2>
         <div class="actions" style="display:flex;flex-wrap:wrap;gap:6px;margin:-12px 0 16px">
           <button class="btn primary" id="add">+ Add panel</button>
@@ -483,7 +484,7 @@
       const h = this._hass;
       if (!h) return;
       try {
-        await h.callApi("DELETE", "config/config_entries/entry/" + entryId);
+        await h.callWS({ type: "config_entries/delete", entry_id: entryId });
         this._flash("Panel removed.");
         await this._refresh();
       } catch (e) {
