@@ -4,8 +4,16 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import UnitOfLuminance, UnitOfTime
 from homeassistant.core import callback
+
+try:  # HA >= 2022.10, and still present on most versions
+    from homeassistant.const import UnitOfLuminance, UnitOfTime
+
+    _UNIT_LUX = UnitOfLuminance.LUX
+    _UNIT_SECONDS = UnitOfTime.SECONDS
+except ImportError:  # older/newer HA without the enums in const: use plain units
+    _UNIT_LUX = "lx"
+    _UNIT_SECONDS = "s"
 from homeassistant.helpers.entity import EntityCategory
 
 from .const import DOMAIN
@@ -65,11 +73,11 @@ async def async_setup_entry(hass, entry, async_add_entities) -> None:
     async_add_entities([
         NexusSensor(link, "illuminance", "Illuminance",
                     device_class=SensorDeviceClass.ILLUMINANCE,
-                    unit=UnitOfLuminance.LUX, state_class=SensorStateClass.MEASUREMENT),
+                    unit=_UNIT_LUX, state_class=SensorStateClass.MEASUREMENT),
         NexusSensor(link, "ip_address", "IP address",
                     icon="mdi:ip-network", entity_category=EntityCategory.DIAGNOSTIC),
         NexusSensor(link, "uptime", "Uptime",
-                    unit=UnitOfTime.SECONDS,
+                    unit=_UNIT_SECONDS,
                     state_class=SensorStateClass.TOTAL_INCREASING,
                     icon="mdi:clock-outline", entity_category=EntityCategory.DIAGNOSTIC),
         NexusSensor(link, "firmware", "Firmware",
