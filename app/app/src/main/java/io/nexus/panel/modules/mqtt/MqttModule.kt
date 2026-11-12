@@ -146,7 +146,7 @@ class MqttModule : Module {
     }
 
     fun state(key: String, payload: JSONObject) {
-        publish("$base/state/$key", payload.toString(), qos = 0)
+        publish("$base/state/$key", payload.toString(), qos = 0, retain = true)
     }
 
     fun discovery(component: String, objectId: String, payload: JSONObject) {

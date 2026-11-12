@@ -186,7 +186,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.19</span>
+          <span class="ver">v0.4.20</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
