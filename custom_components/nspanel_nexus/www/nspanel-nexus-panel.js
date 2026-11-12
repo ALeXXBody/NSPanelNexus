@@ -132,7 +132,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.61";
+      return v || "v0.4.62";
     }
 
     connectedCallback() {
@@ -787,13 +787,6 @@
 
     _renderSettingsForEntry(body, entry, dev, devSafe, ents, h) {
       body.innerHTML = `<h2>Firmware configuration</h2>
-        <div class="card about" style="margin-bottom:16px">
-          Every setting of the Nexus firmware on the panel, editable from here.
-          <b>Load from panel</b> reads the live values first; <b>Save to panel</b>
-          sends only the changed fields in one update. Password fields left empty
-          keep the stored secret. The MQTT module has no switch on purpose —
-          turning it off remotely would silence the panel until someone touches it.
-        </div>
         <div class="grid" id="grid"></div>`;
       const grid = body.querySelector("#grid");
       if (!this._entries || !this._entries.length) {
@@ -815,10 +808,10 @@
         const rdPortSt = st("cfg_remote_desktop_port");
         const rdPortVal = rdPortSt && rdPortSt.state != null && !isNaN(Number(rdPortSt.state)) ? Number(rdPortSt.state) : 8080;
         let html = `<div class="pname">${this._esc(dev)}</div>
-          <div class="actions" style="display:flex;border:0;padding:6px 0 10px">
-            <button class="btn" data-act="load">Load from panel</button>
-            <button class="btn primary" data-act="save">Save to panel</button>
-            <span class="about" data-act="msg"></span>
+          <div class="actions" style="display:flex;border:0;padding:4px 0 8px;gap:6px">
+            <button class="btn" data-act="load">Load</button>
+            <button class="btn primary" data-act="save">Save</button>
+            <span class="about" data-act="msg" style="margin-left:auto"></span>
           </div>
           <div class="rdbox">
             <div class="rdhead">Remote desktop <span class="rdpill${rdpIsOn ? " on" : ""}" data-rd="pill">${rdpSw ? (rdpIsOn ? "ON" : "OFF") : "?"}</span></div>
@@ -831,19 +824,34 @@
               <input class="txt num" data-rd="port" type="number" min="1" max="65535" step="1" value="${rdPortVal}" title="Remote desktop port">
               <button class="btn primary" data-rd="saverd">Save RD</button>
             </div>
-            <div class="hint">On/off and Save RD apply immediately and work over http/https, local or remote. Save RD stores the token on the panel and in Home Assistant; the same token field also lives in the full form below.</div>
+            <div class="hint">Save RD stores the token on the panel + HA. Token field also in form below.</div>
           </div>
           <div class="setgrid">`;
-        this._textFields.forEach(([key, label, type]) => {
-          const cur = st("cfg_" + key);
-          const val = cur && cur.state != null && cur.state !== "unknown" && cur.state !== "unavailable" ? cur.state : "";
-          html += `<div class="field"><div class="lbl">${label}</div>
-            <input class="txt" data-cfg="${key}" data-kind="text" type="${type}" value="${type === "password" ? "" : this._esc(val)}" placeholder="${type === "password" ? "(unchanged)" : ""}"></div>`;
+        const fieldMap = Object.fromEntries(this._textFields);
+        const sections = [
+          ["Connection", ["mqtt_host","mqtt_user","mqtt_pass","topic_prefix","ha_topic_prefix","ha_url","ha_token"]],
+          ["Dashboard & firmware", ["dashboard_url","remote_desktop_token","nexus_manifest_url"]],
+          ["Zigbee & screens", ["zigbee_topic_base","screen_on_weekday_begin","screen_on_weekday_end","screen_on_weekend_begin","screen_on_weekend_end"]],
+        ];
+        sections.forEach(([title, keys]) => {
+          html += `<div class="sec">${title}</div>`;
+          keys.forEach((k) => {
+            const info = fieldMap[k];
+            const lbl = info ? info[1] : k;
+            const typ = info ? info[2] : "text";
+            const cur = st("cfg_" + k);
+            const val = cur && cur.state != null && cur.state !== "unknown" && cur.state !== "unavailable" ? cur.state : "";
+            const shortLbl = lbl.replace("MQTT ","").replace("Home Assistant ","HA ").replace("Remote desktop ","RD ").replace("Firmware manifest ","Manifest ").replace("Zigbee topic base","Zigbee base").replace("Screen on, ","").replace(" weekday "," wd ").replace(" weekend "," we ");
+            html += `<div class="field"><div class="lbl">${shortLbl}</div>
+              <input class="txt" data-cfg="${k}" data-kind="text" type="${typ}" value="${typ === "password" ? "" : this._esc(val)}" placeholder="${typ === "password" ? "•••" : ""}"></div>`;
+          });
         });
+        html += `<div class="sec">Ports & thresholds</div>`;
         this._numFields.forEach(([key, label, lo, hi, step]) => {
           const cur = st("cfg_" + key);
           const val = cur && cur.state != null && !isNaN(Number(cur.state)) ? Number(cur.state) : "";
-          html += `<div class="field"><div class="lbl">${label}</div>
+          const shortLbl = label.replace("threshold (lx, 0 = off)","thresh").replace("when dark (-1 = off)","dark (-1=off)").replace("when bright (-1 = off)","bright (-1=off)").replace("Remote desktop ","RD ");
+          html += `<div class="field"><div class="lbl">${shortLbl}</div>
             <input class="txt" data-cfg="${key}" data-kind="number" type="number" min="${lo}" max="${hi}" step="${step}" value="${val}"></div>`;
         });
         {
@@ -855,18 +863,17 @@
               <option value="router" ${val === "router" ? "selected" : ""}>router</option>
             </select></div>`;
         }
-        html += `</div><div class="field"><div class="lbl">Dark mode (HA native dark theme)</div>
+        html += `</div><div class="field"><div class="lbl">Dark mode</div>
           <div style="display:flex;gap:6px;align-items:center">
             <button class="btn" data-dark="toggle">off</button>
-            <span class="about">Sends dark_mode to the panel; the dashboard reloads in dark.</span>
           </div></div>
-          <div class="field"><div class="lbl">Modules (on/off apply immediately)</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+          <div class="field"><div class="lbl">Modules</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
         this._moduleToggles.forEach(([key, label]) => {
           const sw = st(key);
           const isOn = sw && sw.state === "on";
           html += `<button class="btn${isOn ? " primary" : ""}" data-mod="${key}">${label}: ${sw ? (isOn ? "on" : "off") : "?"}</button>`;
         });
-        html += `</div><div class="about">MQTT has no switch on purpose — turning it off remotely would silence the panel until someone touches it.</div></div>`;
+        html += `</div><div class="about" style="font-size:10px;opacity:.5">MQTT has no switch — turning it off would silence the panel.</div></div>`;
         card.innerHTML = html;
         grid.appendChild(card);
 

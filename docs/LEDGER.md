@@ -152,6 +152,18 @@ verbatim instead of a generic "Dashboard URL failed" toast.
 - [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
 - [ ] H3: docs update, bump + release
 
+### 2.27 Modern compact futuristic settings page (user, 2026-11-13)
+
+Redesign of the HA sidebar Settings popup: glassmorphism modal (gradient, blur,
+orange accent glow), section headers with dividers, compact 2-column grid,
+tighter spacing, uppercase micro-labels, gradient primary buttons, pill status
+for RD, shorter hints, removed verbose text. Dark mode toggle added to the form.
+
+- [x] S1: modernize CSS (glassmorphism, gradients, neon accents, compact inputs)
+- [x] S2: restructure form into sections (Connection, Dashboard & firmware, Zigbee & screens, Ports & thresholds, Dark mode, Modules)
+- [x] S3: shorten labels and hints, remove useless text
+- [x] S4: verify (node --check), bump + release
+
 ### 2.25 Firmware update button checked panel firmware, not Nexus app (user, 2026-11-13)
 
 User: the firmware update button was searching for the panel firmware, not for the
