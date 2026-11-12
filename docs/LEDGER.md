@@ -149,9 +149,9 @@ them (user apps, not system bloat) and INSTALL.md still tells users to install s
 Nexus firmware already covers it all: dashboard kiosk (WebView, default state),
 MQTT control (own MqttModule), RD, display/voice/zigbee — no third-party app needed.
 
-- [ ] R1: uninstall both apps from the live panel; verify Nexus still fully alive (MQTT status online, RD stream 200, dashboard showing) via evidence, not assumption
-- [ ] R2: docs: FIRMWARE.md verification note (FK/Pro Tools "still running" → removed, replaced by Nexus), INSTALL.md "On-panel software" section (no longer "install seaky" for Nexus firmware), DashboardModule docstring ("Fully-Kiosk path" → native WebView kiosk)
-- [ ] R3: verify (ruff/node/gradle unaffected — docs + uninstall only; live evidence), bump + release
+- [x] R1: uninstall both apps from the live panel; verify Nexus still fully alive (MQTT status online, RD stream 200, dashboard showing) via evidence, not assumption
+- [x] R2: docs: FIRMWARE.md verification note (FK/Pro Tools "still running" → removed, replaced by Nexus), INSTALL.md "On-panel software" section (no longer "install seaky" for Nexus firmware), DashboardModule docstring ("Fully-Kiosk path" → native WebView kiosk)
+- [x] R3: verify (ruff/node/gradle unaffected — docs + uninstall only; live evidence), bump + release
 
 ### 2.15 Dashboard kiosk: default state, 6-tap exit, Return button, RD text input (user, 2026-11-13)
 
@@ -161,9 +161,10 @@ a "Return to HA" button brings the dashboard back; (plus: panel showed the HA
 Verified on the live screenshot: after restart the panel shows the HA login page
 (dashboard loads at start — 2.14 works). WebView session cookies persist the login.
 
-- [ ] K1: MainActivity: title bar becomes a row (title + "Return to HA" button, visible only when a dashboard is set and hidden); 6 quick taps anywhere while dashboard shown → exit to firmware (replaces double-tap-titlebar); toast hints
-- [ ] K2: sidebar Remote popup: text field + Type button (POST input/text, value encoded) so HA login can be typed from the browser
-- [ ] K3: verify (gradle build, install on live panel, E2E screenshot; headless JS for popup), docs update, bump + release
+- [x] K1: MainActivity: title bar becomes a row (title + "Return to HA" button, visible only when a dashboard is set and hidden); 6 quick taps anywhere while dashboard shown → exit to firmware (replaces double-tap-titlebar); toast hints
+- [x] K2: sidebar Remote popup: text field + Type button (POST input/text, value encoded) so HA login can be typed from the browser
+- [x] K3: verify (gradle build, install on live panel, E2E screenshot; headless JS for popup), docs update, bump + release
+- [x] K4: optional exit PIN (6 taps → PIN pad → firmware; set in Settings; IME auto-hidden while pad is up so the keyboard never covers the keys)
 
 ### 2.14 Dashboard URL saved but panel stays on Setup (user, 2026-11-13)
 
@@ -312,6 +313,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 22 | 2026-11-13 | HA-side RD proxy (same-origin signed URLs, server-side token) so live screen works over https/remote; fixed missing `module_remote_desktop` entity-map alias (RD toggle was dead); verified: 6 proxy unit tests + live E2E (real panel screen in card) | v0.4.47 |
 | 23 | 2026-11-13 | Probed user HA: frontend v0.4.47 live + proxy registered (403). Fixed stream restart every 5s refresh (persistent re-adopted img node, proven sameNode across rebuilds); exact failure reasons in UI (fetch probe: 502 token/panel vs 403 stale signature vs setup error); square NSPanel Pro placeholder | v0.4.48 |
 | 24 | 2026-11-13 | Split 502 causes (rd-token-missing / panel-ip-unknown / panel-unreachable@host:port / panel-answered-401) with per-cause UI text; fixed UnboundLocalError 500 on panel-down (found by unit test); 8 proxy tests green | v0.4.49 |
+| 25 | 2026-11-13 | Kiosk loop live-verified: dashboard default, 6-tap exit, optional PIN pad (IME auto-hidden), Return-to-HA button, RD text input; removed Fully Kiosk + Pro Tools from panel (were device admins); raised RD stream cap 3→8 | v0.4.50 |
 
 ---
 
@@ -395,6 +397,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.47 | 2026-11-13 | RD proxy (signed same-origin URLs, server-side token, HA-authed input); fixed dead RD module toggle alias; proxy unit-tested + live E2E verified |
 | v0.4.48 | 2026-11-13 | Persistent stream node across refreshes; exact UI failure reasons; square placeholder; verified headless (sameNode) |
 | v0.4.49 | 2026-11-13 | Per-cause proxy errors incl. wrong-token (401) detection; fixed panel-down 500 crash; 8 tests green |
+| v0.4.50 | 2026-11-13 | Kiosk: 6-tap exit + PIN pad + Return-to-HA + RD text input (all live-verified); FK/Pro Tools removed; RD cap 8 |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
