@@ -98,4 +98,17 @@ async def async_setup_entry(hass, entry, async_add_entities) -> None:
         NexusModuleSwitch(link, "voice", "Voice satellite",
                           icon="mdi:microphone-message"),
         NexusModuleSwitch(link, "zigbee", "Zigbee", icon="mdi:zigbee"),
+        # NOTE: no switch for the mqtt module on purpose — turning it off
+        # remotely would silence the panel until someone re-enables it on
+        # the touchscreen.
+        NexusModuleSwitch(link, "sensors", "Sensors",
+                          icon="mdi:motion-sensor"),
+        NexusModuleSwitch(link, "display", "Display",
+                          icon="mdi:monitor"),
+        NexusModuleSwitch(link, "dashboard", "Dashboard",
+                          icon="mdi:view-dashboard"),
+        NexusModuleSwitch(link, "firmware", "Firmware",
+                          icon="mdi:cloud-download"),
+        NexusModuleSwitch(link, "fleet", "Fleet",
+                          icon="mdi:radar"),
     ], False)

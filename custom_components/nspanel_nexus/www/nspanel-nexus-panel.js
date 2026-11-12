@@ -44,6 +44,9 @@
     .actions button.warn{background:#5d1d1d;color:#ff9b9b}
     input[type=range]{width:100%;max-width:220px;accent-color:#FF8C28;vertical-align:middle}
     select{padding:8px;border-radius:3px;background:#232830;color:#dfe4ea;border:1px solid #2c323b}
+    .field{margin:10px 0}
+    .lbl{font-size:12px;color:#9aa2ad;margin-bottom:4px}
+    input.txt{width:100%;max-width:420px;box-sizing:border-box;padding:8px 10px;border-radius:3px;background:#232830;color:#dfe4ea;border:1px solid #2c323b;font-size:13px}
     .err{color:#ff8a8a;font-size:13px;white-space:pre-wrap}
     .about{font-size:13px;color:#aab2bd;line-height:1.6}
     a{color:#FF8C28;text-decoration:none}
@@ -103,7 +106,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.38";
+      return v || "v0.4.39";
     }
 
     connectedCallback() {
@@ -192,6 +195,15 @@
         screen: ["switch", "screen", "screen"],
         brightness: ["number", "brightness", "brightness"],
         remote_desktop_switch: ["switch", "remote_desktop", "module_remote_desktop"],
+        module_voice: ["switch", "voice_satellite", "module_voice"],
+        module_zigbee: ["switch", "zigbee", "module_zigbee"],
+        module_sensors: ["switch", "sensors", "module_sensors"],
+        module_display: ["switch", "display", "module_display"],
+        module_dashboard: ["switch", "dashboard", "module_dashboard"],
+        module_firmware: ["switch", "firmware", "module_firmware"],
+        module_fleet: ["switch", "fleet", "module_fleet"],
+        query_button: ["button", "re_read_config", "query_config"],
+        cfg_zigbee_role: ["select", "zigbee_role", "config_zigbee_role"],
         illuminance: ["sensor", "illuminance", "sensor_illuminance"],
         ip_address: ["sensor", "ip_address", "sensor_ip_address"],
         uptime: ["sensor", "uptime", "sensor_uptime"],
@@ -212,6 +224,12 @@
         });
       } catch (_) { regByUid = null; }
       const wantUid = (obj) => "nexus_" + dev + "_" + obj;
+      ["mqtt_host","mqtt_user","mqtt_pass","topic_prefix","ha_topic_prefix","ha_url","ha_token","dashboard_url","remote_desktop_token","nexus_manifest_url","zigbee_topic_base","screen_on_weekday_begin","screen_on_weekday_end","screen_on_weekend_begin","screen_on_weekend_end"].forEach((k) => {
+        candidates["cfg_" + k] = ["text", k, "config_" + k];
+      });
+      ["mqtt_port","remote_desktop_port","light_below","light_above","proximity_delta","brightness_on_light_below","brightness_on_light_above"].forEach((k) => {
+        candidates["cfg_" + k] = ["number", k, "config_" + k];
+      });
       Object.keys(candidates).forEach((key) => {
         const [domain, suffix, obj] = candidates[key];
         let eid = null;
@@ -407,23 +425,174 @@
       });
     }
 
+    // ---- firmware configuration: every panel setting, editable here ----
+    // [config key, label, input type]
+    get _textFields() {
+      return [
+        ["mqtt_host", "MQTT host", "text"],
+        ["mqtt_user", "MQTT user", "text"],
+        ["mqtt_pass", "MQTT password", "password"],
+        ["topic_prefix", "Topic prefix", "text"],
+        ["ha_topic_prefix", "HA discovery prefix", "text"],
+        ["ha_url", "Home Assistant URL", "text"],
+        ["ha_token", "HA long-lived token", "password"],
+        ["dashboard_url", "Dashboard URL", "text"],
+        ["remote_desktop_token", "Remote desktop token", "password"],
+        ["nexus_manifest_url", "Firmware manifest URL", "text"],
+        ["zigbee_topic_base", "Zigbee topic base", "text"],
+        ["screen_on_weekday_begin", "Screen on, weekday from (HH:MM)", "text"],
+        ["screen_on_weekday_end", "Screen on, weekday until (HH:MM)", "text"],
+        ["screen_on_weekend_begin", "Screen on, weekend from (HH:MM)", "text"],
+        ["screen_on_weekend_end", "Screen on, weekend until (HH:MM)", "text"],
+      ];
+    }
+
+    // [config key, label, min, max, step]
+    get _numFields() {
+      return [
+        ["mqtt_port", "MQTT port", 1, 65535, 1],
+        ["remote_desktop_port", "Remote desktop port", 1, 65535, 1],
+        ["light_below", "Light below threshold (lx, 0 = off)", 0, 100000, 1],
+        ["light_above", "Light above threshold (lx, 0 = off)", 0, 100000, 1],
+        ["proximity_delta", "Proximity delta", 0, 1000, 1],
+        ["brightness_on_light_below", "Brightness when dark (-1 = off)", -1, 255, 1],
+        ["brightness_on_light_above", "Brightness when bright (-1 = off)", -1, 255, 1],
+      ];
+    }
+
+    get _moduleToggles() {
+      return [
+        ["module_sensors", "Sensors"], ["module_display", "Display"],
+        ["module_dashboard", "Dashboard"], ["module_remote_desktop", "Remote desktop"],
+        ["module_voice", "Voice satellite"], ["module_zigbee", "Zigbee"],
+        ["module_firmware", "Firmware"], ["module_fleet", "Fleet"],
+      ];
+    }
+
     _renderSettings(body) {
       const h = this._hass;
-      body.innerHTML = `<h2>Settings</h2>
-        <div class="card about">
-          Per-panel settings (MQTT host/port, HA token, dashboard URL, module switches)
-          live on the panel app's own screen, and can also be changed from Home Assistant:
-          <br><br>
-          <button class="btn" id="cfg">Open panel configuration</button>
-          <div class="sub" style="margin-top:10px">
-            Or use the <b>nspanel_nexus.config_update</b> action from automations, e.g.
-            <code>{"brightness": 180}</code> or <code>{"module.remote_desktop.enabled": true}</code>.
-          </div>
-        </div>`;
-      body.querySelector("#cfg").onclick = () =>
-        this.dispatchEvent(new CustomEvent("config_entries_open", {
-          bubbles: true, composed: true,
-        }));
+      body.innerHTML = `<h2>Firmware configuration</h2>
+        <div class="card about" style="margin-bottom:16px">
+          Every setting of the Nexus firmware on the panel, editable from here.
+          <b>Load from panel</b> reads the live values first; <b>Save to panel</b>
+          sends only the changed fields in one update. Password fields left empty
+          keep the stored secret. The MQTT module has no switch on purpose —
+          turning it off remotely would silence the panel until someone touches it.
+        </div>
+        <div class="grid" id="grid"></div>`;
+      const grid = body.querySelector("#grid");
+      if (!this._entries || !this._entries.length) {
+        grid.innerHTML = `<div class="card"><span class="about">No panels linked yet — add one on the Panels tab first.</span></div>`;
+        return;
+      }
+      this._entries.forEach((entry) => {
+        const merged = Object.assign({}, entry.data, entry.options, entry.raw_data);
+        const rawDev = (merged && merged.device_name) || (entry.title || "").replace(/^NSPanel /, "") || "nspanel";
+        const dev = rawDev;
+        const devSafe = rawDev.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "nspanel";
+        const ents = this._entityMap(entry, devSafe);
+        const st = (id) => (ents[id] ? h.states[ents[id]] : null);
+        const card = document.createElement("div");
+        card.className = "card on";
+        const fieldId = (k) => "cfg-" + entry.entry_id + "-" + k;
+        let html = `<div class="pname">${this._esc(dev)}</div>
+          <div class="actions" style="display:flex;border:0;padding:6px 0 10px">
+            <button class="btn" data-act="load">Load from panel</button>
+            <button class="btn primary" data-act="save">Save to panel</button>
+            <span class="about" data-act="msg"></span>
+          </div>`;
+        this._textFields.forEach(([key, label, type]) => {
+          const cur = st("cfg_" + key);
+          const val = cur && cur.state != null && cur.state !== "unknown" && cur.state !== "unavailable" ? cur.state : "";
+          html += `<div class="field"><div class="lbl">${label}</div>
+            <input class="txt" data-cfg="${key}" data-kind="text" type="${type}" value="${type === "password" ? "" : this._esc(val)}" placeholder="${type === "password" ? "(unchanged)" : ""}"></div>`;
+        });
+        this._numFields.forEach(([key, label, lo, hi, step]) => {
+          const cur = st("cfg_" + key);
+          const val = cur && cur.state != null && !isNaN(Number(cur.state)) ? Number(cur.state) : "";
+          html += `<div class="field"><div class="lbl">${label}</div>
+            <input class="txt" data-cfg="${key}" data-kind="number" type="number" min="${lo}" max="${hi}" step="${step}" value="${val}"></div>`;
+        });
+        {
+          const cur = st("cfg_zigbee_role");
+          const val = cur ? cur.state : "";
+          html += `<div class="field"><div class="lbl">Zigbee role</div>
+            <select data-cfg="zigbee_role" data-kind="select">
+              <option value="coordinator" ${val === "coordinator" ? "selected" : ""}>coordinator</option>
+              <option value="router" ${val === "router" ? "selected" : ""}>router</option>
+            </select></div>`;
+        }
+        html += `<div class="field"><div class="lbl">Modules (on/off apply immediately)</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+        this._moduleToggles.forEach(([key, label]) => {
+          const sw = st(key);
+          const isOn = sw && sw.state === "on";
+          html += `<button class="btn${isOn ? " primary" : ""}" data-mod="${key}">${label}: ${sw ? (isOn ? "on" : "off") : "?"}</button>`;
+        });
+        html += `</div><div class="about">MQTT has no switch on purpose — turning it off remotely would silence the panel until someone touches it.</div></div>`;
+        card.innerHTML = html;
+        grid.appendChild(card);
+
+        const msg = (t) => {
+          const m = card.querySelector('[data-act="msg"]');
+          if (m) m.textContent = t;
+        };
+        const flash = (t) => this._flash(t);
+
+        card.querySelector('[data-act="load"]').onclick = async () => {
+          const q = ents["query_button"];
+          if (!q) { msg("No query button entity yet — is the panel linked?"); return; }
+          msg("Asking panel…");
+          try {
+            await h.callService("button", "press", { entity_id: q });
+            setTimeout(() => this._schedule(true), 1500);
+            msg("Requested — values arrive in a moment.");
+          } catch (e) { msg("Load failed: " + (e && e.message || e)); }
+        };
+
+        card.querySelector('[data-act="save"]').onclick = async () => {
+          const patch = {};
+          card.querySelectorAll("[data-cfg]").forEach((el) => {
+            const key = el.getAttribute("data-cfg");
+            const kind = el.getAttribute("data-kind");
+            const cur = st("cfg_" + key);
+            const curVal = cur && cur.state != null ? String(cur.state) : null;
+            if (kind === "number") {
+              if (el.value === "" || el.value == null) return;
+              if (curVal != null && Number(el.value) === Number(curVal)) return;
+              patch[key] = Number(el.value);
+            } else if (kind === "select") {
+              if (curVal != null && el.value === curVal) return;
+              patch[key] = el.value;
+            } else {
+              if (el.type === "password") { if (!el.value) return; }
+              else if (curVal != null && el.value === curVal) return;
+              patch[key] = el.value;
+            }
+          });
+          if (!Object.keys(patch).length) { msg("Nothing changed."); return; }
+          msg("Saving…");
+          try {
+            await h.callService("nspanel_nexus", "config_update", { device_name: devSafe, config: patch });
+            flash("Saved: " + Object.keys(patch).join(", "));
+            setTimeout(() => this._schedule(true), 1500);
+            msg("");
+          } catch (e) { msg("Save failed: " + (e && e.message || e)); }
+        };
+
+        card.querySelectorAll("[data-mod]").forEach((btn) => {
+          btn.onclick = () => {
+            const key = btn.getAttribute("data-mod");
+            const eid = ents[key];
+            if (!eid) return;
+            const stt = h.states[eid];
+            const turnOn = !(stt && stt.state === "on");
+            btn.textContent = btn.textContent.replace(/: (on|off|\?)$/, ": " + (turnOn ? "on" : "off"));
+            h.callService("switch", turnOn ? "turn_on" : "turn_off", { entity_id: eid })
+              .catch((e) => { console.error("module toggle failed:", e); msg("Toggle failed: " + (e && e.message || e)); });
+            setTimeout(() => this._schedule(true), 1000);
+          };
+        });
+      });
     }
 
     _renderAbout(body) {

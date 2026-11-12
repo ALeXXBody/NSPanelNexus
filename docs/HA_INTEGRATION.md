@@ -29,9 +29,18 @@ NSPanel Nexus), HA creates one device with these entities:
 | Zigbee | switch | enable/disable the Zigbee module |
 | Wake / Sleep / Reboot | button | device commands |
 | Check firmware / Re-read config | button | diagnostics |
+| MQTT host/user/password, topic prefix, HA URL/token, dashboard URL, remote-desktop token, manifest URL, Zigbee topic base, screen schedules | text | full firmware configuration (passwords masked) |
+| MQTT port, remote-desktop port, light thresholds, proximity delta, brightness presets | number | full firmware configuration |
+| Zigbee role | select | coordinator / router |
+| Sensors, Display, Dashboard, Firmware, Fleet (+ remote desktop, voice, Zigbee) | switch | enable/disable each module (no MQTT switch: it would silence the panel) |
 
-Plus a **service** `nspanel_nexus.command` to send any device command
-(`{"device_name": "nspanelpro", "command": "wake_up"}`).
+Plus services: `nspanel_nexus.command` to send any device command
+(`{"device_name": "Conservatory_Panel", "command": "wake_up"}`) and
+`nspanel_nexus.config_update` to patch any setting
+(`{"device_name": "Conservatory_Panel", "config": {"brightness": 180}}`).
+
+The sidebar's **Settings tab** is a full configuration form: Load from panel,
+edit, Save to panel (one update).
 
 ## Requirements
 

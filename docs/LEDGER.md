@@ -129,6 +129,15 @@ plain `"lx"`/`"s"` fallback (works on every HA version, old or new).
 Lesson: never import version-fragile names unguarded; the venv here (2026.2.3)
 is NOT the user's HA. Verified: ruff + py_compile clean.
 
+### 2.8 Full firmware configuration from the Nexus app (user: "user should be able to fully configure the Nexus Firmware from the Nexus App")
+
+Transport already exists (config_update service + Settings.patch); what's missing is UI + entities. Scope for this pass (verify each):
+- [x] C1: HA `text` entities for all string settings (mqtt_host/user/pass, topic_prefix, ha_topic_prefix, ha_url, ha_token, dashboard_url, remote_desktop_token, nexus_manifest_url, zigbee_topic_base, 4× screen schedules); password mode for secrets; ignore `"<set>"` masked values on read
+- [x] C2: HA `number` entities for ports/thresholds (mqtt_port, remote_desktop_port, light_below/above, proximity_delta, brightness_on_light_below/above); `select` for zigbee_role; module switches for sensors/display/dashboard/firmware/fleet (NOT mqtt — remote kill-switch)
+- [x] C3: Sidebar Settings tab becomes a real form (Load from panel via query button, Save-all via single config_update, module toggles via switch entities)
+- [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
+- [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
+
 ### 2.7 Sidebar-first add flow + setup hardening (user: sidebar must show by default, add panel from there)
 
 Requested logic: install → sidebar visible → add panel from the sidebar. Fixes:
@@ -198,7 +207,8 @@ Fix list for this pass (verify each, no dirty fixes):
 | 14 | 2026-11-13 | Full 4-angle REPAIR applied + verified (ruff/node/gradle green); v0.4.34 cut but tag pointed at pre-fix commit, re-shipped as below | v0.4.34 |
 | 15 | 2026-11-13 | Open-item repairs (v0.4.35) + Paho callback deadlock root-caused via SIGQUIT trace and fixed (v0.4.36) |
 | 16 | 2026-11-13 | Sidebar-first add flow + setup hardening (migration/listener never fail, cross-scheme duplicate guard) | v0.4.37 |
-| 17 | 2026-11-13 | UnitOfLuminance/UnitOfTime ImportError on user's HA → version-proof unit import with string fallback | v0.4.38 | (empty state keeps +Add), setup hardening (migration/listener never fail setup), cross-scheme duplicate guard | v0.4.37 |: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified config-entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh single source | v0.4.35 |
+| 17 | 2026-11-13 | UnitOfLuminance/UnitOfTime ImportError on user's HA → version-proof unit import with string fallback | v0.4.38 |
+| 18 | 2026-11-13 | Full firmware configuration from the app: text/number/select entities for every setting, module switches for all modules (no MQTT kill-switch), sidebar Settings form (Load/Save-all), Android token masking + dashboard/rd hot-apply. Verified live: modules state, config round-trip 170→180, secrets masked | v0.4.39 | (empty state keeps +Add), setup hardening (migration/listener never fail setup), cross-scheme duplicate guard | v0.4.37 |: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified config-entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh single source | v0.4.35 |
 
 ---
 
@@ -273,6 +283,9 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.34 | 2026-11-13 | 4-angle audit REPAIR applied (ruff/node/gradle green); tag pointed at pre-fix commit so fixes re-shipped in .35 |
 | v0.4.35 | 2026-11-13 | Open-item repairs: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh |
 | v0.4.36 | 2026-11-13 | Paho callback-thread deadlock fix (post-connect moved to worker) + @Volatile client/uptimeThread/onConfigUpdated; verified live on panel |
+| v0.4.37 | 2026-11-13 | Sidebar-first add flow (empty state keeps +Add), setup hardening (migration/listener never fail setup), cross-scheme duplicate guard |
+| v0.4.38 | 2026-11-13 | Version-proof sensor units (ImportError fix from live user log) |
+| v0.4.39 | 2026-11-13 | Full firmware configuration from the Nexus app (15 text + 7 number + zigbee select, all module switches, sidebar Settings form with Load/Save-all, Android secret masking + dashboard/rd hot-apply) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to

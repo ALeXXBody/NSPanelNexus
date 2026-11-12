@@ -204,6 +204,7 @@ class MqttModule : Module {
         val out = Settings.all()
         out.opt("ha_token")?.let { if (it.toString().isNotBlank()) out.put("ha_token", "<set>") }
         out.opt("mqtt_pass")?.let { if (it.toString().isNotBlank()) out.put("mqtt_pass", "<set>") }
+        out.opt("remote_desktop_token")?.let { if (it.toString().isNotBlank()) out.put("remote_desktop_token", "<set>") }
         return out
     }
 
@@ -270,6 +271,7 @@ class MqttModule : Module {
                     // never expose secrets over a topic anyone can read
                     answer.opt("ha_token")?.let { if (it.toString().isNotBlank()) answer.put("ha_token", "<set>") }
                     answer.opt("mqtt_pass")?.let { if (it.toString().isNotBlank()) answer.put("mqtt_pass", "<set>") }
+                    answer.opt("remote_desktop_token")?.let { if (it.toString().isNotBlank()) answer.put("remote_desktop_token", "<set>") }
                     publish(base + "/config", answer.toString(), qos = 1, retain = true)
                 }
             }

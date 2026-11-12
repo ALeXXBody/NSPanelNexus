@@ -109,6 +109,18 @@ class NexusService : Service() {
                             mm.state("modules", mods)
                         }
                     } catch (_: Exception) {}
+                    try {
+                        if (patch.has("dashboard_url")) {
+                            val url = Settings.dashboardUrl
+                            (ModuleManager.get("dashboard") as? DashboardModule)?.onUrlChanged?.invoke(url)
+                        }
+                    } catch (_: Exception) {}
+                    try {
+                        if (patch.has("remote_desktop_token") || patch.has("remote_desktop_port")) {
+                            ModuleManager.stop("remote_desktop")
+                            if (Settings.moduleEnabled("remote_desktop")) ModuleManager.start("remote_desktop", this)
+                        }
+                    } catch (_: Exception) {}
                 } catch (_: Exception) {}
             }.apply { isDaemon = true }.start()
         }

@@ -13,7 +13,7 @@ DEFAULT_TOPIC_PREFIX = "nspanelpro"
 
 STATE_ONLINE = "online"
 
-PLATFORMS = ["event", "sensor", "binary_sensor", "switch", "number", "button"]
+PLATFORMS = ["event", "sensor", "binary_sensor", "switch", "number", "button", "text", "select"]
 
 
 def topic_safe(name: str) -> str:
