@@ -179,7 +179,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.6</span>
+          <span class="ver">v0.4.7</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -294,7 +294,8 @@
         });
         on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
         on("[data-act=reboot]", () =>
-          h.callService("nspanel_nexus", "command", { device_name: dev, command: "reboot" }));
+          h.callService("nspanel_nexus", "command", { device_name: dev, command: "reboot" })
+            .catch((e) => { console.error("reboot failed:", e); alert("Reboot command failed: " + (e && e.message || e)); }));
         on("[data-act=remove]", () => {
           if (!confirm(`Unlink ${dev} from Home Assistant? The panel itself is not touched.`)) return;
           this._deleteEntry(entry.entry_id);
@@ -320,7 +321,8 @@
           <div class="stat">Current version: ${cur ? cur.state : "unknown"}</div>
           <div class="actions"><button class="primary" data-act="check">Check for update</button></div>`;
         card.querySelector("[data-act=check]").onclick = () =>
-          h.callService("nspanel_nexus", "command", { device_name: dev, command: "firmware:check" });
+          h.callService("nspanel_nexus", "command", { device_name: dev, command: "firmware:check" })
+            .catch((e) => { console.error("firmware check failed:", e); alert("Firmware check failed: " + (e && e.message || e)); });
         grid.appendChild(card);
       });
     }
