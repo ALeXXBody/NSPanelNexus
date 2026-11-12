@@ -75,7 +75,7 @@ The app can also send commands back to the firmware.
 | P3 | Replace REST calls that 404 (`config/entity_registry/list`) with WebSocket API calls | ✅ Done (v0.4.27) |
 | P4 | Version line read from the panel config, not hardcoded | ✅ Done (v0.4.27) |
 | P5 | Verify in a real browser (Playwright + Chromium) | ✅ Done (rendered, 2 cards, no 4xx) |
-| P6 | A new release must never be masked by a stale browser cache: panel module URL must be cache-busted per version | ✅ Done (v0.4.30, stale-cache simulation verified) |
+| P6 | A new release must never be masked by a stale browser cache: panel module URL must be cache-busted per version | ✅ Done (v0.4.31, stale-cache simulation verified) |
 
 > **P6 evidence (2026-11-12, on the user's real HA 192.168.50.20, HA 2026.11.1 /
 > frontend 20261028.5):** the panel rendered in a clean browser profile (element
@@ -89,7 +89,7 @@ The app can also send commands back to the firmware.
 >
 > **P6 verification (2026-11-12, exact stack HA 2026.11.1 + frontend
 > 20261028.5):**
-> - Panel config now reports `module_url=/nspanel-nexus/panel.js?v=v0.4.30`.
+> - Panel config now reports `module_url=/nspanel-nexus/panel.js?v=v0.4.31`.
 > - With an old v0.4.26 panel.js planted at the unversioned URL (served with
 >   `max-age=2678400`), the browser never fetched the unversioned URL (route
 >   hits 0) and rendered the current panel from the versioned URL on load and
@@ -151,7 +151,7 @@ all aligned before the commit).
 | 9 | 2026-11-12 | (re-verification pass) | — |
 | 10 | 2026-11-12 | CRITICAL: topic_safe not applied in async_setup_entry — MQTT topic mismatch | v0.4.29 |
 | 11 | 2026-11-12 | `js_url` legacy load path, REST `config/entity_registry/list` 404, hardcoded version, blank before `hass` arrives | v0.4.27 |
-| 12 | 2026-11-12 | Stale browser cache masking new panel.js (unversioned module URL) | v0.4.30 |
+| 12 | 2026-11-12 | Stale browser cache masking new panel.js (unversioned module URL) | v0.4.31 |
 
 ---
 
@@ -210,7 +210,11 @@ all aligned before the commit).
 | v0.4.24 | 2026-11-12 | Constructor init fix |
 | v0.4.25 | 2026-11-12 | Separate display name from topic-safe name in sidebar |
 | v0.4.27 | 2026-11-12 | `module_url` load path, WS entity registry, dynamic version, never-blank skeleton |
-| v0.4.30 | 2026-11-12 | Cache-busted panel module URL (`panel.js?v=<version>`) — a stale cached panel.js can no longer mask a release |
+| v0.4.31 | 2026-11-12 | Cache-busted panel module URL (`panel.js?v=<version>`) — a stale cached panel.js can no longer mask a release |
+
+> **Note:** v0.4.30 was already published by a concurrent session (tag pointed
+> at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
+> avoid reusing a version number (rule 11).
 
 ---
 
