@@ -70,16 +70,22 @@ The app can also send commands back to the firmware.
 
 | # | Request | Status |
 |---|---------|--------|
-| P1 | Sidebar manager must never render blank; always show content or a readable error | ✅ Done (v0.4.26, browser-verified) |
-| P2 | Use the modern panel load path (`module_url`), not the deprecated `js_url` | ✅ Done (v0.4.26) |
-| P3 | Replace REST calls that 404 (`config/entity_registry/list`) with WebSocket API calls | ✅ Done (v0.4.26) |
-| P4 | Version line read from the panel config, not hardcoded | ✅ Done (v0.4.26) |
+| P1 | Sidebar manager must never render blank; always show content or a readable error | ✅ Done (v0.4.27, browser-verified) |
+| P2 | Use the modern panel load path (`module_url`), not the deprecated `js_url` | ✅ Done (v0.4.27) |
+| P3 | Replace REST calls that 404 (`config/entity_registry/list`) with WebSocket API calls | ✅ Done (v0.4.27) |
+| P4 | Version line read from the panel config, not hardcoded | ✅ Done (v0.4.27) |
 | P5 | Verify in a real browser (Playwright + Chromium) | ✅ Done (rendered, 2 cards, no 4xx) |
 
 **Evidence:** `GET /api/config/entity_registry/list` returns 404 (WS-only
 endpoint); the panel swallows it. `js_url` is the legacy load path and is
 deprecated in current HA frontend. A run showed
 `<nspanel-nexus-manager>` present but empty.
+
+**Version correction:** the fix was first built as `0.4.26`, but the published
+`v0.4.26` tag/release already exists (`6baf5dc`, "unlink + device name
+extraction"). Rule 11 forbids reusing a version number, so this work ships as
+**`0.4.27`** instead (manifest, hacs.json, panel fallback version and ledger
+all aligned before the commit).
 
 ### 2.4 Cross-cutting (both halves)
 
@@ -123,7 +129,7 @@ deprecated in current HA frontend. A run showed
 | 7 | 2026-11-11 | Blank page, constructor not initialized | v0.4.23, v0.4.24 |
 | 8 | 2026-11-12 | (re-verification pass) | — |
 | 9 | 2026-11-12 | (re-verification pass) | — |
-| 10 | 2026-11-12 | `js_url` legacy load path, REST `config/entity_registry/list` 404, hardcoded version, blank before `hass` arrives | v0.4.26 |
+| 10 | 2026-11-12 | `js_url` legacy load path, REST `config/entity_registry/list` 404, hardcoded version, blank before `hass` arrives | v0.4.27 |
 
 ---
 
@@ -140,7 +146,7 @@ deprecated in current HA frontend. A run showed
 - [ ] Dashboard provisioning (walldisplay-dashboards)
 
 ### Known issues to investigate
-- [x] HA sidebar blank page — fixed in v0.4.26 (`module_url` + immediate skeleton + WS registry)
+- [x] HA sidebar blank page — fixed in v0.4.27 (`module_url` + immediate skeleton + WS registry)
 - [ ] DisplayModule publishes state with retry (hacky, should use MQTT connect callback)
 - [ ] FirmwareModule reads version via su (should be readable by app)
 - [ ] VoiceModule publishEntities() is no-op (phase 2)
@@ -181,7 +187,7 @@ deprecated in current HA frontend. A run showed
 | v0.4.23 | 2026-11-12 | Render error visibility |
 | v0.4.24 | 2026-11-12 | Constructor init fix |
 | v0.4.25 | 2026-11-12 | Separate display name from topic-safe name in sidebar |
-| v0.4.26 | 2026-11-12 | `module_url` load path, WS entity registry, dynamic version, never-blank skeleton |
+| v0.4.27 | 2026-11-12 | `module_url` load path, WS entity registry, dynamic version, never-blank skeleton |
 
 ---
 
