@@ -23,9 +23,9 @@ object Settings {
         }
     }
 
-    fun get(key: String, def: String): String = json.optString(key, def)
-    fun getInt(key: String, def: Int): Int = json.optInt(key, def)
-    fun getBool(key: String, def: Boolean): Boolean = json.optBoolean(key, def)
+    fun get(key: String, def: String): String = synchronized(lock) { json.optString(key, def) }
+    fun getInt(key: String, def: Int): Int = synchronized(lock) { json.optInt(key, def) }
+    fun getBool(key: String, def: Boolean): Boolean = synchronized(lock) { json.optBoolean(key, def) }
 
     /** Module enable flags: "module.<name>.enabled" */
     fun moduleEnabled(name: String): Boolean = getBool("module.$name.enabled", defaultEnabled(name))

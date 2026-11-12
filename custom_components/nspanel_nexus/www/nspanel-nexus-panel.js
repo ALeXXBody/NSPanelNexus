@@ -262,6 +262,7 @@
 
     _renderPanels(body) {
       const h = this._hass;
+      console.log('Nexus: _renderPanels called, entries=', this._entries && this._entries.length);
       body.innerHTML = `<h2>Panels</h2>
         <div class="actions" style="display:flex;flex-wrap:wrap;gap:6px;margin:-12px 0 16px">
           <button class="btn primary" id="add">+ Add panel</button>
@@ -319,7 +320,7 @@
           const btn = card.querySelector("[data-act=screen]");
           const turningOff = screen && screen.state === "on";
           if (btn) btn.textContent = turningOff ? "Wake" : "Sleep";
-          if (ents["screen"]) h.callService("switch",
+          console.log("Nexus: screen clicked, ents[screen]=", ents["screen"]); if (ents["screen"]) h.callService("switch",
             turningOff ? "turn_off" : "turn_on", { entity_id: ents["screen"] });
           setTimeout(() => this._schedule(true), 1000);
         });
@@ -327,15 +328,17 @@
           const btn = card.querySelector("[data-act=rdp]");
           const turningOff = rdp && rdp.state === "on";
           if (btn) btn.textContent = turningOff ? "RD off" : "RD on";
-          if (ents["remote_desktop_switch"]) h.callService("switch",
+          console.log("Nexus: rdp clicked, ents[rdp]=", ents["remote_desktop_switch"]); if (ents["remote_desktop_switch"]) h.callService("switch",
             turningOff ? "turn_off" : "turn_on",
             { entity_id: ents["remote_desktop_switch"] });
           setTimeout(() => this._schedule(true), 1000);
         });
         on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
-        on("[data-act=reboot]", () =>
+        on("[data-act=reboot]", () => {
+          console.log("Nexus: reboot clicked, devSafe=", devSafe);
           h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" })
-            .catch((e) => { console.error("reboot failed:", e); alert("Reboot command failed: " + (e && e.message || e)); }));
+            .then(() => console.log("Nexus: reboot service call succeeded"))
+            .catch((e) => { console.error("reboot failed:", e); alert("Reboot command failed: " + (e && e.message || e)); }); });
         on("[data-act=remove]", () => {
           if (!confirm(`Unlink ${dev} from Home Assistant? The panel itself is not touched.`)) return;
           this._deleteEntry(entry.entry_id);

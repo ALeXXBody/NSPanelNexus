@@ -15,17 +15,18 @@ interface Module {
 }
 
 object ModuleManager {
+    private val lock = Any()
     private val modules = LinkedHashMap<String, Module>()
     private val running = mutableSetOf<String>()
 
-    fun register(m: Module) { modules[m.name] = m }
+    fun register(m: Module) = synchronized(lock) { modules[m.name] = m }
 
-    fun all(): List<Module> = modules.values.toList()
-    fun get(name: String): Module? = modules[name]
-    fun isRunning(name: String) = name in running
+    fun all(): List<Module> = synchronized(lock) { modules.values.toList() }
+    fun get(name: String): Module? = synchronized(lock) { modules[name] }
+    fun isRunning(name: String) = synchronized(lock) { name in running }
 
-    fun startDesired(context: Context) {
-        modules.values.forEach { m ->
+    fun startDesired(context: Context) = synchronized(lock) {
+        modules.values.toList().forEach { m ->
             val want = Settings.moduleEnabled(m.name)
             if (want && m.name !in running) {
                 try { m.start(context); running += m.name } catch (t: Throwable) { m.stop() }
@@ -33,21 +34,21 @@ object ModuleManager {
         }
     }
 
-    fun stopAll() {
-        modules.values.forEach { it.stop() }
+    fun stopAll() = synchronized(lock) {
+        modules.values.toList().forEach { it.stop() }
         running.clear()
     }
 
-    fun stop(name: String) {
+    fun stop(name: String) = synchronized(lock) {
         modules[name]?.stop()
         running -= name
     }
 
-    fun start(name: String, context: Context) {
+    fun start(name: String, context: Context) = synchronized(lock) {
         modules[name]?.let { if (it.name !in running) { it.start(context); running += it.name } }
     }
 
-    fun applyDesired(context: Context, name: String) {
+    fun applyDesired(context: Context, name: String) = synchronized(lock) {
         val want = Settings.moduleEnabled(name)
         if (want) start(name, context) else stop(name)
     }
