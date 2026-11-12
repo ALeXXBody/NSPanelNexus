@@ -54,6 +54,7 @@ class MainActivity : FragmentActivity() {
     private var loginWeb: WebView? = null
     private var pendingInject = false
     private var lastInjectUrl: String? = null
+    private var firmwareShown = false
     private var darkFixSettle: Runnable? = null
     private val darkFixHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -195,6 +196,7 @@ class MainActivity : FragmentActivity() {
         pagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             id = R.id.pages
+            visibility = View.GONE
         }
         buildPages(pagesContainer)
 
@@ -259,6 +261,8 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showPage(index: Int) {
+        pagesContainer.visibility = View.VISIBLE
+        titleRow?.visibility = View.VISIBLE
         val (label, factory) = pages[index]
         titleBar?.text = "NSPanel Nexus — $label"
         supportFragmentManager.beginTransaction()
@@ -517,6 +521,9 @@ class MainActivity : FragmentActivity() {
             if (wv.url != url) wv.loadUrl(url)
             wv.visibility = View.VISIBLE
         }
+        pagesContainer.visibility = View.GONE
+        titleRow?.visibility = View.GONE
+        firmwareShown = false
         titleBar?.text = "NSPanel Nexus — dashboard (6 taps to exit)"
         updateReturnButton()
         scheduleDarkFix()
@@ -525,7 +532,10 @@ class MainActivity : FragmentActivity() {
     private fun hideDashboard() {
         cancelDarkFix()
         dashboardView?.visibility = View.GONE
+        pagesContainer.visibility = View.VISIBLE
+        titleRow?.visibility = View.VISIBLE
         titleBar?.text = "NSPanel Nexus"
+        firmwareShown = true
         updateReturnButton()
     }
 
@@ -533,7 +543,7 @@ class MainActivity : FragmentActivity() {
 
     private fun updateReturnButton() {
         returnBtn?.visibility =
-            if (Settings.dashboardUrl.isNotBlank() && !dashboardShown()) View.VISIBLE else View.GONE
+            if (firmwareShown) View.VISIBLE else View.GONE
     }
 
     private fun dashboardLoadFailed(url: String) {

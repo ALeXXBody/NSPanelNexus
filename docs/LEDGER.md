@@ -140,6 +140,17 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.19 Bottom nav always visible + app backgrounds after tap (user, 2026-11-13)
+
+User: the bottom command bar (Setup/Modules/Diagnostics) is always visible and tapping
+any of its buttons puts the Nexus firmware in the background. The nav bar should be
+hidden by default and appear only after the 6-tap exit (and PIN) sequence — i.e.
+the dashboard is the only thing the user normally sees.
+
+- [x] B1: hide `pagesContainer` entirely while a dashboard is shown (no title bar, no nav bar, no pages)
+- [x] B2: show it again only after the 6-tap exit (and PIN) succeeds
+- [x] B3: re-test on the live panel (reboot, 6-tap exit, PIN, Return to HA) + docs/bump/release
+
 ### 2.18 Dark mode + auto-run at boot (user, 2026-11-13)
 
 1. Dark mode: the native firmware UI is already dark (Theme.Nexus); what is
@@ -345,6 +356,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 25 | 2026-11-13 | Kiosk loop live-verified: dashboard default, 6-tap exit, optional PIN pad (IME auto-hidden), Return-to-HA button, RD text input; removed Fully Kiosk + Pro Tools from panel (were device admins); raised RD stream cap 3→8 | v0.4.50 |
 | 26 | 2026-11-13 | Proper HA login (OAuth authorize in-app, custom-scheme code capture, refresh token stored, WebView session injected via hassTokens, logout clears) — verified to the credential step; user completes the one-time login | v0.4.51 |
 | 27 | 2026-11-13 | Dark dashboard (night reporting + WebView-local invert filter w/ media keep-normal; dark+light both verified live) + boot autostart (kiosk UI + MQTT backoff retry; verified by real reboot, zero touches) | v0.4.52 |
+| 28 | 2026-11-13 | Firmware chrome hidden by default (pages container GONE until 6-tap exit; Return-to-HA only in firmware mode) — fixes bottom nav bar always visible + app backgrounding on tap; verified live | v0.4.53 |
 
 ---
 
@@ -431,6 +443,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.50 | 2026-11-13 | Kiosk: 6-tap exit + PIN pad + Return-to-HA + RD text input (all live-verified); FK/Pro Tools removed; RD cap 8 |
 | v0.4.51 | 2026-11-13 | In-app OAuth login + WebView session injection (Companion-style); logout; verified to credential step |
 | v0.4.52 | 2026-11-13 | Dark dashboard toggle + boot autostart with MQTT retry (both live-verified incl. reboot test) |
+| v0.4.53 | 2026-11-13 | Chrome hidden by default; 6-tap exit reveals it (live-verified) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
