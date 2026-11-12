@@ -159,7 +159,7 @@
       const candidates = {
         screen: ["switch", "screen"],
         brightness: ["number", "brightness"],
-        remote_desktop_switch: ["switch", "remote_desktop"],
+        remote_desktop_switch: ["switch", "module_remote_desktop"],
         remote_desktop_url: ["sensor", "remote_desktop"],
         illuminance: ["sensor", "illuminance"],
         ip_address: ["sensor", "ip_address"],
@@ -167,7 +167,7 @@
         firmware: ["sensor", "firmware"],
         touch: ["event", "touch"],
         proximity: ["event", "proximity"],
-        light_event: ["event", "light_event"],
+        light: ["event", "light"],
         presence: ["binary_sensor", "presence"],
       };
       Object.keys(candidates).forEach((key) => {
@@ -186,7 +186,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.8</span>
+          <span class="ver">v0.4.9</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
