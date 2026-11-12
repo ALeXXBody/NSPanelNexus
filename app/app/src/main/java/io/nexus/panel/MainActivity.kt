@@ -59,6 +59,28 @@ class MainActivity : FragmentActivity() {
     private val darkFixHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /** Decide once per settled page (never a polling loop — that fought itself). */
+    private fun applyImmersive(hide: Boolean) {
+        try {
+            val decor = window.decorView
+            if (hide) {
+                decor.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                )
+            } else {
+                decor.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+            }
+        } catch (_: Exception) {}
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && !firmwareShown) applyImmersive(true)
+    }
+
     private fun scheduleDarkFix() {
         try { darkFixSettle?.let { darkFixHandler.removeCallbacks(it) } } catch (_: Exception) {}
         if (!Settings.getBool("dark_mode", true)) return
@@ -530,6 +552,7 @@ class MainActivity : FragmentActivity() {
         firmwareShown = false
         titleBar?.text = "NSPanel Nexus — dashboard (6 taps to exit)"
         updateReturnButton()
+        applyImmersive(true)
         scheduleDarkFix()
     }
 
@@ -541,6 +564,7 @@ class MainActivity : FragmentActivity() {
         titleBar?.text = "NSPanel Nexus"
         firmwareShown = true
         updateReturnButton()
+        applyImmersive(false)
     }
 
 
