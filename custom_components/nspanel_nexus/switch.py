@@ -58,6 +58,23 @@ class NexusModuleSwitch(SwitchEntity, NexusEntity):
         self._key = f"module.{module}.enabled"
         self._attr_icon = icon
         self._attr_is_on = None
+        self._unsub = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._unsub = await self._link.async_subscribe_state("modules", self._on_modules)
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._unsub:
+            self._unsub()
+            self._unsub = None
+
+    @callback
+    def _on_modules(self, msg) -> None:
+        data = self._link.parse_json(msg.payload)
+        if isinstance(data, dict) and self._module in data:
+            self._attr_is_on = bool(data[self._module])
+            self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs) -> None:
         await self._link.async_config_update({self._key: True})

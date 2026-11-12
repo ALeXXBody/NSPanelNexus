@@ -220,6 +220,35 @@ class MainActivity : FragmentActivity() {
     }
 
 
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
+        try {
+            if (ev != null) {
+                when (ev.action) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        touchDownX = ev.x; touchDownY = ev.y
+                    }
+                    android.view.MotionEvent.ACTION_UP -> {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTouchEvent > 800) {
+                            lastTouchEvent = now
+                            val dx = ev.x - touchDownX
+                            val dy = ev.y - touchDownY
+                            val adx = kotlin.math.abs(dx); val ady = kotlin.math.abs(dy)
+                            val type = if (adx < 24 && ady < 24) "tap"
+                                else if (adx > ady) (if (dx > 0) "swipe_right" else "swipe_left")
+                                else (if (dy > 0) "swipe_down" else "swipe_up")
+                            try {
+                                val mqtt = ModuleManager.get("mqtt") as? io.nexus.panel.modules.mqtt.MqttModule
+                                mqtt?.event("touch", org.json.JSONObject().put("event_type", type))
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return super.dispatchTouchEvent(ev)
+    }
+
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     override fun onDestroy() {
@@ -233,6 +262,9 @@ class MainActivity : FragmentActivity() {
     }
 
     private var lastTap = 0L
+    private var touchDownX = 0f
+    private var touchDownY = 0f
+    private var lastTouchEvent = 0L
 
     private operator fun LinearLayout.plusAssign(v: View) { addView(v) }
 }

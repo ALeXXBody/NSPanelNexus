@@ -53,8 +53,36 @@ class ZigbeeModule : Module {
     }
 
     fun permitJoin(seconds: Int) {
-        mqtt?.publish("$localBrokerBase/bridge/request/permit_join",
+        publishLocal("$localBrokerBase/bridge/request/permit_join",
             JSONObject().put("time", seconds).toString())
+    }
+
+    /** Publish to the panel-local broker (zgateway lives on 127.0.0.1, not the HA broker). */
+    private fun publishLocal(topic: String, payload: String) {
+        // First try the shared client in case a local bridge is configured...
+        try { mqtt?.publish(topic, payload) } catch (_: Exception) {}
+        // ...then deliver directly to the panel-local broker.
+        Thread {
+            var c: org.eclipse.paho.client.mqttv3.MqttClient? = null
+            try {
+                c = org.eclipse.paho.client.mqttv3.MqttClient(
+                    "tcp://127.0.0.1:1883",
+                    "nexus-zigbee-" + System.currentTimeMillis(),
+                    org.eclipse.paho.client.mqttv3.persist.MemoryPersistence())
+                val opts = org.eclipse.paho.client.mqttv3.MqttConnectOptions().apply {
+                    isCleanSession = true
+                    connectionTimeout = 3
+                    keepAliveInterval = 10
+                }
+                c.connect(opts)
+                c.publish(topic, payload.toByteArray(), 0, false)
+            } catch (_: Exception) {
+                android.util.Log.w("NexusZigbee", "local publish failed: $topic")
+            } finally {
+                try { c?.disconnect() } catch (_: Exception) {}
+                try { c?.close() } catch (_: Exception) {}
+            }
+        }.apply { isDaemon = true }.start()
     }
 
     fun factoryReset() {
@@ -68,6 +96,6 @@ class ZigbeeModule : Module {
 
     /** Device list — reads zgateway's own MQTT topics. */
     fun requestDevices() {
-        mqtt?.publish("$localBrokerBase/bridge/request/device_list", "")
+        publishLocal("$localBrokerBase/bridge/request/device_list", "")
     }
 }

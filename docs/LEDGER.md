@@ -121,6 +121,17 @@ all aligned before the commit).
 
 ### 2.5 Full audit 2026-11-13 (user: "take over, full audit, app is a mess")
 
+### 2.6 Open-item repair batch (user: "please start working on them")
+
+Remaining open items being repaired now (each verified, no dirty fixes):
+- [ ] O1: Touch event dead (entity exists, never published) → publish throttled tap from MainActivity dispatchTouchEvent
+- [ ] O2: Module switches optimistic-only (HA goes stale) → retained `state/modules` doc published by Android; switches subscribe + sync
+- [ ] O3: `unique_id` ignores prefix (same name/different prefix collide) → qualify new-entry unique_ids with prefix; existing entries untouched
+- [ ] O4: `device_info` identifiers ignore prefix (two prefixes merge into one HA device) → identifiers include prefix (entities move once, history kept)
+- [ ] O5: Zigbee permit_join via wrong broker → dedicated local-broker publish (127.0.0.1) with graceful fallback
+- [ ] O6: Firmware version via `su` on UI thread → updater chmods version file readable; app reads direct first, su fallback with timeout
+- [ ] O7: Release version-drift class → `scripts/bump_version.sh` single source (manifest/hacs/panel/Android)
+
 Parallel audits from 4 angles (HA linkages / panel.js / Android / versions).
 Fix list for this pass (verify each, no dirty fixes):
 - [ ] H1: `_link_for` normalize with topic_safe; PanelLink defence sanitize

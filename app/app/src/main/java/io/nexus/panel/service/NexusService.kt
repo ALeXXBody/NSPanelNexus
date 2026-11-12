@@ -101,6 +101,14 @@ class NexusService : Service() {
                             ModuleManager.start("mqtt", this)
                         }
                     }
+                    try {
+                        val mm = ModuleManager.get("mqtt") as? MqttModule
+                        if (mm != null) {
+                            val mods = org.json.JSONObject()
+                            for (m in ModuleManager.all()) mods.put(m.name, Settings.moduleEnabled(m.name))
+                            mm.state("modules", mods)
+                        }
+                    } catch (_: Exception) {}
                 } catch (_: Exception) {}
             }.apply { isDaemon = true }.start()
         }

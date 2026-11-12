@@ -103,7 +103,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.34";
+      return v || "v0.4.35";
     }
 
     connectedCallback() {

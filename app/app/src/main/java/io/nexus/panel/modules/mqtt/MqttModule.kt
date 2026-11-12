@@ -3,6 +3,7 @@ package io.nexus.panel.modules.mqtt
 import android.content.Context
 import android.util.Log
 import io.nexus.panel.core.Module
+import io.nexus.panel.core.ModuleManager
 import io.nexus.panel.core.Settings
 import org.eclipse.paho.client.mqttv3.*
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
@@ -118,6 +119,11 @@ class MqttModule : Module {
             q = pending.poll()
         }
         publish(base + "/status", "online", retain = true, qos = 1)
+        try {
+            val mods = JSONObject()
+            for (m in ModuleManager.all()) mods.put(m.name, Settings.moduleEnabled(m.name))
+            state("modules", mods)
+        } catch (_: Exception) {}
         state("ip_address", JSONObject().put("ip_address", localIp()))
         c.subscribe(base + "/command/#", 1)
         c.subscribe(base + "/config/#", 1)

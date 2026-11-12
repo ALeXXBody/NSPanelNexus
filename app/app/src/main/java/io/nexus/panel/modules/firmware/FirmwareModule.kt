@@ -56,8 +56,16 @@ class FirmwareModule : Module {
 
     /** Detect the running firmware version. Never throws. */
     fun currentFirmwareVersion(): String {
-        // 1. Written by nexus-updater.sh after a successful OTA
-        //    (file is root-owned, so read via su with timeout; never on UI thread)
+        // 1. Written by nexus-updater.sh after a successful OTA.
+        //    Updater chmods it readable (644); try direct read first, su fallback.
+        //    Never call from the UI thread (Diagnostics uses the cached setting).
+        try {
+            val versionFile = File("/data/nexus/version")
+            if (versionFile.exists() && versionFile.canRead()) {
+                val v = versionFile.readText().trim()
+                if (v.isNotEmpty()) return v
+            }
+        } catch (_: Exception) {}
         try {
             val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", "cat /data/nexus/version"))
             val finished = proc.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)
@@ -67,14 +75,6 @@ class FirmwareModule : Module {
                 if (v.isNotEmpty()) return v
             } else {
                 try { proc.destroy() } catch (_: Exception) {}
-            }
-        } catch (_: Exception) {}
-        // fallback: try direct read (works if permissions allow)
-        try {
-            val versionFile = File("/data/nexus/version")
-            if (versionFile.exists()) {
-                val v = versionFile.readText().trim()
-                if (v.isNotEmpty()) return v
             }
         } catch (_: Exception) {}
         // 2. Probe for Nexus firmware markers

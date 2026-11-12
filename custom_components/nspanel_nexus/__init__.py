@@ -119,6 +119,11 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("setting up entry %s data=%s", entry.entry_id, dict(entry.data))
+    # Migrate pre-0.4.35 unique_ids (device only) to prefix/device.
+    _dev = topic_safe(entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME]))
+    _pfx = entry.options.get(CONF_TOPIC_PREFIX, entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro"))
+    if "/" not in (entry.unique_id or ""):
+        hass.config_entries.async_update_entry(entry, unique_id=f"{_pfx}/{_dev}")
     link = PanelLink(
         hass,
         topic_safe(entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME])),

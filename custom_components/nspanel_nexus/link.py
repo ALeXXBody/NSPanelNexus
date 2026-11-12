@@ -29,7 +29,7 @@ class PanelLink:
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self.device_name)},
+            identifiers={(DOMAIN, f"{self.topic_prefix}/{self.device_name}")},
             name=f"NSPanel {self.device_name}",
             manufacturer="Sonoff",
             model="NSPanel Pro (Nexus firmware)",

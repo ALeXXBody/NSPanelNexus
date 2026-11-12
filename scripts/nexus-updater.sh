@@ -65,6 +65,8 @@ dd if="$TMP" of="$SYSTEM_DEV" bs=1048576 2>/dev/null
 sync
 rm -f "$TMP"
 echo "$NEWVER" > "$VERFILE"
+chmod 644 "$VERFILE" 2>/dev/null || true
+chmod 644 /data/nexus/manifest.json 2>/dev/null || true
 
 echo "[*] done — rebooting"
 reboot

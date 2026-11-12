@@ -96,7 +96,7 @@ class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
         prefix = topic.split("/")[0] if topic else DEFAULT_TOPIC_PREFIX
         device = topic_safe(topic.split("/", 1)[1]) if "/" in topic else topic_safe(name)
 
-        await self.async_set_unique_id(device)
+        await self.async_set_unique_id(f"{prefix}/{device}")
         self._abort_if_unique_id_configured()
         self._discovered = {
             CONF_DEVICE_NAME: device,
@@ -133,7 +133,8 @@ class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             device = topic_safe(user_input[CONF_DEVICE_NAME])
-            await self.async_set_unique_id(device)
+            prefix = user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)
+            await self.async_set_unique_id(f"{prefix}/{device}")
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
                 title=f"NSPanel {device}",
