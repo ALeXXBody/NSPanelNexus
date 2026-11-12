@@ -68,6 +68,25 @@
     .rdbox input.num{width:90px;flex:none}
     .rdbox .hint{font-size:11px;color:#8d97a3;margin-top:6px}
     .modal h3{margin:0 0 12px;font-size:18px;color:#fff}
+    .statline{font-size:12px;color:#7a8694;margin:-2px 0 10px;letter-spacing:.3px}
+    .acc{border:1px solid #232b38;border-radius:10px;margin:8px 0;overflow:hidden;background:rgba(255,255,255,.012)}
+    .acc-head{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:#aeb8c4;user-select:none}
+    .acc-head:hover{background:rgba(255,140,40,.06);color:#fff}
+    .acc-head .cdot{width:7px;height:7px;border-radius:50%;background:#FF8C28;display:none;box-shadow:0 0 8px #FF8C28;flex:none}
+    .acc-head .chev{margin-left:auto;color:#FF8C28;transition:transform .15s;font-size:13px}
+    .acc.dirty .cdot,.acc.has-changes .cdot{display:inline-block}
+    .acc.closed .acc-body{display:none}
+    .acc.closed .chev{transform:rotate(-90deg)}
+    .acc-body{padding:2px 12px 12px}
+    .setgrid.cols3{grid-template-columns:repeat(3,1fr)}
+    @media (max-width:700px){.setgrid.cols3{grid-template-columns:repeat(2,1fr)}}
+    .savebar{position:sticky;bottom:-16px;margin:12px -20px -16px;padding:10px 20px;background:rgba(13,16,22,.94);backdrop-filter:blur(8px);border-top:1px solid #232b38;display:flex;gap:8px;align-items:center;z-index:2}
+    .modgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+    @media (max-width:700px){.modgrid{grid-template-columns:repeat(2,1fr)}}
+    .btn.mod{display:flex;align-items:center;gap:7px;justify-content:flex-start}
+    .btn.mod .dot{width:8px;height:8px;border-radius:50%;background:#4a5462;flex:none}
+    .btn.mod.on .dot{background:#2e9e44;box-shadow:0 0 8px rgba(46,158,68,.7)}
+    input.dirty,select.dirty{border-color:#FF8C28 !important;box-shadow:0 0 0 2px rgba(255,140,40,.25) !important}
     .modal .x{float:right;border:0;background:transparent;color:#9aa2ad;font-size:18px;cursor:pointer}
     .field{margin:10px 0}
     .lbl{font-size:12px;color:#9aa2ad;margin-bottom:4px}
@@ -132,7 +151,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.62";
+      return v || "v0.4.63";
     }
 
     connectedCallback() {
@@ -741,25 +760,25 @@
     }
 
     // ---- firmware configuration: every panel setting, editable here ----
-    // [config key, label, input type]
+    // [config key, label, input type]. Remote-desktop token/port live ONLY in
+    // the RD box above (own save path), so they are intentionally absent here.
     get _textFields() {
       return [
-        ["mqtt_host", "MQTT host", "text"],
-        ["mqtt_user", "MQTT user", "text"],
-        ["mqtt_pass", "MQTT password", "password"],
+        ["mqtt_host", "Host", "text"],
+        ["mqtt_user", "User", "text"],
+        ["mqtt_pass", "Password", "password"],
         ["topic_prefix", "Topic prefix", "text"],
-        ["ha_topic_prefix", "HA discovery prefix", "text"],
-        ["ha_url", "Home Assistant URL", "text"],
-        ["ha_token", "HA long-lived token", "password"],
+        ["ha_topic_prefix", "HA discovery", "text"],
+        ["ha_url", "HA URL", "text"],
+        ["ha_token", "HA token", "password"],
         ["dashboard_url", "Dashboard URL", "text"],
-        ["remote_desktop_token", "Remote desktop token", "password"],
-        ["exit_pin", "Exit PIN (optional)", "password"],
-        ["nexus_manifest_url", "Firmware manifest URL", "text"],
-        ["zigbee_topic_base", "Zigbee topic base", "text"],
-        ["screen_on_weekday_begin", "Screen on, weekday from (HH:MM)", "text"],
-        ["screen_on_weekday_end", "Screen on, weekday until (HH:MM)", "text"],
-        ["screen_on_weekend_begin", "Screen on, weekend from (HH:MM)", "text"],
-        ["screen_on_weekend_end", "Screen on, weekend until (HH:MM)", "text"],
+        ["exit_pin", "PIN", "password"],
+        ["nexus_manifest_url", "Manifest URL", "text"],
+        ["zigbee_topic_base", "Zigbee base", "text"],
+        ["screen_on_weekday_begin", "Weekday from", "text"],
+        ["screen_on_weekday_end", "Weekday until", "text"],
+        ["screen_on_weekend_begin", "Weekend from", "text"],
+        ["screen_on_weekend_end", "Weekend until", "text"],
       ];
     }
 
@@ -767,12 +786,11 @@
     get _numFields() {
       return [
         ["mqtt_port", "MQTT port", 1, 65535, 1],
-        ["remote_desktop_port", "Remote desktop port", 1, 65535, 1],
-        ["light_below", "Light below threshold (lx, 0 = off)", 0, 100000, 1],
-        ["light_above", "Light above threshold (lx, 0 = off)", 0, 100000, 1],
-        ["proximity_delta", "Proximity delta", 0, 1000, 1],
-        ["brightness_on_light_below", "Brightness when dark (-1 = off)", -1, 255, 1],
-        ["brightness_on_light_above", "Brightness when bright (-1 = off)", -1, 255, 1],
+        ["light_below", "Dark below (lx)", 0, 100000, 1],
+        ["light_above", "Bright above (lx)", 0, 100000, 1],
+        ["proximity_delta", "Proximity \u0394", 0, 1000, 1],
+        ["brightness_on_light_below", "Brightness dark", -1, 255, 1],
+        ["brightness_on_light_above", "Brightness bright", -1, 255, 1],
       ];
     }
 
@@ -807,12 +825,12 @@
         const rdpIsOn = rdpSw && rdpSw.state === "on";
         const rdPortSt = st("cfg_remote_desktop_port");
         const rdPortVal = rdPortSt && rdPortSt.state != null && !isNaN(Number(rdPortSt.state)) ? Number(rdPortSt.state) : 8080;
+        const ipS = st("ip_address");
+        const fwS = st("firmware");
+        const ipTxt = ipS && ipS.state && !["unknown","unavailable",""].includes(ipS.state) ? this._esc(ipS.state) : null;
+        const fwTxt = fwS && fwS.state && !["unknown","unavailable",""].includes(fwS.state) ? this._esc(fwS.state) : null;
         let html = `<div class="pname">${this._esc(dev)}</div>
-          <div class="actions" style="display:flex;border:0;padding:4px 0 8px;gap:6px">
-            <button class="btn" data-act="load">Load</button>
-            <button class="btn primary" data-act="save">Save</button>
-            <span class="about" data-act="msg" style="margin-left:auto"></span>
-          </div>
+          <div class="statline">${ipTxt || "—"}${fwTxt ? " · fw " + fwTxt : ""}</div>
           <div class="rdbox">
             <div class="rdhead">Remote desktop <span class="rdpill${rdpIsOn ? " on" : ""}" data-rd="pill">${rdpSw ? (rdpIsOn ? "ON" : "OFF") : "?"}</span></div>
             <div class="rdrow">
@@ -824,58 +842,111 @@
               <input class="txt num" data-rd="port" type="number" min="1" max="65535" step="1" value="${rdPortVal}" title="Remote desktop port">
               <button class="btn primary" data-rd="saverd">Save RD</button>
             </div>
-            <div class="hint">Save RD stores the token on the panel + HA. Token field also in form below.</div>
-          </div>
-          <div class="setgrid">`;
-        const fieldMap = Object.fromEntries(this._textFields);
-        const sections = [
-          ["Connection", ["mqtt_host","mqtt_user","mqtt_pass","topic_prefix","ha_topic_prefix","ha_url","ha_token"]],
-          ["Dashboard & firmware", ["dashboard_url","remote_desktop_token","nexus_manifest_url"]],
-          ["Zigbee & screens", ["zigbee_topic_base","screen_on_weekday_begin","screen_on_weekday_end","screen_on_weekend_begin","screen_on_weekend_end"]],
-        ];
-        sections.forEach(([title, keys]) => {
-          html += `<div class="sec">${title}</div>`;
-          keys.forEach((k) => {
-            const info = fieldMap[k];
-            const lbl = info ? info[1] : k;
-            const typ = info ? info[2] : "text";
-            const cur = st("cfg_" + k);
-            const val = cur && cur.state != null && cur.state !== "unknown" && cur.state !== "unavailable" ? cur.state : "";
-            const shortLbl = lbl.replace("MQTT ","").replace("Home Assistant ","HA ").replace("Remote desktop ","RD ").replace("Firmware manifest ","Manifest ").replace("Zigbee topic base","Zigbee base").replace("Screen on, ","").replace(" weekday "," wd ").replace(" weekend "," we ");
-            html += `<div class="field"><div class="lbl">${shortLbl}</div>
-              <input class="txt" data-cfg="${k}" data-kind="text" type="${typ}" value="${typ === "password" ? "" : this._esc(val)}" placeholder="${typ === "password" ? "•••" : ""}"></div>`;
-          });
-        });
-        html += `<div class="sec">Ports & thresholds</div>`;
-        this._numFields.forEach(([key, label, lo, hi, step]) => {
+            <div class="hint">Token + port live here only — nowhere else in this form.</div>
+          </div>`;
+        this._accOpen = this._accOpen || {};
+        const acc = (idx, title, inner, open) => {
+          const key = entry.entry_id + ":" + idx;
+          const isOpen = (key in this._accOpen) ? this._accOpen[key] : open;
+          return `<div class="acc${isOpen ? "" : " closed"}" data-acc="${idx}">
+            <div class="acc-head" data-acc-head="${idx}"><span class="cdot"></span>${title}<span class="chev">▾</span></div>
+            <div class="acc-body">${inner}</div></div>`;
+        };
+        const tfield = (k) => {
+          const info = this._textFields.find((f) => f[0] === k) || [k, k, "text"];
+          const cur = st("cfg_" + k);
+          const val = cur && cur.state != null && cur.state !== "unknown" && cur.state !== "unavailable" ? cur.state : "";
+          return `<div class="field"><div class="lbl">${info[1]}</div>` +
+            `<input class="txt" data-cfg="${k}" data-kind="text" type="${info[2]}" value="${info[2] === "password" ? "" : this._esc(val)}" placeholder="${info[2] === "password" ? "\u2022\u2022\u2022" : ""}"></div>`;
+        };
+        const nfield = ([key, label, lo, hi, step]) => {
           const cur = st("cfg_" + key);
           const val = cur && cur.state != null && !isNaN(Number(cur.state)) ? Number(cur.state) : "";
-          const shortLbl = label.replace("threshold (lx, 0 = off)","thresh").replace("when dark (-1 = off)","dark (-1=off)").replace("when bright (-1 = off)","bright (-1=off)").replace("Remote desktop ","RD ");
-          html += `<div class="field"><div class="lbl">${shortLbl}</div>
-            <input class="txt" data-cfg="${key}" data-kind="number" type="number" min="${lo}" max="${hi}" step="${step}" value="${val}"></div>`;
-        });
+          return `<div class="field"><div class="lbl">${label}</div>` +
+            `<input class="txt" data-cfg="${key}" data-kind="number" type="number" min="${lo}" max="${hi}" step="${step}" value="${val}"></div>`;
+        };
+        const numByKey = Object.fromEntries(this._numFields.map((f) => [f[0], f]));
+        const grid2 = (inner) => `<div class="setgrid">${inner}</div>`;
+        const grid3 = (inner) => `<div class="setgrid cols3">${inner}</div>`;
+        html += acc(0, "Connection", grid2(
+          ["mqtt_host","mqtt_user","mqtt_pass","topic_prefix","ha_topic_prefix","ha_url","ha_token"].map(tfield).join("") +
+          `<div class="about" style="grid-column:1/-1;font-size:10px;opacity:.55">Passwords left empty keep the stored secret.</div>`
+        ), true);
+        html += acc(1, "Dashboard &amp; display", grid2(
+          tfield("dashboard_url") + tfield("nexus_manifest_url") +
+          `<div class="field"><div class="lbl">Dark mode</div><div style="display:flex;gap:6px;align-items:center"><button class="btn" data-dark="toggle">off</button></div></div>`
+        ), true);
+        html += acc(2, "Exit PIN", grid2(tfield("exit_pin")), true);
         {
           const cur = st("cfg_zigbee_role");
           const val = cur ? cur.state : "";
-          html += `<div class="field"><div class="lbl">Zigbee role</div>
-            <select data-cfg="zigbee_role" data-kind="select">
-              <option value="coordinator" ${val === "coordinator" ? "selected" : ""}>coordinator</option>
-              <option value="router" ${val === "router" ? "selected" : ""}>router</option>
-            </select></div>`;
+          html += acc(3, "Zigbee &amp; screens", grid2(
+            tfield("zigbee_topic_base") +
+            `<div class="field"><div class="lbl">Zigbee role</div><select data-cfg="zigbee_role" data-kind="select"><option value="coordinator"${val === "coordinator" ? " selected" : ""}>coordinator</option><option value="router"${val === "router" ? " selected" : ""}>router</option></select></div>` +
+            ["screen_on_weekday_begin","screen_on_weekday_end","screen_on_weekend_begin","screen_on_weekend_end"].map(tfield).join("")
+          ), false);
         }
-        html += `</div><div class="field"><div class="lbl">Dark mode</div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <button class="btn" data-dark="toggle">off</button>
-          </div></div>
-          <div class="field"><div class="lbl">Modules</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
-        this._moduleToggles.forEach(([key, label]) => {
-          const sw = st(key);
-          const isOn = sw && sw.state === "on";
-          html += `<button class="btn${isOn ? " primary" : ""}" data-mod="${key}">${label}: ${sw ? (isOn ? "on" : "off") : "?"}</button>`;
-        });
-        html += `</div><div class="about" style="font-size:10px;opacity:.5">MQTT has no switch — turning it off would silence the panel.</div></div>`;
+        html += acc(4, "Ports &amp; thresholds", grid3(
+          ["mqtt_port","light_below","light_above","proximity_delta","brightness_on_light_below","brightness_on_light_above"].map((k) => nfield(numByKey[k])).join("")
+        ), false);
+        {
+          let mods = this._moduleToggles.map(([key, label]) => {
+            const sw = st(key);
+            const isOn = sw && sw.state === "on";
+            return `<button class="btn mod${isOn ? " on primary" : ""}" data-mod="${key}" title="${sw ? sw.state : "?"}"><span class="dot"></span>${label}</button>`;
+          }).join("");
+          mods += `<div class="about" style="grid-column:1/-1;font-size:10px;opacity:.55">Modules apply immediately. No MQTT switch — it would silence the panel.</div>`;
+          html += acc(5, "Modules", `<div class="modgrid">${mods}</div>`, true);
+        }
+        html += `<div class="savebar">
+          <button class="btn" data-act="load">Load</button>
+          <button class="btn primary" data-act="save">Save</button>
+          <span class="about" data-act="msg"></span>
+        </div>`;
         card.innerHTML = html;
         grid.appendChild(card);
+
+        // accordion open/close (persisted across refreshes)
+        card.querySelectorAll("[data-acc-head]").forEach((head) => {
+          head.onclick = () => {
+            const acc = head.closest("[data-acc]");
+            if (!acc) return;
+            const key = entry.entry_id + ":" + acc.getAttribute("data-acc");
+            const closed = acc.classList.toggle("closed");
+            this._accOpen[key] = !closed;
+          };
+        });
+
+        // dirty tracking: mark edited fields, sections and the save button
+        const saveBtn = card.querySelector('[data-act="save"]');
+        const refreshDirty = () => {
+          let n = 0;
+          card.querySelectorAll("[data-cfg]").forEach((el) => {
+            const key = el.getAttribute("data-cfg");
+            const cur = st("cfg_" + key);
+            const curVal = cur && cur.state != null ? String(cur.state) : null;
+            let dirty = false;
+            if (el.type === "password") dirty = !!el.value;
+            else if (el.tagName === "SELECT") dirty = curVal != null && curVal !== "" && el.value !== curVal;
+            else if (el.getAttribute("data-kind") === "number")
+              dirty = el.value !== "" && (curVal == null || ["unknown","unavailable",""].includes(curVal) || Number(el.value) !== Number(curVal));
+            else dirty = el.value !== "" && el.value !== curVal;
+            el.classList.toggle("dirty", dirty);
+            if (dirty) n++;
+          });
+          card.querySelectorAll("[data-acc]").forEach((acc) => {
+            acc.classList.toggle("has-changes", !!acc.querySelector(".dirty"));
+          });
+          if (saveBtn) saveBtn.textContent = n ? `Save (${n})` : "Save";
+        };
+        card.querySelectorAll("[data-cfg]").forEach((el) => {
+          el.addEventListener("input", () => { refreshDirty(); if (msg) msg(""); });
+          el.addEventListener("change", refreshDirty);
+        });
+        const clearDirty = () => {
+          card.querySelectorAll(".dirty").forEach((el) => el.classList.remove("dirty"));
+          refreshDirty();
+        };
 
         const msg = (t) => {
           const m = card.querySelector('[data-act="msg"]');
@@ -883,6 +954,7 @@
         };
         const flash = (t) => this._flash(t);
 
+        refreshDirty();
         card.querySelector('[data-act="load"]').onclick = async () => {
           const q = ents["query_button"];
           if (!q) { msg("No query button entity yet — is the panel linked?"); return; }
@@ -922,6 +994,7 @@
           try {
             await h.callService("nspanel_nexus", "config_update", { device_name: devSafe, config: patch });
             flash("Saved: " + Object.keys(patch).join(", "));
+            clearDirty();
             setTimeout(() => this._schedule(true), 1500);
             msg("");
           } catch (e) { msg("Save failed: " + (e && e.message || e)); }
@@ -997,7 +1070,9 @@
             if (!eid) return;
             const stt = h.states[eid];
             const turnOn = !(stt && stt.state === "on");
-            btn.textContent = btn.textContent.replace(/: (on|off|\?)$/, ": " + (turnOn ? "on" : "off"));
+            btn.classList.toggle("primary", turnOn);
+            btn.classList.toggle("on", turnOn);
+            btn.title = turnOn ? "on" : "off";
             h.callService("switch", turnOn ? "turn_on" : "turn_off", { entity_id: eid })
               .catch((e) => { console.error("module toggle failed:", e); msg("Toggle failed: " + (e && e.message || e)); });
             setTimeout(() => this._schedule(true), 1000);

@@ -152,6 +152,16 @@ verbatim instead of a generic "Dashboard URL failed" toast.
 - [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
 - [ ] H3: docs update, bump + release
 
+### 2.28 Real settings layout overhaul (user: cosmetics are not a redesign, 2026-11-13)
+
+Proper restructure, not a paint job: accordion sections (collapsed advanced ones),
+sticky save bar with dirty-count, no duplicated token/port fields (RD box owns them),
+short labels at the source, denser grids, toggle chips for modules.
+
+- [x] L1: accordion sections + sticky save footer + dirty tracking
+- [x] L2: RD token/port live ONLY in the RD box (removed from generic lists)
+- [x] L3: verify (node --check + headless render), bump + release
+
 ### 2.27 Modern compact futuristic settings page (user, 2026-11-13)
 
 Redesign of the HA sidebar Settings popup: glassmorphism modal (gradient, blur,
