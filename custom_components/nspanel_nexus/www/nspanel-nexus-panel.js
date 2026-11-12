@@ -145,6 +145,7 @@
         this._error = null;
       } catch (e) {
         this._error = "Could not read panels: " + (e && e.message ? e.message : e);
+        console.error("Nexus refresh error:", e);
       }
       this._render();
     }
@@ -186,7 +187,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.22</span>
+          <span class="ver">v0.4.23</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
