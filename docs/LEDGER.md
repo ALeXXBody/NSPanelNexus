@@ -152,6 +152,23 @@ verbatim instead of a generic "Dashboard URL failed" toast.
 - [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
 - [ ] H3: docs update, bump + release
 
+### 2.24 HA sidebar lost connection after v0.4.58 — root cause + fix (user, 2026-11-13)
+
+User reported the HA sidebar lost connection with the panel after the last update.
+Probed: MQTT status was `offline` (not a crash — the app was running, pid 1322).
+The last log line before the silence was `publishDiscovery() done` with no
+error, i.e. the broker simply dropped the retained `status=online` (or the
+panel's will fired) at some point and nothing re-published it. Root cause:
+`isCleanSession = true` + a will of "offline" + no periodic re-publish of
+"online" means a single dropped connection (or broker restart) leaves the
+panel silently offline forever until the app is restarted. Fixed: publish
+"online" on every `connectComplete` (including reconnects), and add a 60s
+keepalive watchdog that re-publishes "online" while connected.
+
+- [x] M1: onConnected publishes status=online (retained, qos 1) on every connect/reconnect
+- [x] M2: 60s watchdog re-publishes status=online while connected
+- [x] M3: verify on the live panel (reboot → status goes online within ~10s and stays; HA sidebar shows online) + bump + release
+
 ### 2.23 In-app firmware OTA (user, 2026-11-13)
 
 User: firmware updates are being pushed with `adb install` on my side, which is fine for
@@ -420,6 +437,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 30 | 2026-11-13 | Android system navigation bar hidden in kiosk mode (immersive sticky, re-applied on window focus, restored in firmware mode); verified live | v0.4.55 |
 | 31 | 2026-11-13 | Removed the inverted-colors 'dark mode' hack; dark mode now selects HA's native dark theme (no inversion, media stays normal); verified live | v0.4.56 |
 | 32 | 2026-11-13 | Verified: firmware OTA module already present (checkForUpdate + sha256 + dd + reboot) and wired to MQTT firmware:check/install + sidebar 'Check firmware' button; no ADB needed in production | v0.4.58 |
+| 33 | 2026-11-13 | HA sidebar lost connection: root cause was a dropped retained status (no re-publish); fixed with status=online on every connectComplete + 60s keepalive watchdog; verified live (status online after restart, stays online) | v0.4.59 |
 
 ---
 
@@ -511,6 +529,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.55 | 2026-11-13 | Immersive mode: nav bar hidden in kiosk, restored in firmware (live-verified) |
 | v0.4.56 | 2026-11-13 | Dark mode via HA native theme (no inversion); media stays normal |
 | v0.4.58 | 2026-11-13 | OTA exposed in Setup; sidebar Check firmware already wired |
+| v0.4.59 | 2026-11-13 | MQTT keepalive: status re-published on connect + every 60s (fixes silent offline) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to

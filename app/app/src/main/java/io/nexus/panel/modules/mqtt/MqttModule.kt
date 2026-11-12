@@ -164,6 +164,9 @@ class MqttModule : Module {
             while (!stopped) {
                 val secs = (System.currentTimeMillis() - startMs) / 1000
                 state("uptime", JSONObject().put("uptime", secs))
+                // keepalive: re-publish status=online so a dropped retained
+                // message (or a broker restart) can't leave us silently offline
+                try { c.publish(base + "/status", "online".toByteArray(), 1, true) } catch (_: Exception) {}
                 try { Thread.sleep(60000) } catch (_: InterruptedException) { break }
             }
         }.apply { isDaemon = true; start() }
