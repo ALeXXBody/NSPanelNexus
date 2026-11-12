@@ -186,7 +186,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.12</span>
+          <span class="ver">v0.4.13</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -244,7 +244,6 @@
         const dev = data ? (data.device_name || entry.title || "panel")
                          : (entry ? (entry.title || "").replace(/^NSPanel /, "") : "panel");
         const ents = this._entityMap(entry, dev);
-        console.log("NSPanel Nexus: device=", dev, "ents=", JSON.stringify(ents));
         const st = (id) => (ents[id] ? h.states[ents[id]] : null);
         const probe = st("uptime") || st("ip_address");
         const online = probe ? probe.state !== "unavailable" : true;
