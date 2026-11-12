@@ -1,7 +1,11 @@
-# NSPanel Nexus — Home Assistant integration
+# Nexus app — Home Assistant integration
 
-Controls an NSPanel Pro running the **Nexus firmware / Nexus app** from Home
-Assistant.
+The **Nexus app** is the Home Assistant side of the system. It provides the
+sidebar manager, entities, and services. The panel itself runs the
+**Nexus firmware** (the clean Android image + on-device app).
+
+The two coexist and complete each other: the firmware runs on the panel,
+the app runs in HA, and they communicate over MQTT.
 
 ## What you get
 

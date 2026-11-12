@@ -19,6 +19,20 @@ Panel Assistant, Fully Kiosk, …) into a single, scriptable interface.
 
 ## Why Nexus?
 
+## Two halves
+
+NSPanel Nexus has two halves that **coexist and complete each other**:
+
+- **Nexus firmware** — the clean Android 8.1 image + the on-device app that
+  runs *on the panel*. Handles MQTT, sensors, display, voice, Zigbee, remote
+  desktop, and OTA updates.
+- **Nexus app** — the Home Assistant integration that runs *in HA*. Provides
+  the sidebar manager, entities, services, and config flow.
+
+They communicate over MQTT. The firmware publishes state; the app consumes it
+and exposes it as HA entities. The app can also send commands back to the
+firmware (wake, sleep, reboot, firmware check, etc.).
+
 The NSPanel Pro is an Android tablet in a wall-switch shell. Unlike the classic
 NSPanel (ESP32 + TFT), there is no single "firmware" — control is spread across
 ADB, MQTT (seaky Pro Tools), HTTP (zigbee2mqtt), and Home Assistant discovery.
