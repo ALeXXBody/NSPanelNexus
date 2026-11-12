@@ -186,7 +186,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.21</span>
+          <span class="ver">v0.4.22</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -194,6 +194,7 @@
 
     _render() {
       const h = this._hass, root = this.shadowRoot;
+      try {
       root.innerHTML = `<style>${CSS}</style>` + this._topbar();
       root.querySelectorAll(".tab").forEach((t) => {
         t.onclick = () => { this._tab = t.dataset.t; this._render(); };
@@ -227,6 +228,10 @@
       else if (this._tab === "firmware") this._renderFirmware(body);
       else if (this._tab === "settings") this._renderSettings(body);
       else this._renderAbout(body);
+    } catch (e) {
+      if (root) root.innerHTML = `<div style="color:#ff8a8a;padding:20px">Render error: ${e && e.message ? e.message : e}</div>`;
+      console.error("Nexus render error:", e);
+    }
     }
 
     _renderPanels(body) {
