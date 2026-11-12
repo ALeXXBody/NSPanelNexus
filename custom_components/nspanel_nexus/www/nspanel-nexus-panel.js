@@ -11,19 +11,19 @@
     :host{display:block;min-height:100%;background:#181a1f;
           font-family:Roboto,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;
           color:#e8ebef}
-    .topbar{display:flex;align-items:center;gap:14px;padding:0 18px;height:80px;
+    .topbar{display:flex;align-items:center;gap:14px;padding:0 18px;height:80px;flex-wrap:wrap;
             background:#111318;border-bottom:1px solid #22262e;position:sticky;top:0;z-index:5}
     .topbar img{height:64px;width:64px;border-radius:14px;background:#0d1016;padding:4px}
     .topbar .name{font-size:22px;font-weight:700;color:#fff;letter-spacing:.3px;white-space:nowrap;line-height:1}
     .topbar .name b{color:#FF8C28}
     .topbar .ver{font-size:11px;color:#8d97a3;margin-top:2px}
-    .tabs{display:flex;gap:2px;margin-left:34px}
+    .tabs{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
     .tab{padding:10px 18px;cursor:pointer;font-size:14px;color:#aab2bd;border-radius:0}
     .tab:hover{color:#fff}
     .tab.active{color:#fff;border-bottom:2px solid #FF8C28}
-    .body{padding:22px 30px;max-width:1500px}
+    .body{padding:16px 16px;max-width:1500px}
     h2{font-size:26px;font-weight:400;margin:4px 0 22px;color:#e8ebef}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
     .card{background:#22252b;border-radius:4px;border-top:3px solid #757575;
           padding:14px 16px 12px;color:#dfe4ea;position:relative;
           box-shadow:0 1px 3px rgba(0,0,0,.35)}
@@ -42,11 +42,29 @@
     .actions button:hover,.btn:hover{background:#363d47}
     .actions button.primary{background:#FF8C28;color:#111318;font-weight:600}
     .actions button.warn{background:#5d1d1d;color:#ff9b9b}
-    input[type=range]{width:170px;accent-color:#FF8C28;vertical-align:middle}
+    input[type=range]{width:100%;max-width:220px;accent-color:#FF8C28;vertical-align:middle}
     select{padding:8px;border-radius:3px;background:#232830;color:#dfe4ea;border:1px solid #2c323b}
     .err{color:#ff8a8a;font-size:13px;white-space:pre-wrap}
     .about{font-size:13px;color:#aab2bd;line-height:1.6}
     a{color:#FF8C28;text-decoration:none}
+    @media (max-width:768px){
+      .topbar{height:auto;padding:12px 14px;gap:10px}
+      .topbar img{height:48px;width:48px;padding:3px}
+      .topbar .name{font-size:18px}
+      .topbar .ver{font-size:10px}
+      .tabs{margin-left:0;width:100%;justify-content:flex-start}
+      .tab{padding:8px 12px;font-size:13px}
+      .body{padding:12px 12px}
+      h2{font-size:20px;margin-bottom:14px}
+      .grid{grid-template-columns:1fr;gap:12px}
+      .card{padding:12px}
+      input[type=range]{max-width:100%}
+    }
+    @media (max-width:480px){
+      .topbar img{height:40px;width:40px}
+      .topbar .name{font-size:16px}
+      .tab{padding:6px 10px;font-size:12px}
+    }
   `;
 
   // which entity unique_ids map to which row in a panel card
@@ -161,7 +179,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.3</span>
+          <span class="ver">v0.4.4</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
