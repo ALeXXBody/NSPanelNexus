@@ -132,7 +132,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.48";
+      return v || "v0.4.49";
     }
 
     connectedCallback() {
@@ -385,13 +385,27 @@
         cur.url = url;
         img.onerror = () => {
           cur.dead = true;
-          // The image failed: ask the proxy itself why (status is exact).
+          // The image failed: ask the proxy itself why (reason string is exact).
           fetch(url).then((r) => {
             try { r.body && r.body.cancel(); } catch (_) {}
-            const why = r.status === 502 ? "the panel is unreachable, or the RD token is not saved yet — press Save RD in Settings"
-              : r.status === 403 ? "the signed URL was rejected — reload the page and retry"
-              : "the proxy answered HTTP " + r.status;
-            failHere(this._rdFailHtml("Live screen unavailable (" + why + ")."));
+            if (r.ok) {
+              failHere(this._rdFailHtml("Live screen unavailable (stream broke unexpectedly — retrying)."));
+              return;
+            }
+            r.text().then((t) => {
+              const reason = String(t || "");
+              let why;
+              if (reason.includes("rd-token-missing")) why = "the RD token is not saved in Home Assistant yet — open Settings → Remote desktop, paste the token, press Save RD";
+              else if (reason.includes("panel-ip-unknown")) why = "the panel IP address is unknown — is the panel online and linked?";
+              else if (reason.includes("panel-unreachable")) why = "Home Assistant cannot reach " + this._esc(reason.split("@")[1] || "the panel") + " — check the panel is on the LAN";
+              else if (reason.includes("panel-answered-401")) why = "the panel refused the token — retype it in Settings → Save RD";
+              else if (reason.includes("panel-answered-")) why = "the panel answered HTTP " + this._esc(reason.split("panel-answered-")[1] || "?");
+              else if (r.status === 403) why = "the signed URL was rejected — reload the page and retry";
+              else why = "the proxy answered HTTP " + r.status;
+              failHere(this._rdFailHtml("Live screen unavailable (" + why + ")."));
+            }).catch(() => {
+              failHere(this._rdFailHtml("Live screen unavailable (HTTP " + r.status + ")."));
+            });
           }).catch(() => {
             failHere(this._rdFailHtml("Live screen unavailable (panel unreachable). If this persists, re-save the RD token in Settings."));
           });

@@ -140,6 +140,17 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.13 Exact 502 cause (user reports the 502 message, 2026-11-13)
+
+The 502 lumped three causes: token never saved into entry options (most likely —
+the old browser-token prompt never reached the server; Save RD is required once),
+panel IP unknown, panel refusing/unreachable. Split them server-side with distinct
+reason strings and map each to an actionable UI message (incl. panel-answered-401
+= wrong token saved).
+
+- [x] E1: proxy returns distinct reasons (rd-token-missing / panel-ip-unknown / panel-unreachable@host:port / panel-answered-<status>); frontend reads error body and maps each
+- [x] E2: verify (ruff/node + proxy unit tests extended for each reason + headless), docs update, bump + release
+
 ### 2.12 Still not working — proper diagnosis (user, 2026-11-13)
 
 Probed the user's HA directly:
@@ -261,6 +272,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 21 | 2026-11-13 | OBSERVED via headless render: settings card squeezed into narrow grid column (`.grid` auto-fill); fixed with `.modal .grid{1fr}` single-column; re-rendered to confirm full-width | v0.4.46 |
 | 22 | 2026-11-13 | HA-side RD proxy (same-origin signed URLs, server-side token) so live screen works over https/remote; fixed missing `module_remote_desktop` entity-map alias (RD toggle was dead); verified: 6 proxy unit tests + live E2E (real panel screen in card) | v0.4.47 |
 | 23 | 2026-11-13 | Probed user HA: frontend v0.4.47 live + proxy registered (403). Fixed stream restart every 5s refresh (persistent re-adopted img node, proven sameNode across rebuilds); exact failure reasons in UI (fetch probe: 502 token/panel vs 403 stale signature vs setup error); square NSPanel Pro placeholder | v0.4.48 |
+| 24 | 2026-11-13 | Split 502 causes (rd-token-missing / panel-ip-unknown / panel-unreachable@host:port / panel-answered-401) with per-cause UI text; fixed UnboundLocalError 500 on panel-down (found by unit test); 8 proxy tests green | v0.4.49 |
 
 ---
 
@@ -343,6 +355,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.46 | 2026-11-13 | Settings modal cards full-width (`.modal .grid` single column); verified with headless render |
 | v0.4.47 | 2026-11-13 | RD proxy (signed same-origin URLs, server-side token, HA-authed input); fixed dead RD module toggle alias; proxy unit-tested + live E2E verified |
 | v0.4.48 | 2026-11-13 | Persistent stream node across refreshes; exact UI failure reasons; square placeholder; verified headless (sameNode) |
+| v0.4.49 | 2026-11-13 | Per-cause proxy errors incl. wrong-token (401) detection; fixed panel-down 500 crash; 8 tests green |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to

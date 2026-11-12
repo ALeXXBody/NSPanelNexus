@@ -62,11 +62,11 @@ def _entry_data(hass: HomeAssistant, entry_id: str) -> dict[str, Any] | None:
     return data.get(entry_id)
 
 
-def _rd_target(hass: HomeAssistant, entry_id: str) -> tuple[PanelLink, str, int, str] | None:
-    """Return (link, host, port, token) or None when not configured yet."""
+def _rd_target(hass: HomeAssistant, entry_id: str) -> tuple[PanelLink, str, int, str]:
+    """Return (link, host, port, token); raise HTTPBadGateway with the exact reason."""
     entry_data = _entry_data(hass, entry_id)
     if not entry_data:
-        return None
+        raise web.HTTPNotFound(text="unknown panel entry")
     link: PanelLink = entry_data["link"]
     entry = hass.config_entries.async_get_entry(entry_id)
     opts = entry.options if entry else {}
@@ -75,6 +75,8 @@ def _rd_target(hass: HomeAssistant, entry_id: str) -> tuple[PanelLink, str, int,
     except (TypeError, ValueError):
         port = 8080
     token = str(opts.get("remote_desktop_token", "") or "")
+    if not token:
+        raise web.HTTPBadGateway(text="rd-token-missing")
     host: str | None = None
     try:
         st = hass.states.get(f"sensor.nspanel_{link.device_name.lower()}_ip_address")
@@ -82,8 +84,8 @@ def _rd_target(hass: HomeAssistant, entry_id: str) -> tuple[PanelLink, str, int,
             host = st.state
     except Exception:  # noqa: BLE001
         host = None
-    if not host or not token:
-        return None
+    if not host:
+        raise web.HTTPBadGateway(text="panel-ip-unknown")
     return link, host, port, token
 
 
@@ -111,12 +113,7 @@ class NexusRDProxyView(HomeAssistantView):
             raise web.HTTPForbidden
         if rd_path not in ALLOWED_PATHS:
             raise web.HTTPNotFound(text="unknown rd path")
-        target = _rd_target(hass, entry_id)
-        if target is None:
-            raise web.HTTPBadGateway(
-                text="remote desktop not configured: save the RD token in Settings first"
-            )
-        _link, host, port, token = target
+        _link, host, port, token = _rd_target(hass, entry_id)
         panel_url = f"http://{host}:{port}/{rd_path}"
         is_stream = rd_path == "stream" and request.method == "GET"
         timeout = (
@@ -126,40 +123,41 @@ class NexusRDProxyView(HomeAssistantView):
             if is_stream
             else aiohttp.ClientTimeout(total=_ONESHOT_TIMEOUT)
         )
+        sess = aiohttp.ClientSession(timeout=timeout)
+        streaming = False
         try:
-            sess = aiohttp.ClientSession(timeout=timeout)
-            try:
-                if request.method == "POST":
-                    body = await request.read()
-                    ctype = request.headers.get("Content-Type", "application/x-www-form-urlencoded")
-                    upstream = await sess.post(
-                        panel_url,
-                        data=body,
-                        headers={"Content-Type": ctype, "X-Nexus-Token": token},
-                    )
-                    payload = await upstream.read()
-                    status, headers, text = upstream.status, upstream.headers, payload
-                else:
-                    upstream = await sess.get(panel_url, params={"token": token})
-                    status, headers = upstream.status, upstream.headers
-                    text = None
-                if status != 200:
-                    raise web.HTTPBadGateway(text=f"panel answered {status}")
-                if is_stream and text is None:
-                    return await self._pump(request, sess, upstream)
-                return web.Response(
-                    status=200,
-                    body=text,
-                    content_type=headers.get("Content-Type", "application/octet-stream").split(";")[
-                        0
-                    ],
+            if request.method == "POST":
+                body = await request.read()
+                ctype = request.headers.get("Content-Type", "application/x-www-form-urlencoded")
+                upstream = await sess.post(
+                    panel_url,
+                    data=body,
+                    headers={"Content-Type": ctype, "X-Nexus-Token": token},
                 )
-            finally:
-                if not (is_stream and text is None):
-                    await sess.close()
+                payload = await upstream.read()
+                status, headers = upstream.status, upstream.headers
+            else:
+                upstream = await sess.get(panel_url, params={"token": token})
+                status, headers = upstream.status, upstream.headers
+                payload = None
+            if status != 200:
+                raise web.HTTPBadGateway(text=f"panel-answered-{status}")
+            if is_stream:
+                streaming = True  # _pump owns the session from here on
+                return await self._pump(request, sess, upstream)
+            return web.Response(
+                status=200,
+                body=payload,
+                content_type=headers.get("Content-Type", "application/octet-stream").split(";")[
+                    0
+                ],
+            )
         except (asyncio.TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.debug("RD proxy to %s failed: %s", panel_url, err)
-            raise web.HTTPBadGateway(text="panel unreachable") from err
+            raise web.HTTPBadGateway(text=f"panel-unreachable@{host}:{port}") from err
+        finally:
+            if not streaming:
+                await sess.close()
 
     async def _pump(
         self,
