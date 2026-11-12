@@ -14,6 +14,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import io.nexus.panel.MainActivity
+import io.nexus.panel.core.HaAuth
 import io.nexus.panel.core.ModuleManager
 import io.nexus.panel.core.Settings
 import io.nexus.panel.modules.dashboard.DashboardModule
@@ -63,6 +65,28 @@ class SetupFragment : androidx.fragment.app.Fragment() {
         col += text("ha_token", "Long-lived access token", Settings.haToken,
             "Profile → Security → Long-lived access tokens.",
             InputType.TYPE_TEXT_VARIATION_PASSWORD)
+
+        // ---- Home Assistant login (proper OAuth, not a shared token) ----
+        col.addView(section(c, "Home Assistant login"))
+        val loginStatus = TextView(c).apply {
+            textSize = 13f
+            setTextColor(0xFFF0F4F8.toInt())
+        }
+        fun refreshLoginStatus() {
+            loginStatus.text = if (HaAuth.isLoggedIn())
+                "Status: logged in ✓ (per-device login — revoke any time in your HA profile)"
+            else
+                "Status: not logged in — the dashboard will show the HA login page"
+        }
+        refreshLoginStatus()
+        col.addView(loginStatus)
+        col.addView(button(c, "Log in to Home Assistant", "Username + password (+ MFA), approved once. No passwords are stored.") {
+            (ctx as? MainActivity)?.openHaLogin()
+        })
+        col.addView(button(c, "Log out", "Forget this panel's login.") {
+            (ctx as? MainActivity)?.haLogout()
+            refreshLoginStatus()
+        })
         col += text("dashboard_url", "Dashboard URL", Settings.dashboardUrl,
             "The HA dashboard to show on the wall. Leave empty to keep the setup screen.")
         col += text("exit_pin", "Exit PIN (optional)", Settings.get("exit_pin", ""),

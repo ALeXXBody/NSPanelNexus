@@ -140,6 +140,19 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.17 Proper HA login in the app: OAuth, not trusted networks (user, 2026-11-13)
+
+User rejected trusted_networks ("not correct/safe") — right: IP-based auth can be
+borrowed by any device on that IP. The proper way (same as the official Companion
+app): the panel logs in as an OAuth client once (username+password+MFA in-app),
+stores the refresh token, mints access tokens itself, and injects the session into
+the dashboard WebView via localStorage. Revocable per-device from the HA UI, no
+passwords stored, works over http/https, LAN/remote.
+
+- [x] A1: confirm mechanism against the user's HA: frontend `hassTokens` key/format, `/auth/authorize` + `/auth/token` behavior
+- [x] A2: app: "Log in to Home Assistant" (OAuth authorize in a login WebView, custom-scheme code capture, code exchange, refresh token in Settings); dashboard WebView session injection (mint+inject+single reload per load); status line + logout/clear
+- [x] A3: verify (gradle build, install; login page opens; bad-code path; user completes the one-time login with their own credentials), docs update, bump + release
+
 ### 2.16 Nexus replaces Fully Kiosk + NSPanel Pro Tools (user, 2026-11-13)
 
 User: from my guidance, Nexus should replace (be better than) Fully Kiosk and the
@@ -314,6 +327,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 23 | 2026-11-13 | Probed user HA: frontend v0.4.47 live + proxy registered (403). Fixed stream restart every 5s refresh (persistent re-adopted img node, proven sameNode across rebuilds); exact failure reasons in UI (fetch probe: 502 token/panel vs 403 stale signature vs setup error); square NSPanel Pro placeholder | v0.4.48 |
 | 24 | 2026-11-13 | Split 502 causes (rd-token-missing / panel-ip-unknown / panel-unreachable@host:port / panel-answered-401) with per-cause UI text; fixed UnboundLocalError 500 on panel-down (found by unit test); 8 proxy tests green | v0.4.49 |
 | 25 | 2026-11-13 | Kiosk loop live-verified: dashboard default, 6-tap exit, optional PIN pad (IME auto-hidden), Return-to-HA button, RD text input; removed Fully Kiosk + Pro Tools from panel (were device admins); raised RD stream cap 3→8 | v0.4.50 |
+| 26 | 2026-11-13 | Proper HA login (OAuth authorize in-app, custom-scheme code capture, refresh token stored, WebView session injected via hassTokens, logout clears) — verified to the credential step; user completes the one-time login | v0.4.51 |
 
 ---
 
@@ -398,6 +412,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.48 | 2026-11-13 | Persistent stream node across refreshes; exact UI failure reasons; square placeholder; verified headless (sameNode) |
 | v0.4.49 | 2026-11-13 | Per-cause proxy errors incl. wrong-token (401) detection; fixed panel-down 500 crash; 8 tests green |
 | v0.4.50 | 2026-11-13 | Kiosk: 6-tap exit + PIN pad + Return-to-HA + RD text input (all live-verified); FK/Pro Tools removed; RD cap 8 |
+| v0.4.51 | 2026-11-13 | In-app OAuth login + WebView session injection (Companion-style); logout; verified to credential step |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to

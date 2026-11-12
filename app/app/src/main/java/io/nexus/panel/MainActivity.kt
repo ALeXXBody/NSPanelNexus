@@ -15,8 +15,10 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import io.nexus.panel.core.HaAuth
 import io.nexus.panel.core.ModuleManager
 import io.nexus.panel.core.Settings
 import io.nexus.panel.modules.dashboard.DashboardModule
@@ -46,6 +48,10 @@ class MainActivity : FragmentActivity() {
     private var pinView: LinearLayout? = null
     private var pinDots: TextView? = null
     private val pinEntry = StringBuilder()
+    private var loginView: LinearLayout? = null
+    private var loginWeb: WebView? = null
+    private var pendingInject = false
+    private var lastInjectUrl: String? = null
 
     private val pages = listOf(
         "Setup" to { SetupFragment() },
@@ -100,6 +106,10 @@ class MainActivity : FragmentActivity() {
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false
             webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView, url: String) {
+                    super.onPageFinished(view, url)
+                    maybeInjectSession(view, url)
+                }
                 override fun onReceivedError(view: WebView, req: WebResourceRequest,
                                              err: WebResourceError) {
                     if (req.isForMainFrame) {
@@ -138,6 +148,11 @@ class MainActivity : FragmentActivity() {
         // PIN pad goes above everything (dashboard included)
         pinView = buildPinPad()
         root.addView(pinView, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+        // login overlay goes above everything (dashboard included)
+        loginView = buildLoginView()
+        root.addView(loginView, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
         // let the Dashboard module drive this view
@@ -298,11 +313,129 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    // ---- Home Assistant login (OAuth, Companion-app style) ----------------
+
+    private fun buildLoginView(): LinearLayout {
+        val pad = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(0xFF0D1016.toInt())
+            visibility = View.GONE
+        }
+        pad.addView(TextView(this).apply {
+            text = "Log in to Home Assistant"
+            setTextColor(0xFFF0F4F8.toInt())
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding(0, dp(24), 0, dp(12))
+        })
+        val wv = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, req: WebResourceRequest): Boolean {
+                    val u = req.url.toString()
+                    if (u.startsWith(HaAuth.REDIRECT_URI)) {
+                        val code = req.url.getQueryParameter("code")
+                        if (!code.isNullOrBlank()) finishHaLogin(code) else {
+                            toastOnUi("Login approved without a code — try again")
+                        }
+                        return true
+                    }
+                    return false
+                }
+            }
+        }
+        loginWeb = wv
+        pad.addView(wv, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        pad.addView(android.widget.Button(this).apply {
+            text = "Cancel"
+            setTextColor(0xFFF0F4F8.toInt())
+            textSize = 14f
+            setBackgroundColor(0xFF22252B.toInt())
+            setOnClickListener { loginView?.visibility = View.GONE }
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        return pad
+    }
+
+    /** Open the HA login page (called from Setup). */
+    fun openHaLogin() {
+        val haBase = Settings.haUrl
+        if (haBase.isBlank()) {
+            Toast.makeText(this, "Set the Home Assistant URL first", Toast.LENGTH_LONG).show()
+            return
+        }
+        loginWeb?.loadUrl(HaAuth.authorizeUrl(haBase))
+        loginView?.visibility = View.VISIBLE
+    }
+
+    private fun finishHaLogin(code: String) {
+        val origin = try {
+            HaAuth.originOf(Settings.dashboardUrl.ifBlank { Settings.haUrl })
+        } catch (_: Exception) { Settings.haUrl.trimEnd('/') }
+        HaAuth.exchangeCode(origin, code) { tokens ->
+            runOnUiThread {
+                if (tokens == null || tokens.optString("refresh_token").isBlank()) {
+                    toastOnUi("Login failed — check the code and try again")
+                    return@runOnUiThread
+                }
+                Settings.set("ha_refresh_token", tokens.optString("refresh_token"))
+                loginView?.visibility = View.GONE
+                loginWeb?.loadUrl("about:blank")
+                lastInjectUrl = null  // force session injection on next dashboard load
+                toastOnUi("Logged in to Home Assistant")
+                val url = Settings.dashboardUrl
+                if (url.isNotBlank()) loadDashboard(url)
+            }
+        }
+    }
+
+    /** Log out: drop the refresh token + cookies so the dashboard shows HA login. */
+    fun haLogout() {
+        HaAuth.logout()
+        lastInjectUrl = null
+        try {
+            android.webkit.CookieManager.getInstance().removeAllCookies(null)
+            android.webkit.CookieManager.getInstance().flush()
+        } catch (_: Exception) {}
+        val url = Settings.dashboardUrl
+        if (url.isNotBlank()) loadDashboard(url) else hideDashboard()
+        Toast.makeText(this, "Logged out of Home Assistant", Toast.LENGTH_LONG).show()
+    }
+
+    /** After a dashboard page finishes, install our OAuth session if it needs one. */
+    private fun maybeInjectSession(view: WebView, url: String) {
+        if (!pendingInject || !HaAuth.isLoggedIn()) {
+            pendingInject = false
+            return
+        }
+        pendingInject = false
+        lastInjectUrl = url
+        val origin = try { HaAuth.originOf(url) } catch (_: Exception) { return }
+        val refresh = Settings.get("ha_refresh_token", "")
+        if (refresh.isBlank()) return
+        HaAuth.refresh(origin, refresh) { tokens ->
+            runOnUiThread {
+                if (tokens == null || tokens.optString("access_token").isBlank()) {
+                    toastOnUi("Session expired — log in to Home Assistant again")
+                    return@runOnUiThread
+                }
+                try {
+                    view.evaluateJavascript(HaAuth.injectJs(tokens), null)
+                } catch (_: Exception) {}
+                view.reload()
+            }
+        }
+    }
+
     // ---- dashboard mode ---------------------------------------------------
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun loadDashboard(url: String) {
         if (url.isBlank()) return hideDashboard()
+        pendingInject = HaAuth.isLoggedIn() && url != lastInjectUrl
         try { (ModuleManager.get("dashboard") as? io.nexus.panel.modules.dashboard.DashboardModule)?.reportCurrent(url) } catch (_: Exception) {}
         dashboardView?.let { wv ->
             if (wv.url != url) wv.loadUrl(url)
