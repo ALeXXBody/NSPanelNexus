@@ -54,22 +54,29 @@ class FirmwareModule : Module {
 
     // ---- firmware auto-discovery ---------------------------------------
 
-    /** Detect the running firmware version. */
+    /** Detect the running firmware version. Never throws. */
     fun currentFirmwareVersion(): String {
         // 1. Written by nexus-updater.sh after a successful OTA
-        //    (file is root-owned, so read via su)
+        //    (file is root-owned, so read via su with timeout; never on UI thread)
         try {
             val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", "cat /data/nexus/version"))
-            val v = proc.inputStream.bufferedReader().readText().trim()
-            proc.waitFor()
-            if (v.isNotEmpty()) return v
+            val finished = proc.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)
+            if (finished) {
+                val v = try { proc.inputStream.bufferedReader().readText().trim() } catch (_: Exception) { "" }
+                try { proc.destroy() } catch (_: Exception) {}
+                if (v.isNotEmpty()) return v
+            } else {
+                try { proc.destroy() } catch (_: Exception) {}
+            }
         } catch (_: Exception) {}
         // fallback: try direct read (works if permissions allow)
-        val versionFile = File("/data/nexus/version")
-        if (versionFile.exists()) {
-            val v = versionFile.readText().trim()
-            if (v.isNotEmpty()) return v
-        }
+        try {
+            val versionFile = File("/data/nexus/version")
+            if (versionFile.exists()) {
+                val v = versionFile.readText().trim()
+                if (v.isNotEmpty()) return v
+            }
+        } catch (_: Exception) {}
         // 2. Probe for Nexus firmware markers
         if (isNexusFirmware()) return "nexus (unknown version)"
         // 3. Stock Sonoff firmware
@@ -105,7 +112,8 @@ class FirmwareModule : Module {
                 mqtt?.state("firmware", JSONObject()
                     .put("current", currentFirmwareVersion())
                     .put("available", version))
-                if (version != currentFirmwareVersion() && version != "nexus (unknown version)") {
+                val cur = currentFirmwareVersion()
+                if (version.isNotBlank() && version != cur && !cur.startsWith("stock") && cur != "nexus (unknown version)") {
                     downloadAndWrite(url, size, sha, version)
                 }
             } catch (_: Exception) {}
@@ -132,20 +140,26 @@ class FirmwareModule : Module {
         if (tmp.length() != size) { tmp.delete(); return }
         if (sha256(tmp) != sha) { tmp.delete(); return }
 
-        // backup current system partition for rollback
+        // backup current system partition for rollback (best effort)
         val backup = File("/data/nexus/system.img.bak")
         run("dd", "if=/dev/block/mmcblk1p11", "of=${backup.absolutePath}", "bs=1048576")
         run("sync")
 
-        run("dd", "if=${tmp.absolutePath}", "of=/dev/block/mmcblk1p11", "bs=1048576")
+        val rc = run("dd", "if=${tmp.absolutePath}", "of=/dev/block/mmcblk1p11", "bs=1048576")
         run("sync")
+        if (rc != 0) { return }
         tmp.delete()
         Settings.set("nexus_version", version)
         run("reboot")
     }
 
-    private fun run(vararg cmd: String) {
-        ProcessBuilder(*cmd).start().waitFor()
+    private fun run(vararg cmd: String): Int {
+        return try {
+            val full = arrayOf("su", "-c", cmd.joinToString(" "))
+            val proc = ProcessBuilder(*full).start()
+            val ok = proc.waitFor(120, java.util.concurrent.TimeUnit.SECONDS)
+            if (!ok) { try { proc.destroy() } catch (_: Exception) {} ; -1 } else proc.exitValue()
+        } catch (_: Exception) { -1 }
     }
 
     private fun sha256(f: File): String {

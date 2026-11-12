@@ -12,6 +12,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
+from .const import DOMAIN
 from .entity import NexusEntity
 from .link import PanelLink
 
@@ -61,5 +62,5 @@ class NexusPresence(BinarySensorEntity, NexusEntity):
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     import logging
     logging.getLogger(__name__).info('%s platform setup for entry', 'binary_sensor')
-    link = hass.data["nspanel_nexus"][entry.entry_id]["link"]
+    link = hass.data[DOMAIN][entry.entry_id]["link"]
     async_add_entities([NexusPresence(link)], False)

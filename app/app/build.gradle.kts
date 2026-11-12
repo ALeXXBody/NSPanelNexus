@@ -11,8 +11,8 @@ android {
         applicationId = "io.nexus.panel"
         minSdk = 27          // NSPanel Pro ships Android 8.1
         targetSdk = 27       // keep the 8.x permission model on the panel
-        versionCode = 1
-        versionName = "0.2.0"
+        versionCode = 2
+        versionName = "0.4.33"
     }
 
     buildTypes {
@@ -21,6 +21,9 @@ android {
             // the APK is ~2 MB anyway, correctness first
             isMinifyEnabled = false
         }
+    }
+    buildFeatures {
+        buildConfig = true
     }
     lint {
         // targetSdk 27 is intentional: the panel runs Android 8.1 and we want

@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 import socket
 from typing import Any
 
@@ -19,17 +18,13 @@ from .const import (
     DEFAULT_DEVICE_NAME,
     DEFAULT_TOPIC_PREFIX,
     DOMAIN,
+    topic_safe,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 DISCOVERY_PORT = 5000
 DISCOVERY_TIMEOUT = 2.0
-
-
-def topic_safe(name: str) -> str:
-    """Same sanitisation the panel app uses for its MQTT topic base."""
-    return re.sub(r"[^A-Za-z0-9_-]+", "_", name).strip("_ ") or "nspanel"
 
 
 async def _discover_udp() -> list[dict[str, Any]]:
@@ -99,7 +94,7 @@ class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
         name = props.get("name") or (discovery_info.name or "").split(".")[0]
         topic = props.get("topic") or ""
         prefix = topic.split("/")[0] if topic else DEFAULT_TOPIC_PREFIX
-        device = topic.split("/", 1)[1] if "/" in topic else topic_safe(name)
+        device = topic_safe(topic.split("/", 1)[1]) if "/" in topic else topic_safe(name)
 
         await self.async_set_unique_id(device)
         self._abort_if_unique_id_configured()
@@ -179,10 +174,11 @@ class NexusOptionsFlow(OptionsFlow):
             user_input = dict(user_input)
             user_input[CONF_DEVICE_NAME] = topic_safe(user_input[CONF_DEVICE_NAME])
             return self.async_create_entry(title="", data=user_input)
+        merged = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required(CONF_DEVICE_NAME, default=self.config_entry.data[CONF_DEVICE_NAME]): str,
-                vol.Required(CONF_TOPIC_PREFIX, default=self.config_entry.data.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)): str,
+                vol.Required(CONF_DEVICE_NAME, default=merged[CONF_DEVICE_NAME]): str,
+                vol.Required(CONF_TOPIC_PREFIX, default=merged.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)): str,
             }),
         )

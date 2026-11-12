@@ -6,6 +6,7 @@ import logging
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.core import callback
 
+from .const import DOMAIN
 from .entity import NexusEntity
 from .link import PanelLink
 
@@ -72,7 +73,7 @@ class NexusModuleSwitch(SwitchEntity, NexusEntity):
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     import logging
     logging.getLogger(__name__).info('%s platform setup for entry', 'switch')
-    link = hass.data["nspanel_nexus"][entry.entry_id]["link"]
+    link = hass.data[DOMAIN][entry.entry_id]["link"]
     async_add_entities([
         NexusScreenSwitch(link),
         NexusModuleSwitch(link, "remote_desktop", "Remote desktop",

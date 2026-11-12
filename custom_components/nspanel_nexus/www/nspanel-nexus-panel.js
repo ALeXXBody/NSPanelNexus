@@ -68,7 +68,7 @@
   `;
 
   // which entity unique_ids map to which row in a panel card
-  const OBJ_IDS = ["screen", "brightness", "module_remote_desktop", "sensor_remote_desktop",
+  const OBJ_IDS = ["screen", "brightness", "module_remote_desktop",
     "sensor_illuminance", "sensor_uptime", "sensor_ip_address", "sensor_firmware",
     "event_touch", "event_proximity", "event_light", "presence",
     "module_voice", "module_zigbee"];
@@ -103,7 +103,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.32";
+      return v || "v0.4.33";
     }
 
     connectedCallback() {
@@ -119,6 +119,7 @@
     }
 
     _schedule(force) {
+      if (this._addForm) return; // don't wipe open form with background refresh
       const now = Date.now();
       if (!force && now - this._lastRefresh < 5000) {
         clearTimeout(this._t);
@@ -175,31 +176,52 @@
       this._render();
     }
 
+    _esc(v) {
+      return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    }
+
     // hass.states is a Proxy — Object.keys() does NOT work on it.
     // Entity ids are deterministic: <domain>.nspanel_<dev>_<obj>
+    // Registry fallback: if user customized entity_ids, resolve via unique_id.
     _entityMap(entry, dev) {
       const h = this._hass, out = {};
       const slug = String(dev).toLowerCase().replace(/[^a-z0-9_]+/g, "_");
       const base = "nspanel_" + slug + "_";
-      // key -> [domain, suffix]
+      // key -> [domain, suffix, object_id]
       const candidates = {
-        screen: ["switch", "screen"],
-        brightness: ["number", "brightness"],
-        remote_desktop_switch: ["switch", "remote_desktop"],
-        remote_desktop_url: ["sensor", "remote_desktop"],
-        illuminance: ["sensor", "illuminance"],
-        ip_address: ["sensor", "ip_address"],
-        uptime: ["sensor", "uptime"],
-        firmware: ["sensor", "firmware"],
-        touch: ["event", "touch"],
-        proximity: ["event", "proximity"],
-        light_event: ["event", "light_event"],
-        presence: ["binary_sensor", "presence"],
+        screen: ["switch", "screen", "screen"],
+        brightness: ["number", "brightness", "brightness"],
+        remote_desktop_switch: ["switch", "remote_desktop", "module_remote_desktop"],
+        illuminance: ["sensor", "illuminance", "sensor_illuminance"],
+        ip_address: ["sensor", "ip_address", "sensor_ip_address"],
+        uptime: ["sensor", "uptime", "sensor_uptime"],
+        firmware: ["sensor", "firmware", "sensor_firmware"],
+        touch: ["event", "touch", "event_touch"],
+        proximity: ["event", "proximity", "event_proximity"],
+        light_event: ["event", "light_event", "event_light"],
+        presence: ["binary_sensor", "presence", "presence"],
       };
+      // Build registry lookup once: unique_id -> entity_id for this entry
+      let regByUid = null;
+      try {
+        regByUid = {};
+        (this._registry || []).forEach((r) => {
+          if (r.config_entry_id === entry.entry_id && r.unique_id && r.entity_id) {
+            regByUid[r.unique_id] = r.entity_id;
+          }
+        });
+      } catch (_) { regByUid = null; }
+      const wantUid = (obj) => "nexus_" + dev + "_" + obj;
       Object.keys(candidates).forEach((key) => {
-        const [domain, suffix] = candidates[key];
-        const eid = domain + "." + base + suffix;
-        if (h.states[eid]) out[key] = eid;
+        const [domain, suffix, obj] = candidates[key];
+        let eid = null;
+        if (regByUid && regByUid[wantUid(obj)] && h.states[regByUid[wantUid(obj)]]) {
+          eid = regByUid[wantUid(obj)];
+        } else {
+          const guess = domain + "." + base + suffix;
+          if (h.states[guess]) eid = guess;
+        }
+        if (eid) out[key] = eid;
       });
       return out;
     }
@@ -262,8 +284,7 @@
 
     _renderPanels(body) {
       const h = this._hass;
-      console.log('Nexus: _renderPanels called, entries=', this._entries && this._entries.length);
-      console.log('Nexus: hass available=', !!h, 'callService=', typeof h?.callService, 'callWS=', typeof h?.callWS, 'callApi=', typeof h?.callApi);
+
       body.innerHTML = `<h2>Panels</h2>
         <div class="actions" style="display:flex;flex-wrap:wrap;gap:6px;margin:-12px 0 16px">
           <button class="btn primary" id="add">+ Add panel</button>
@@ -273,15 +294,16 @@
       const grid = body.querySelector("#grid");
       body.querySelector("#add").onclick = () => this._startAddFlow();
       this._entries.forEach((entry) => {
-        const data = (entry && (entry.data || entry.raw_data)) || null;
-        const rawDev = data ? (data.device_name || (entry.title || "").replace(/^NSPanel /, "") || "panel")
-                            : (entry ? (entry.title || "").replace(/^NSPanel /, "") : "panel");
+        const merged = Object.assign({}, entry.data, entry.options, entry.raw_data);
+        const data = (entry && (merged && Object.keys(merged).length ? merged : null)) || null;
+        const rawDev = data ? (data.device_name || (entry.title || "").replace(/^NSPanel /, "") || "nspanel")
+                            : (entry ? (entry.title || "").replace(/^NSPanel /, "") : "nspanel");
         const dev = rawDev;  // friendly name for display
-        const devSafe = rawDev.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "panel";  // topic-safe for services/entities
+        const devSafe = rawDev.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "nspanel";  // topic-safe for services/entities
         const ents = this._entityMap(entry, devSafe);
         const st = (id) => (ents[id] ? h.states[ents[id]] : null);
         const probe = st("uptime") || st("ip_address");
-        const online = probe ? probe.state !== "unavailable" : true;
+        const online = probe ? probe.state !== "unavailable" : Object.keys(ents).length > 0;
         const screen = st("screen");
         const bright = st("brightness");
         const rdp = st("remote_desktop_switch");
@@ -292,7 +314,7 @@
         const card = document.createElement("div");
         card.className = "card " + (online ? "on" : "off");
         card.innerHTML = `
-          <div class="pname">${dev}</div>
+          <div class="pname">${this._esc(dev)}</div>
           ${ip ? `<div class="stat"><span class="ic">⌂</span>${ip.state}</div>` : ""}
           ${lux ? `<div class="stat"><span class="ic">☀</span>${lux.state} lx</div>` : ""}
           ${probe ? `<div class="stat"><span class="ic">⏱</span>uptime ${probe.state} s</div>` : ""}
@@ -300,7 +322,7 @@
             <button class="primary" data-act="screen">${screen && screen.state === "on" ? "Sleep" : "Wake"}</button>
             <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br title="brightness">
             ${rdp ? `<button data-act="rdp">${rdp.state === "on" ? "RD on" : "RD off"}</button>` : ""}
-            ${url && url.state ? `<button data-act="open">Open</button>` : ""}
+            ${url && url.state && !["unknown","unavailable",""].includes(url.state) ? `<button data-act="open">Open</button>` : ""}
             <button class="warn" data-act="reboot">Reboot</button>
             <button class="warn" data-act="remove" title="Unlink this panel from Home Assistant">Unlink</button>
           </div>
@@ -312,33 +334,45 @@
         };
         const brEl = card.querySelector("[data-br]");
         if (brEl && ents["brightness"]) {
+          let brTimer = null;
           brEl.oninput = (e) => {
+            const v = Number(e.target.value);
+            clearTimeout(brTimer);
+            brTimer = setTimeout(() => {
+              h.callService("number", "set_value",
+                { entity_id: ents["brightness"], value: v })
+                .catch((err) => console.error("Nexus brightness failed:", err));
+            }, 250);
+          };
+          brEl.onchange = (e) => {
+            clearTimeout(brTimer);
             h.callService("number", "set_value",
-              { entity_id: ents["brightness"], value: Number(e.target.value) });
+              { entity_id: ents["brightness"], value: Number(e.target.value) })
+              .catch((err) => console.error("Nexus brightness failed:", err));
           };
         }
         on("[data-act=screen]", () => {
           const btn = card.querySelector("[data-act=screen]");
           const turningOff = screen && screen.state === "on";
           if (btn) btn.textContent = turningOff ? "Wake" : "Sleep";
-          console.log("Nexus: screen clicked, ents[screen]=", ents["screen"]); if (ents["screen"]) h.callService("switch",
-            turningOff ? "turn_off" : "turn_on", { entity_id: ents["screen"] });
+          if (ents["screen"]) h.callService("switch",
+            turningOff ? "turn_off" : "turn_on", { entity_id: ents["screen"] })
+            .catch((err) => console.error("Nexus screen failed:", err));
           setTimeout(() => this._schedule(true), 1000);
         });
         on("[data-act=rdp]", () => {
           const btn = card.querySelector("[data-act=rdp]");
           const turningOff = rdp && rdp.state === "on";
           if (btn) btn.textContent = turningOff ? "RD off" : "RD on";
-          console.log("Nexus: rdp clicked, ents[rdp]=", ents["remote_desktop_switch"]); if (ents["remote_desktop_switch"]) h.callService("switch",
+          if (ents["remote_desktop_switch"]) h.callService("switch",
             turningOff ? "turn_off" : "turn_on",
-            { entity_id: ents["remote_desktop_switch"] });
+            { entity_id: ents["remote_desktop_switch"] })
+            .catch((err) => console.error("Nexus rdp failed:", err));
           setTimeout(() => this._schedule(true), 1000);
         });
-        on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
+        on("[data-act=open]", () => { if (url && url.state && !["unknown","unavailable",""].includes(url.state)) window.open(url.state, "_blank"); });
         on("[data-act=reboot]", () => {
-          console.log("Nexus: reboot clicked, devSafe=", devSafe);
           h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" })
-            .then(() => console.log("Nexus: reboot service call succeeded"))
             .catch((e) => { console.error("reboot failed:", e); alert("Reboot command failed: " + (e && e.message || e)); }); });
         on("[data-act=remove]", () => {
           if (!confirm(`Unlink ${dev} from Home Assistant? The panel itself is not touched.`)) return;
@@ -355,15 +389,16 @@
       const grid = body.querySelector("#grid");
       this._entries.forEach((entry) => {
         const data = (entry && (entry.data || entry.raw_data)) || null;
-        const rawDev2 = data ? data.device_name : (entry.title || "").replace(/^NSPanel /, "");
+        const merged2 = Object.assign({}, entry.data, entry.options, entry.raw_data);
+        const rawDev2 = (merged2 && merged2.device_name) ? merged2.device_name : (entry.title || "").replace(/^NSPanel /, "");
         const dev = rawDev2;  // friendly name for display
-        const devSafe = rawDev2.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "panel";  // topic-safe
+        const devSafe = rawDev2.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "nspanel";  // topic-safe
         const ents = this._entityMap(entry, devSafe);
         const cur = ents["firmware"] ? h.states[ents["firmware"]] : null;
         const card = document.createElement("div");
         card.className = "card on";
         card.innerHTML = `
-          <div class="pname">${dev}</div>
+          <div class="pname">${this._esc(dev)}</div>
           <div class="stat">Current version: ${cur ? cur.state : "unknown"}</div>
           <div class="actions"><button class="primary" data-act="check">Check for update</button></div>`;
         card.querySelector("[data-act=check]").onclick = () =>
@@ -429,7 +464,7 @@
         if (result.type === "create_entry") {
           this._addForm = null;
           this._flash("Panel added: " + (result.title || ""));
-          await this._schedule(true), this._refresh();
+          await this._refresh();
         } else if (result.type === "form") {
           this._addForm = result;
           this._renderAddFlow(result.errors);
@@ -455,8 +490,10 @@
         ${schema.map((f) => `
           <div class="field"><div class="lbl">${f.name}</div>
             ${f.type === "select"
-              ? `<select name="${f.name}">${(f.options || []).map((o) =>
-                    `<option value="${o[0]}" ${o[0] === f.default ? "selected" : ""}>${o[1]}</option>`).join("")}</select>`
+              ? `<select name="${f.name}">${(f.options || []).map((o) => {
+                    const v = Array.isArray(o) ? o[0] : (o.value != null ? o.value : o);
+                    const l = Array.isArray(o) ? o[1] : (o.label != null ? o.label : String(v));
+                    return `<option value="${v}" ${String(v) === String(f.default) ? "selected" : ""}>${l}</option>`; }).join("")}</select>`
               : `<input class="txt" name="${f.name}" value="${f.default || ""}">`}
           </div>`).join("")}
         ${errors && errors.base ? `<div class="err">${errors.base}</div>` : ""}
@@ -491,16 +528,6 @@
         console.error("Delete failed:", e);
         this._flash("Delete failed: " + (e && e.message || e) + "\n\nPlease remove manually: Settings → Devices & services → NSPanel Nexus → Delete");
       }
-    }
-
-    _token() {
-      for (const k of Object.keys(localStorage)) {
-        try {
-          const v = JSON.parse(localStorage.getItem(k));
-          if (v && v.access_token) return v.access_token;
-        } catch (_) {}
-      }
-      return null;
     }
 
     _flash(msg) {

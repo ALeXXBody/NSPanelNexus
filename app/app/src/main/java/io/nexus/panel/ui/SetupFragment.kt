@@ -162,7 +162,12 @@ class SetupFragment : androidx.fragment.app.Fragment() {
     private fun testDashboardUrl(c: Context) {
         Thread {
             try {
-                val url = Settings.dashboardUrl
+                val url = fields["dashboard_url"]?.text?.toString()?.trim()?.let {
+                    if (it.isBlank()) "" else if (it.startsWith("http")) it else {
+                        val ha = (fields["ha_url"]?.text?.toString()?.trim() ?: "").let { h -> if (h.isBlank()) "" else if (h.startsWith("http")) h else "http://$h" }.trimEnd('/')
+                        if (ha.isBlank()) it else "$ha/${it.trimStart('/')}"
+                    }
+                } ?: Settings.dashboardUrl
                 val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
                 conn.connectTimeout = 4000
                 conn.readTimeout = 4000

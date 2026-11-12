@@ -31,7 +31,8 @@ class DisplayModule : Module {
 
     override fun status(): String {
         val screenOn = pm?.isInteractive == true
-        return "screen=${if (screenOn) "on" else "off"} brightness=${currentBrightness()}"
+        val bright = try { currentBrightness() } catch (_: Exception) { -1 }
+        return "screen=${if (screenOn) "on" else "off"} brightness=$bright"
     }
 
     override fun start(context: Context) {
@@ -126,9 +127,12 @@ class DisplayModule : Module {
 
     // ---- brightness ----------------------------------------------------
 
-    private fun currentBrightness(): Int = try {
-        SysSettings.System.getInt(appContext!!.contentResolver, SysSettings.System.SCREEN_BRIGHTNESS, 128)
-    } catch (_: Exception) { 128 }
+    private fun currentBrightness(): Int {
+        return try {
+            val cr = appContext?.contentResolver ?: return 128
+            SysSettings.System.getInt(cr, SysSettings.System.SCREEN_BRIGHTNESS, 128)
+        } catch (_: Exception) { 128 }
+    }
 
     fun setBrightness(value: Int) {
         val v = value.coerceIn(0, 255)

@@ -102,7 +102,7 @@ class VoiceModule : Module {
         w.send(JSONObject()
             .put("id", id)
             .put("type", "assist_pipeline/run")
-            .put("start_stage", JSONObject().put("type", "stt").put("input", JSONObject()))
+            .put("start_stage", "stt")
             .put("end_stage", "tts")
             .toString())
         startStreaming()
@@ -143,15 +143,17 @@ class VoiceModule : Module {
     }
 
     private fun handleEvent(event: JSONObject) {
-        // pipeline events: stt -> (intent -> tts audio) -> done
+        // HA assist_pipeline events: stt-end / tts-end (audio at data.url) / run-end / error
         val data = event.optJSONObject("data") ?: return
         val type = data.optString("type")
         when (type) {
-            "tts-start" -> {
-                val url = data.optString("tts_input")   // HA gives a media URL for TTS
+            "tts-end" -> {
+                val url = data.optString("url")
                 if (url.isNotBlank()) playUrl(url)
             }
-            "run-end", "stt-end" -> if (type == "stt-end") stopStreaming()
+            "stt-end" -> stopStreaming()
+            "run-end" -> stopStreaming()
+            "error" -> stopStreaming()
         }
     }
 

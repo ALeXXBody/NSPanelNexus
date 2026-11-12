@@ -6,6 +6,7 @@ import logging
 from homeassistant.components.event import EventEntity
 from homeassistant.core import callback
 
+from .const import DOMAIN
 from .entity import NexusEntity
 from .link import PanelLink
 
@@ -46,7 +47,7 @@ class NexusEvent(EventEntity, NexusEntity):
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     import logging
     logging.getLogger(__name__).info('%s platform setup for entry', 'event')
-    link = hass.data["nspanel_nexus"][entry.entry_id]["link"]
+    link = hass.data[DOMAIN][entry.entry_id]["link"]
     async_add_entities([
         NexusEvent(
             link, "touch",

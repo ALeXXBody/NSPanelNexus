@@ -119,6 +119,21 @@ all aligned before the commit).
 | C6 | Firmware auto-discovery | ✅ Done | App reads /data/nexus/version, publishes to MQTT |
 | C7 | Panel-to-HA discovery | ✅ Done | mDNS + UDP, no hardcoded IPs |
 
+### 2.5 Full audit 2026-11-13 (user: "take over, full audit, app is a mess")
+
+Parallel audits from 4 angles (HA linkages / panel.js / Android / versions).
+Fix list for this pass (verify each, no dirty fixes):
+- [ ] H1: `_link_for` normalize with topic_safe; PanelLink defence sanitize
+- [ ] H2: wire `add_update_listener` so options save reloads
+- [ ] H3: options defaults from merged data+options; zeroconf topic segment sanitize
+- [ ] H4: single `topic_safe()` in const.py
+- [ ] H5: sensor units (`LIGHT_LUX`->`UnitOfLuminance`, `s`->`UnitOfTime`), number int, DOMAIN const
+- [ ] P1: panel.js prefer `entry.options.device_name`; registry fallback entity map
+- [ ] P2: fallback `panel`->`nspanel`; debounce brightness + .catch; url guard; online default; suspend refresh while addForm; fix double-refresh; escape dev; select shape; remove dead `_token`+logs; drop dead OBJ_ID
+- [ ] F1: Android route ip/started/uptime via `state()` (retain); exact `command/device` match
+- [ ] F2: DisplayModule NPE guard; SetupFragment test current field; Firmware fallback try/catch; Voice Assist proto fix
+- [ ] V1: bump manifest/hacs/panel together; Android BuildConfig version; backfill LEDGER; untrack .gradle; ignore ha-brands
+
 ---
 
 ## 3. Rules for development
@@ -152,6 +167,7 @@ all aligned before the commit).
 | 10 | 2026-11-12 | CRITICAL: topic_safe not applied in async_setup_entry — MQTT topic mismatch | v0.4.29 |
 | 11 | 2026-11-12 | `js_url` legacy load path, REST `config/entity_registry/list` 404, hardcoded version, blank before `hass` arrives | v0.4.27 |
 | 12 | 2026-11-12 | Stale browser cache masking new panel.js (unversioned module URL) | v0.4.31 |
+| 13 | 2026-11-13 | Full 4-angle audit (HA linkages / panel.js / Android / versions): _link_for not normalized, update listener not wired, options defaults stale, zeroconf segment raw, 3x topic_safe copies, deprecated units, float churn, DOMAIN hardcode, registry fallback missing, fallback panel/nspanel, brightness debounce, url guard, online default, form wipe, double refresh, XSS, select shape, dead token/logs/OBJ_ID, Android retain/exact-match/NPE/stale-URL/version-crash/OTA-su/Voice-proto, .gradle tracked, ha-brands untracked, LEDGER gaps, Android version frozen | v0.4.33 |
 
 ---
 
@@ -169,6 +185,7 @@ all aligned before the commit).
 
 ### Known issues to investigate
 - [x] HA sidebar blank page — fixed in v0.4.27 (`module_url` + immediate skeleton + WS registry)
+- [x] Unlink Delete 401 / Unknown command — REST DELETE is the only valid path; WS `config_entries/delete` does not exist. Keep callApi DELETE + manual-remove fallback (v0.4.32)
 - [ ] DisplayModule publishes state with retry (hacky, should use MQTT connect callback)
 - [ ] FirmwareModule reads version via su (should be readable by app)
 - [ ] VoiceModule publishEntities() is no-op (phase 2)
@@ -209,7 +226,14 @@ all aligned before the commit).
 | v0.4.23 | 2026-11-12 | Render error visibility |
 | v0.4.24 | 2026-11-12 | Constructor init fix |
 | v0.4.25 | 2026-11-12 | Separate display name from topic-safe name in sidebar |
+| v0.4.26 | 2026-11-12 | Fix unlink (callApi DELETE), device-name prefix strip |
 | v0.4.27 | 2026-11-12 | `module_url` load path, WS entity registry, dynamic version, never-blank skeleton |
+| v0.4.28 | 2026-11-12 | Unlink via WS `config_entries/delete` attempt + hass capability logging (reverted: WS command does not exist) |
+| v0.4.29 | 2026-11-12 | CRITICAL: topic_safe in async_setup_entry (MQTT mismatch root cause) |
+| v0.4.30 | 2026-11-12 | Version alignment (manifest/hacs/panel fallback) |
+| v0.4.31 | 2026-11-12 | Cache-busted panel module URL (`panel.js?v=<version>`) — a stale cached panel.js can no longer mask a release |
+| v0.4.32 | 2026-11-12 | Unlink back to callApi DELETE + helpful manual-remove message |
+| v0.4.33 | 2026-11-13 | 4-angle full audit: HA normalization/update-listener/options/units, panel registry fallback/debounce/XSS/select-shape, Android retain/exact-match/NPE/Voice-proto/OTA-su, versions aligned, .gradle untracked |
 | v0.4.31 | 2026-11-12 | Cache-busted panel module URL (`panel.js?v=<version>`) — a stale cached panel.js can no longer mask a release |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed

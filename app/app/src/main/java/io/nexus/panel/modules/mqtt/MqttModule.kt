@@ -38,7 +38,7 @@ class MqttModule : Module {
     private val listeners = mutableMapOf<String, (JSONObject) -> Unit>()
 
     /** Callbacks for device commands: command -> handler */
-    val onCommand = mutableMapOf<String, (JSONObject) -> Unit>()
+    val onCommand = java.util.concurrent.ConcurrentHashMap<String, (JSONObject) -> Unit>()
 
     val base: String get() = "${Settings.topicPrefix}/${Settings.topicId}"
     val haPrefix: String get() = Settings.get("ha_topic_prefix", "homeassistant")
@@ -111,19 +111,16 @@ class MqttModule : Module {
         }
         Log.d("NexusMQTT", "connected to ${Settings.mqttHost}:${Settings.mqttPort}")
         publish(base + "/status", "online", retain = true, qos = 1)
-        publish(base + "/state/ip_address",
-            JSONObject().put("ip_address", localIp()).toString())
+        state("ip_address", JSONObject().put("ip_address", localIp()))
         c.subscribe(base + "/command/#", 1)
         c.subscribe(base + "/config/#", 1)
-        publish(base + "/state/started_at",
-            JSONObject().put("started_at", System.currentTimeMillis()).toString())
+        state("started_at", JSONObject().put("started_at", System.currentTimeMillis()))
         // periodic uptime publisher
         uptimeThread?.interrupt()
         uptimeThread = Thread {
             while (!stopped) {
                 val secs = (System.currentTimeMillis() - startMs) / 1000
-                publish(base + "/state/uptime",
-                    JSONObject().put("uptime", secs).toString())
+                state("uptime", JSONObject().put("uptime", secs))
                 try { Thread.sleep(60000) } catch (_: InterruptedException) { break }
             }
         }.apply { isDaemon = true; start() }
@@ -214,7 +211,7 @@ class MqttModule : Module {
         val relative = topic.removePrefix("$base/")
         try {
             when {
-                relative.startsWith("command/device") -> {
+                relative == "command/device" -> {
                     val cmd = JSONObject(text).optString("command")
                     onCommand[cmd]?.invoke(JSONObject(text))
                 }
@@ -231,7 +228,8 @@ class MqttModule : Module {
                     val filter = if (text.isBlank()) JSONObject() else JSONObject(text)
                     val answer = if (filter.length() == 0) Settings.all() else {
                         val out = JSONObject()
-                        filter.keys().forEach { k -> out.put(k, Settings.all().opt(k)) }
+                        val all = Settings.all()
+                        filter.keys().forEach { k -> if (all.has(k)) out.put(k, all.opt(k)) }
                         out
                     }
                     // never expose secrets over a topic anyone can read

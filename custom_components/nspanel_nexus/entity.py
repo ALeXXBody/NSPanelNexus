@@ -22,6 +22,9 @@ class NexusEntity(Entity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(self._link.register_listener(self._refresh_availability))
+        # Re-sync: retained offline may have arrived before platforms registered
+        if self._attr_available != self._link.available:
+            self._refresh_availability()
 
     @callback
     def _refresh_availability(self) -> None:

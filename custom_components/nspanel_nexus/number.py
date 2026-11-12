@@ -6,6 +6,7 @@ import logging
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.core import callback
 
+from .const import DOMAIN
 from .entity import NexusEntity
 from .link import PanelLink
 
@@ -40,17 +41,21 @@ class NexusBrightness(NumberEntity, NexusEntity):
     def _on_state(self, msg) -> None:
         value = self._link.parse_json(msg.payload).get("brightness")
         if value is not None:
-            self._attr_native_value = float(value)
+            try:
+                self._attr_native_value = int(float(value))
+            except (TypeError, ValueError):
+                return
             self.async_write_ha_state()
 
     async def async_set_native_value(self, value: float) -> None:
-        await self._link.async_config_update({"brightness": int(value)})
-        self._attr_native_value = value
+        ivalue = int(value)
+        await self._link.async_config_update({"brightness": ivalue})
+        self._attr_native_value = ivalue
         self.async_write_ha_state()
 
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     import logging
     logging.getLogger(__name__).info('%s platform setup for entry', 'number')
-    link = hass.data["nspanel_nexus"][entry.entry_id]["link"]
+    link = hass.data[DOMAIN][entry.entry_id]["link"]
     async_add_entities([NexusBrightness(link)], False)

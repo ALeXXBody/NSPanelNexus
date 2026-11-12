@@ -4,10 +4,11 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import LIGHT_LUX
+from homeassistant.const import UnitOfLuminance, UnitOfTime
 from homeassistant.core import callback
 from homeassistant.helpers.entity import EntityCategory
 
+from .const import DOMAIN
 from .entity import NexusEntity
 from .link import PanelLink
 
@@ -60,15 +61,15 @@ class NexusSensor(SensorEntity, NexusEntity):
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     import logging
     logging.getLogger(__name__).info('%s platform setup for entry', 'sensor')
-    link = hass.data["nspanel_nexus"][entry.entry_id]["link"]
+    link = hass.data[DOMAIN][entry.entry_id]["link"]
     async_add_entities([
         NexusSensor(link, "illuminance", "Illuminance",
                     device_class=SensorDeviceClass.ILLUMINANCE,
-                    unit=LIGHT_LUX, state_class=SensorStateClass.MEASUREMENT),
+                    unit=UnitOfLuminance.LUX, state_class=SensorStateClass.MEASUREMENT),
         NexusSensor(link, "ip_address", "IP address",
                     icon="mdi:ip-network", entity_category=EntityCategory.DIAGNOSTIC),
         NexusSensor(link, "uptime", "Uptime",
-                    unit="s",
+                    unit=UnitOfTime.SECONDS,
                     state_class=SensorStateClass.TOTAL_INCREASING,
                     icon="mdi:clock-outline", entity_category=EntityCategory.DIAGNOSTIC),
         NexusSensor(link, "firmware", "Firmware",

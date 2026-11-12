@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_DEVICE_NAME, CONF_TOPIC_PREFIX, DOMAIN, PLATFORMS
+from .const import CONF_DEVICE_NAME, CONF_TOPIC_PREFIX, DOMAIN, PLATFORMS, topic_safe
 from .link import PanelLink
 
 _LOGGER = logging.getLogger(__name__)
@@ -79,9 +79,10 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     async def _link_for(name: str) -> PanelLink | None:
+        want = topic_safe(name)
         for entry_data in hass.data[DOMAIN].values():
             link: PanelLink = entry_data["link"]
-            if link.device_name == name:
+            if link.device_name == want:
                 return link
         return None
 
@@ -116,18 +117,16 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("setting up entry %s data=%s", entry.entry_id, dict(entry.data))
-    import re
-    def _ts(name):
-        return re.sub(r"[^A-Za-z0-9_-]+", "_", name).strip("_ ") or "nspanel"
     link = PanelLink(
         hass,
-        _ts(entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME])),
+        topic_safe(entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME])),
         entry.options.get(CONF_TOPIC_PREFIX, entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro")),
     )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"link": link}
     await link.async_start()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.info("entry %s forwarded to %s", entry.entry_id, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(async_update_options))
     return True
 
 

@@ -9,7 +9,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 
-from .const import DOMAIN
+from .const import DOMAIN, topic_safe
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,9 +19,9 @@ class PanelLink:
 
     def __init__(self, hass: HomeAssistant, device_name: str, topic_prefix: str) -> None:
         self.hass = hass
-        self.device_name = device_name
+        self.device_name = topic_safe(device_name)
         self.topic_prefix = topic_prefix
-        self.base = f"{topic_prefix}/{device_name}"
+        self.base = f"{topic_prefix}/{self.device_name}"
         self.available = True
         self._listeners: set[Callable[[], None]] = set()
         self._unsubs: list[Callable[[], None]] = []
