@@ -28,10 +28,10 @@ class MqttModule : Module {
 
     override val name = "mqtt"
 
-    private var client: MqttClient? = null
+    @Volatile private var client: MqttClient? = null
     @Volatile private var stopped = false
     private val startMs = System.currentTimeMillis()
-    private var uptimeThread: Thread? = null
+    @Volatile private var uptimeThread: Thread? = null
     private val publishExecutor =
         java.util.concurrent.Executors.newSingleThreadExecutor { r ->
             Thread(r, "nexus-mqtt-publish").apply { isDaemon = true }
@@ -107,26 +107,44 @@ class MqttModule : Module {
     }
 
     private fun onConnected(c: MqttClient) {
+        // NEVER block this callback thread: Paho forbids blocking client calls
+        // (publish/subscribe wait for acks) from inside callbacks — it deadlocks
+        // the CommsCallback thread that must dispatch those very acks.
+        // Hand everything to the single publish worker thread instead.
         if (stopped || client !== c) {
             // stale connection from a connect() that raced with stop()
             try { c.disconnect() } catch (_: Exception) {}
             return
         }
         Log.d("NexusMQTT", "connected to ${Settings.mqttHost}:${Settings.mqttPort}")
+        publishExecutor.execute {
+            try {
+                onConnectedAsync(c)
+            } catch (t: Throwable) {
+                Log.e("NexusMQTT", "post-connect failed", t)
+            }
+        }
+    }
+
+    private fun onConnectedAsync(c: MqttClient) {
+        if (stopped || client !== c) return
+        // flush anything queued while offline (plain blocking calls are safe here:
+        // this is our own worker thread, not Paho's callback thread)
         var q = pending.poll()
         while (q != null) {
             try { c.publish(q.first, q.second, q.third.first, q.third.second) } catch (_: Exception) {}
             q = pending.poll()
         }
-        publish(base + "/status", "online", retain = true, qos = 1)
+        if (stopped || client !== c) return
+        try { c.publish(base + "/status", "online".toByteArray(), 1, true) } catch (_: Exception) {}
         try {
             val mods = JSONObject()
             for (m in ModuleManager.all()) mods.put(m.name, Settings.moduleEnabled(m.name))
             state("modules", mods)
         } catch (_: Exception) {}
         state("ip_address", JSONObject().put("ip_address", localIp()))
-        c.subscribe(base + "/command/#", 1)
-        c.subscribe(base + "/config/#", 1)
+        try { c.subscribe(base + "/command/#", 1) } catch (_: Exception) {}
+        try { c.subscribe(base + "/config/#", 1) } catch (_: Exception) {}
         // periodic uptime publisher
         uptimeThread?.interrupt()
         uptimeThread = Thread {
@@ -179,7 +197,7 @@ class MqttModule : Module {
     }
 
     /** Called when HA changes the panel's settings over MQTT. */
-    var onConfigUpdated: ((JSONObject) -> Unit)? = null
+    @Volatile var onConfigUpdated: ((JSONObject) -> Unit)? = null
 
     /** Config with secrets masked — the config topic is readable by anyone on the broker. */
     fun maskedConfig(): JSONObject {

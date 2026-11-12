@@ -180,7 +180,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 12 | 2026-11-12 | Stale browser cache masking new panel.js (unversioned module URL) | v0.4.31 |
 | 13 | 2026-11-13 | Full 4-angle audit (HA linkages / panel.js / Android / versions): _link_for not normalized, update listener not wired, options defaults stale, zeroconf segment raw, 3x topic_safe copies, deprecated units, float churn, DOMAIN hardcode, registry fallback missing, fallback panel/nspanel, brightness debounce, url guard, online default, form wipe, double refresh, XSS, select shape, dead token/logs/OBJ_ID, Android retain/exact-match/NPE/stale-URL/version-crash/OTA-su/Voice-proto, .gradle tracked, ha-brands untracked, LEDGER gaps, Android version frozen | v0.4.33 |
 | 14 | 2026-11-13 | Full 4-angle REPAIR applied + verified (ruff/node/gradle green); v0.4.34 cut but tag pointed at pre-fix commit, re-shipped as below | v0.4.34 |
-| 15 | 2026-11-13 | Open-item repairs: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified config-entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh single source | v0.4.35 |
+| 15 | 2026-11-13 | Open-item repairs (v0.4.35) + Paho callback deadlock root-caused via SIGQUIT trace and fixed (v0.4.36): touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified config-entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh single source | v0.4.35 |
 
 ---
 
@@ -195,6 +195,10 @@ Fix list for this pass (verify each, no dirty fixes):
 ### Phase 3 (from PLAN.md)
 - [ ] Runtime mods/plugins (DLNA, AirPlay, RTSP, etc.)
 - [ ] Dashboard provisioning (walldisplay-dashboards)
+
+### Resolved in verification (2026-11-13, live panel + SIGQUIT trace)
+- [x] New-build onConnected published nothing (no status/modules/ip/uptime/discovery) — root cause: blocking `c.publish()` + `c.subscribe()` on Paho's CommsCallback thread deadlocks it (Token.waitForResponse waits on the thread that must dispatch the ack). Found via `kill -QUIT` stack dump (`MqttClient.publish:570` <- `onConnected:119`). Fixed by moving the entire post-connect sequence to the single publish worker thread. Verified live: status online, state/modules, ip_address, uptime, discovery all retained; tap → `event/touch {"event_type":"tap"}`.
+- [x] HA shows old integration/app versions — HA served panel.js v0.4.35 (update applied); panel APK was 0.2.0 (12 releases behind). Rebuilt, signed, reinstalled → 0.4.35, verified via `pm dump`.
 
 ### Known issues to investigate
 - [x] HA sidebar blank page — fixed in v0.4.27 (`module_url` + immediate skeleton + WS registry)
@@ -250,6 +254,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.33 | 2026-11-13 | 4-angle full audit: HA normalization/update-listener/options/units, panel registry fallback/debounce/XSS/select-shape, Android retain/exact-match/NPE/Voice-proto/OTA-su, versions aligned, .gradle untracked |
 | v0.4.34 | 2026-11-13 | 4-angle audit REPAIR applied (ruff/node/gradle green); tag pointed at pre-fix commit so fixes re-shipped in .35 |
 | v0.4.35 | 2026-11-13 | Open-item repairs: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh |
+| v0.4.36 | 2026-11-13 | Paho callback-thread deadlock fix (post-connect moved to worker) + @Volatile client/uptimeThread/onConfigUpdated; verified live on panel |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
