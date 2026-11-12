@@ -112,9 +112,12 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("setting up entry %s data=%s", entry.entry_id, dict(entry.data))
+    import re
+    def _ts(name):
+        return re.sub(r"[^A-Za-z0-9_-]+", "_", name).strip("_ ") or "nspanel"
     link = PanelLink(
         hass,
-        entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME]),
+        _ts(entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME])),
         entry.options.get(CONF_TOPIC_PREFIX, entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro")),
     )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"link": link}
