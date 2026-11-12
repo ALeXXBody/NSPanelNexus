@@ -132,7 +132,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.60";
+      return v || "v0.4.61";
     }
 
     connectedCallback() {
@@ -904,6 +904,9 @@
             } else {
               if (el.type === "password") { if (!el.value) return; }
               else if (curVal != null && el.value === curVal) return;
+              // Don't wipe a stored value with an empty string when we don't
+              // actually know the current value (entity unavailable).
+              if (el.value === "" && (curVal == null || curVal === "unknown" || curVal === "unavailable")) return;
               patch[key] = el.value;
             }
           });

@@ -47,7 +47,20 @@ object Settings {
     /** Apply a partial JSON patch (remote config over MQTT). */
     fun patch(patch: JSONObject) = synchronized(lock) {
         patch.keys().forEach { k ->
-            json.put(k, patch.get(k))
+            val v = patch.get(k)
+            // Never wipe a stored value with an empty string for fields that
+            // are required for connectivity — a stale/empty patch (e.g. from a
+            // sidebar "Save" where the entity was unavailable) must not erase
+            // the broker URL, HA URL or topic prefix.
+            if (v is String && v.isBlank() && k in setOf(
+                    "mqtt_host", "topic_prefix", "ha_url", "dashboard_url",
+                    "mqtt_user", "nexus_manifest_url", "zigbee_topic_base",
+                    "screen_on_weekday_begin", "screen_on_weekday_end",
+                    "screen_on_weekend_begin", "screen_on_weekend_end"
+                )) {
+                return@forEach
+            }
+            json.put(k, v)
         }
         persist()
     }

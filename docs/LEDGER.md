@@ -165,6 +165,20 @@ updates the panel system image.
 - [ ] A2: add "Check for app update" button to Setup (download APK to cache, launch ACTION_VIEW installer)
 - [ ] A3: verify on the live panel (button reports "up to date" since 0.4.60 is latest) + docs + bump + release
 
+### 2.26 Settings wiped after update (user, 2026-11-13)
+
+User: after the last update, the panel's HA data (mqtt_host, ha_url, dashboard_url,
+topic_prefix) was wiped from settings, leaving only the token. Root cause: the
+sidebar "Save to panel" sent empty strings for text fields whose entities were
+unavailable, and Settings.patch() blindly put them, overwriting stored values.
+Fixed on both sides: sidebar no longer sends empty text values when the current
+value is unknown/unavailable; Settings.patch() refuses to overwrite non-empty
+connectivity fields with blank strings.
+
+- [x] W1: Settings.patch() guards against blanking connectivity fields
+- [x] W2: sidebar save() guards against sending empty text when current value unknown
+- [x] W3: verify on the live panel (settings intact after save; no wipe), docs + bump + release
+
 ### 2.24 HA sidebar lost connection after v0.4.58 — root cause + fix (user, 2026-11-13)
 
 User reported the HA sidebar lost connection with the panel after the last update.
@@ -451,6 +465,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 31 | 2026-11-13 | Removed the inverted-colors 'dark mode' hack; dark mode now selects HA's native dark theme (no inversion, media stays normal); verified live | v0.4.56 |
 | 32 | 2026-11-13 | Verified: firmware OTA module already present (checkForUpdate + sha256 + dd + reboot) and wired to MQTT firmware:check/install + sidebar 'Check firmware' button; no ADB needed in production | v0.4.58 |
 | 33 | 2026-11-13 | HA sidebar lost connection: root cause was a dropped retained status (no re-publish); fixed with status=online on every connectComplete + 60s keepalive watchdog; verified live (status online after restart, stays online) | v0.4.59 |
+| 34 | 2026-11-13 | Settings wiped: root cause was empty-string patches from sidebar Save + Settings.patch blindly putting them; guarded both sides; verified settings intact after update | v0.4.61 |
 
 ---
 
@@ -543,6 +558,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.56 | 2026-11-13 | Dark mode via HA native theme (no inversion); media stays normal |
 | v0.4.58 | 2026-11-13 | OTA exposed in Setup; sidebar Check firmware already wired |
 | v0.4.59 | 2026-11-13 | MQTT keepalive: status re-published on connect + every 60s (fixes silent offline) |
+| v0.4.61 | 2026-11-13 | Settings wipe guard (panel + sidebar) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
