@@ -98,14 +98,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("setting up entry %s data=%s", entry.entry_id, dict(entry.data))
     link = PanelLink(
         hass,
-        entry.data[CONF_DEVICE_NAME],
-        entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro"),
+        entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME]),
+        entry.options.get(CONF_TOPIC_PREFIX, entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro")),
     )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"link": link}
     await link.async_start()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.info("entry %s forwarded to %s", entry.entry_id, PLATFORMS)
     return True
+
+
+async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry when options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
