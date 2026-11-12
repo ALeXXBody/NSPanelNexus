@@ -56,6 +56,16 @@
     .modal.compact .actions button,.modal.compact .btn{padding:4px 8px;font-size:12px}
     .modal.compact h3{font-size:16px;margin:0 0 6px}
     .modal.compact .stat{font-size:12px;margin:4px 0}
+    .setgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
+    @media (max-width:700px){.setgrid{grid-template-columns:1fr}}
+    .rdbox{background:#1a1e25;border:1px solid #2c323b;border-radius:8px;padding:10px 12px;margin:0 0 10px}
+    .rdbox .rdhead{font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+    .rdbox .rdpill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#3a414d;color:#cfd6de}
+    .rdbox .rdpill.on{background:#2e9e44;color:#fff}
+    .rdbox .rdrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+    .rdbox input.txt{flex:1;min-width:140px}
+    .rdbox input.num{width:90px;flex:none}
+    .rdbox .hint{font-size:11px;color:#8d97a3;margin-top:6px}
     .modal h3{margin:0 0 12px;font-size:18px;color:#fff}
     .modal .x{float:right;border:0;background:transparent;color:#9aa2ad;font-size:18px;cursor:pointer}
     .field{margin:10px 0}
@@ -121,7 +131,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.44";
+      return v || "v0.4.45";
     }
 
     connectedCallback() {
@@ -731,12 +741,32 @@
         const card = document.createElement("div");
         card.className = "card on";
         const fieldId = (k) => "cfg-" + entry.entry_id + "-" + k;
+        const rdpSw = st("module_remote_desktop");
+        const rdpIsOn = rdpSw && rdpSw.state === "on";
+        const rdPortSt = st("cfg_remote_desktop_port");
+        const rdPortVal = rdPortSt && rdPortSt.state != null && !isNaN(Number(rdPortSt.state)) ? Number(rdPortSt.state) : 8080;
+        const rdBase = this._rdBase(st("ip_address"), rdPortSt);
         let html = `<div class="pname">${this._esc(dev)}</div>
           <div class="actions" style="display:flex;border:0;padding:6px 0 10px">
             <button class="btn" data-act="load">Load from panel</button>
             <button class="btn primary" data-act="save">Save to panel</button>
             <span class="about" data-act="msg"></span>
-          </div>`;
+          </div>
+          <div class="rdbox">
+            <div class="rdhead">Remote desktop <span class="rdpill${rdpIsOn ? " on" : ""}" data-rd="pill">${rdpSw ? (rdpIsOn ? "ON" : "OFF") : "?"}</span></div>
+            <div class="rdrow">
+              <button class="btn${rdpIsOn ? "" : " primary"}" data-rd="toggle">${rdpIsOn ? "Turn off" : "Turn on"}</button>
+              ${rdpIsOn && rdBase ? `<button class="btn" data-rd="open">Open remote</button>` : ""}
+            </div>
+            <div class="rdrow">
+              <input class="txt" data-rd="token" type="password" placeholder="Panel token (empty = unchanged)" title="Panel-side remote desktop token">
+              <input class="txt num" data-rd="port" type="number" min="1" max="65535" step="1" value="${rdPortVal}" title="Remote desktop port">
+              <button class="btn primary" data-rd="saverd">Save RD</button>
+              <button class="btn" data-rd="btoken" title="Store the panel token in this browser so the card shows the live screen">Browser token</button>
+            </div>
+            <div class="hint">On/off and Save RD apply immediately. The same token field also lives in the full form below. "Browser token" stores it in this browser so the card stream can load.</div>
+          </div>
+          <div class="setgrid">`;
         this._textFields.forEach(([key, label, type]) => {
           const cur = st("cfg_" + key);
           const val = cur && cur.state != null && cur.state !== "unknown" && cur.state !== "unavailable" ? cur.state : "";
@@ -758,7 +788,7 @@
               <option value="router" ${val === "router" ? "selected" : ""}>router</option>
             </select></div>`;
         }
-        html += `<div class="field"><div class="lbl">Modules (on/off apply immediately)</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+        html += `</div><div class="field"><div class="lbl">Modules (on/off apply immediately)</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
         this._moduleToggles.forEach(([key, label]) => {
           const sw = st(key);
           const isOn = sw && sw.state === "on";
@@ -814,6 +844,56 @@
             msg("");
           } catch (e) { msg("Save failed: " + (e && e.message || e)); }
         };
+
+        // ---- RD box wiring (on/off + token + port stay in Settings) ----
+        {
+          const pill = card.querySelector('[data-rd="pill"]');
+          const tgl = card.querySelector('[data-rd="toggle"]');
+          if (tgl) tgl.onclick = () => {
+            const eid = ents["module_remote_desktop"];
+            if (!eid) { msg("No remote-desktop switch entity yet — is the panel linked?"); return; }
+            const cur = h.states[eid];
+            const turnOn = !(cur && cur.state === "on");
+            tgl.textContent = turnOn ? "Turn off" : "Turn on";
+            tgl.classList.toggle("primary", !turnOn);
+            if (pill) { pill.textContent = turnOn ? "ON" : "OFF"; pill.classList.toggle("on", turnOn); }
+            h.callService("switch", turnOn ? "turn_on" : "turn_off", { entity_id: eid })
+              .catch((e) => { console.error("RD toggle failed:", e); msg("RD toggle failed: " + (e && e.message || e)); });
+            setTimeout(() => this._schedule(true), 1000);
+          };
+          const openBtn = card.querySelector('[data-rd="open"]');
+          if (openBtn) openBtn.onclick = () => {
+            const ip = st("ip_address");
+            const base = this._rdBase(ip, st("cfg_remote_desktop_port"));
+            const t = this._rdToken(devSafe);
+            if (base) this._openRemote(dev, devSafe, base, t);
+          };
+          const saveRd = card.querySelector('[data-rd="saverd"]');
+          if (saveRd) saveRd.onclick = async () => {
+            const patch = {};
+            const tokEl = card.querySelector('[data-rd="token"]');
+            const portEl = card.querySelector('[data-rd="port"]');
+            if (tokEl && tokEl.value) patch["remote_desktop_token"] = tokEl.value;
+            if (portEl && portEl.value !== "") {
+              const curP = st("cfg_remote_desktop_port");
+              if (!curP || String(Number(portEl.value)) !== String(curP.state)) patch["remote_desktop_port"] = Number(portEl.value);
+            }
+            if (!Object.keys(patch).length) { msg("RD: nothing changed."); return; }
+            msg("Saving RD…");
+            try {
+              await h.callService("nspanel_nexus", "config_update", { device_name: devSafe, config: patch });
+              if (tokEl) tokEl.value = "";
+              flash("Saved RD: " + Object.keys(patch).join(", "));
+              setTimeout(() => this._schedule(true), 1500);
+              msg("");
+            } catch (e) { msg("RD save failed: " + (e && e.message || e)); }
+          };
+          const bt = card.querySelector('[data-rd="btoken"]');
+          if (bt) bt.onclick = () => {
+            const v = this._rdSetToken(devSafe);
+            if (v != null) { flash("Browser token stored."); setTimeout(() => this._schedule(true), 300); }
+          };
+        }
 
         card.querySelectorAll("[data-mod]").forEach((btn) => {
           btn.onclick = () => {

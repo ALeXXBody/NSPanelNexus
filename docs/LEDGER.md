@@ -140,6 +140,15 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.10 Settings popup rework: RD on/off + token stay in Settings, wider + compact (user request, 2026-11-13)
+
+User: "remote desktop should be activated/deactivated from Settings! and the token tab should stay there as well. you have to rework the Settings pop-up to be wider and more compact"
+
+- [ ] T1: dedicated Remote-desktop section pinned at TOP of Settings popup: on/off toggle (module_remote_desktop switch, applies immediately), token field (password, empty = unchanged) + port field, Save-RD-only button, Open-remote button when RD on
+- [ ] T2: token stays in Settings (both the quick RD-section token AND the full-form remote_desktop_token field); card no longer asks for token (points to Settings instead)
+- [ ] T3: wider + more compact: modal 900px already, add 2-column field grid, tighter paddings, RD box styling; single column under 700px
+- [ ] T4: verify (ruff + node --check + py_compile), bump + release
+
 ### 2.9 Panels-first sidebar redesign (user: firmware/settings pages are useless, remove them)
 
 New card layout per panel (Panels tab only):
