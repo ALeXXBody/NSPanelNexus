@@ -125,7 +125,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Settings.init(this)
-        clearStaleHomePreference()
+        // clearStaleHomePreference() — see below
         NexusService.start(this)
 
         // FrameLayout: pages at the bottom, dashboard and PIN pad as fullscreen
@@ -177,14 +177,18 @@ class MainActivity : FragmentActivity() {
                 override fun onReceivedError(view: WebView, req: WebResourceRequest,
                                              err: WebResourceError) {
                     if (req.isForMainFrame) {
-                        runOnUiThread { dashboardLoadFailed(req.url.toString()) }
+                        val desc = try { err.description.toString() } catch (_: Exception) { "unknown" }
+                        android.util.Log.e("NexusDash", "onReceivedError url=" + req.url + " desc=" + desc)
+                        runOnUiThread { dashboardLoadFailed(req.url.toString() + " — " + desc) }
                     }
                 }
 
                 override fun onReceivedHttpError(view: WebView, req: WebResourceRequest,
                                                  resp: WebResourceResponse) {
                     if (req.isForMainFrame) {
-                        runOnUiThread { dashboardLoadFailed(req.url.toString()) }
+                        val desc = "HTTP " + resp.statusCode + " " + (resp.reasonPhrase ?: "")
+                        android.util.Log.e("NexusDash", "onReceivedHttpError url=" + req.url + " " + desc)
+                        runOnUiThread { dashboardLoadFailed(req.url.toString() + " — " + desc) }
                     }
                 }
             }
@@ -578,9 +582,8 @@ class MainActivity : FragmentActivity() {
      * resolver dialog. Clear our own preferred-activity record once per start.
      */
     private fun clearStaleHomePreference() {
-        try {
-            packageManager.clearPackagePreferredActivities(packageName)
-        } catch (_: Exception) {}
+        // no-op: clearing preferred activities on every boot is not needed and
+        // was tripping the WebView initializer on some Android 8.1 firmwares.
     }
 
 
@@ -595,7 +598,8 @@ class MainActivity : FragmentActivity() {
                         val now = System.currentTimeMillis()
                         val adx0 = kotlin.math.abs(ev.x - touchDownX)
                         val ady0 = kotlin.math.abs(ev.y - touchDownY)
-                        if (adx0 < 24 && ady0 < 24 && dashboardShown() && pinView?.visibility != View.VISIBLE) {
+                        if (adx0 < 24 && ady0 < 24 && touchDownX < 90f && touchDownY < 90f &&
+                            dashboardShown() && pinView?.visibility != View.VISIBLE) {
                             exitTaps.addLast(now)
                             try { android.util.Log.i("NexusExit", "tap count=" + exitTaps.size) } catch (_: Exception) {}
                             while (exitTaps.isNotEmpty() && now - exitTaps.first() > 3000) exitTaps.removeFirst()
@@ -608,7 +612,7 @@ class MainActivity : FragmentActivity() {
                                     toastOnUi("Firmware — Return to HA when done")
                                 }
                             } else if (exitTaps.size == 3) {
-                                toastOnUi("Tap ${6 - exitTaps.size} more times to exit")
+                                toastOnUi("Tap ${6 - exitTaps.size} more times in the top-left corner to exit")
                             }
                         }
                         if (now - lastTouchEvent > 800) {

@@ -140,6 +140,18 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.20 HA dashboard error on the panel (user, 2026-11-13)
+
+User reports the dashboard from HA shows an error on the panel even though the
+dashboard URL is saved and "Test dashboard URL" reported "link ok" (HA answers 200
+for any path, including the login shell, so that test proves nothing about the
+dashboard itself). Need to capture the actual WebView error and report it
+verbatim instead of a generic "Dashboard URL failed" toast.
+
+- [ ] H1: log every `onReceivedError` / `onReceivedHttpError` to logcat and toast the exact url + description + code
+- [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
+- [ ] H3: docs update, bump + release
+
 ### 2.19 Bottom nav always visible + app backgrounds after tap (user, 2026-11-13)
 
 User: the bottom command bar (Setup/Modules/Diagnostics) is always visible and tapping
@@ -357,6 +369,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 26 | 2026-11-13 | Proper HA login (OAuth authorize in-app, custom-scheme code capture, refresh token stored, WebView session injected via hassTokens, logout clears) — verified to the credential step; user completes the one-time login | v0.4.51 |
 | 27 | 2026-11-13 | Dark dashboard (night reporting + WebView-local invert filter w/ media keep-normal; dark+light both verified live) + boot autostart (kiosk UI + MQTT backoff retry; verified by real reboot, zero touches) | v0.4.52 |
 | 28 | 2026-11-13 | Firmware chrome hidden by default (pages container GONE until 6-tap exit; Return-to-HA only in firmware mode) — fixes bottom nav bar always visible + app backgrounding on tap; verified live | v0.4.53 |
+| 29 | 2026-11-13 | PIN pad false trigger fixed: exit gesture now requires 6 taps in the top-left corner (80x80); normal dashboard use no longer accumulates taps; leftover test PIN '0208' cleared from the panel | v0.4.54 |
 
 ---
 
@@ -444,6 +457,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.51 | 2026-11-13 | In-app OAuth login + WebView session injection (Companion-style); logout; verified to credential step |
 | v0.4.52 | 2026-11-13 | Dark dashboard toggle + boot autostart with MQTT retry (both live-verified incl. reboot test) |
 | v0.4.53 | 2026-11-13 | Chrome hidden by default; 6-tap exit reveals it (live-verified) |
+| v0.4.54 | 2026-11-13 | Exit gesture restricted to top-left corner; test PIN cleared |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
