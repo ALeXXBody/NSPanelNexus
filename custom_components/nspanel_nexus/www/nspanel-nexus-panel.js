@@ -190,7 +190,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.24</span>
+          <span class="ver">v0.4.25</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -250,9 +250,11 @@
       body.querySelector("#add").onclick = () => this._startAddFlow();
       this._entries.forEach((entry) => {
         const data = (entry && (entry.data || entry.raw_data)) || null;
-        const dev = data ? (data.device_name || entry.title || "panel")
-                         : (entry ? (entry.title || "").replace(/^NSPanel /, "") : "panel");
-        const ents = this._entityMap(entry, dev);
+        const rawDev = data ? (data.device_name || entry.title || "panel")
+                            : (entry ? (entry.title || "").replace(/^NSPanel /, "") : "panel");
+        const dev = rawDev;  // friendly name for display
+        const devSafe = rawDev.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "panel";  // topic-safe for services/entities
+        const ents = this._entityMap(entry, devSafe);
         const st = (id) => (ents[id] ? h.states[ents[id]] : null);
         const probe = st("uptime") || st("ip_address");
         const online = probe ? probe.state !== "unavailable" : true;
@@ -310,7 +312,7 @@
         });
         on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
         on("[data-act=reboot]", () =>
-          h.callService("nspanel_nexus", "command", { device_name: dev, command: "reboot" })
+          h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" })
             .catch((e) => { console.error("reboot failed:", e); alert("Reboot command failed: " + (e && e.message || e)); }));
         on("[data-act=remove]", () => {
           if (!confirm(`Unlink ${dev} from Home Assistant? The panel itself is not touched.`)) return;
@@ -327,8 +329,10 @@
       const grid = body.querySelector("#grid");
       this._entries.forEach((entry) => {
         const data = (entry && (entry.data || entry.raw_data)) || null;
-        const dev = data ? data.device_name : (entry.title || "").replace(/^NSPanel /, "");
-        const ents = this._entityMap(entry, dev);
+        const rawDev2 = data ? data.device_name : (entry.title || "").replace(/^NSPanel /, "");
+        const dev = rawDev2;  // friendly name for display
+        const devSafe = rawDev2.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "panel";  // topic-safe
+        const ents = this._entityMap(entry, devSafe);
         const cur = ents["firmware"] ? h.states[ents["firmware"]] : null;
         const card = document.createElement("div");
         card.className = "card on";
@@ -337,7 +341,7 @@
           <div class="stat">Current version: ${cur ? cur.state : "unknown"}</div>
           <div class="actions"><button class="primary" data-act="check">Check for update</button></div>`;
         card.querySelector("[data-act=check]").onclick = () =>
-          h.callService("nspanel_nexus", "command", { device_name: dev, command: "firmware:check" })
+          h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "firmware:check" })
             .catch((e) => { console.error("firmware check failed:", e); alert("Firmware check failed: " + (e && e.message || e)); });
         grid.appendChild(card);
       });
