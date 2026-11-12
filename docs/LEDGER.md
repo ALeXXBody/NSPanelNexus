@@ -221,7 +221,8 @@ Fix list for this pass (verify each, no dirty fixes):
 | 15 | 2026-11-13 | Open-item repairs (v0.4.35) + Paho callback deadlock root-caused via SIGQUIT trace and fixed (v0.4.36) |
 | 16 | 2026-11-13 | Sidebar-first add flow + setup hardening (migration/listener never fail, cross-scheme duplicate guard) | v0.4.37 |
 | 17 | 2026-11-13 | UnitOfLuminance/UnitOfTime ImportError on user's HA → version-proof unit import with string fallback | v0.4.38 |
-| 18 | 2026-11-13 | Full firmware configuration from the app: text/number/select entities for every setting, module switches for all modules (no MQTT kill-switch), sidebar Settings form (Load/Save-all), Android token masking + dashboard/rd hot-apply. Verified live: modules state, config round-trip 170→180, secrets masked | v0.4.39 | (empty state keeps +Add), setup hardening (migration/listener never fail setup), cross-scheme duplicate guard | v0.4.37 |: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified config-entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh single source | v0.4.35 |
+| 18 | 2026-11-13 | Full firmware configuration from the app: text/number/select entities, all module switches, sidebar Settings form, Android token masking + dashboard/rd hot-apply. Verified live: modules state, config round-trip 170→180, secrets masked | v0.4.39 |
+| 19 | 2026-11-13 | Panels-first redesign: card = RD image + Info/Settings/Remote only; all data/actions in popups; wider+compact Settings; RD on/off + token in Settings | v0.4.44 |
 
 ---
 
