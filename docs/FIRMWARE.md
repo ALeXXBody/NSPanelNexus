@@ -26,6 +26,20 @@ test services are gone. All hardware functions (display, touch, proximity,
 light, Zigbee, Wi-Fi, BT, speaker, relays) keep working — they are started by
 `/system/bin/rootsudaemon.sh` and `/vendor`, not by the Sonoff app.
 
+## Nexus kiosk behavior (the on-panel app)
+
+- Boots straight into the HA dashboard (autostart on power-up, verified with
+  screenshots — no taps needed). MQTT reconnects with backoff if the network
+  is not up yet at boot.
+- 6 quick taps anywhere on the dashboard leave it for the firmware pages;
+  an optional 4-digit exit PIN (Setup → Exit PIN) gates the exit with a PIN
+  pad (the on-screen keyboard is hidden while it is up).
+- A "Return to HA" button in the title bar goes back to the dashboard.
+- Dark mode (Setup → Dark dashboard, default on): the dashboard renders dark
+  for night use through a WebView-local filter (media is kept normal).
+- HA login is OAuth in-app (Setup → Log in to Home Assistant), Companion-style:
+  no trusted networks, no stored passwords, per-device revokable token.
+
 ## Verified on the live panel
 
 - Panel rebooted after the change: KISS desktop appears (screenshot verified).

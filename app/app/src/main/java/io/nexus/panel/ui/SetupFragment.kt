@@ -24,6 +24,7 @@ import io.nexus.panel.modules.dashboard.DashboardModule
 class SetupFragment : androidx.fragment.app.Fragment() {
 
     private val fields = mutableMapOf<String, EditText>()
+    private var darkSwitch: android.widget.Switch? = null
     private var ctx: Context? = null
 
     override fun onCreateView(
@@ -93,6 +94,30 @@ class SetupFragment : androidx.fragment.app.Fragment() {
             "If set, 6 taps on the dashboard ask for this 4-digit PIN before showing the firmware.",
             InputType.TYPE_CLASS_NUMBER or InputType.TYPE_TEXT_VARIATION_PASSWORD)
 
+        // ---- appearance ----
+        col.addView(section(c, "Appearance"))
+        val dl = LinearLayout(c).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(10), 0, dp(2))
+        }
+        dl.addView(TextView(c).apply {
+            text = "Dark dashboard"
+            setTextColor(0xFFF0F4F8.toInt())
+            textSize = 14f
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        dl.addView(android.widget.Switch(c).apply {
+            isChecked = Settings.getBool("dark_mode", true)
+            darkSwitch = this
+        })
+        col.addView(dl)
+        col.addView(TextView(c).apply {
+            text = "Darkens the dashboard for night use (media is kept normal). Takes effect on the next dashboard load."
+            setTextColor(0xFF8B97A5.toInt())
+            textSize = 11f
+            setPadding(0, dp(2), 0, dp(6))
+        })
+
         // ---- actions ----
         col.addView(button(c, "Save", "Apply and restart the modules") {
             Settings.lastDashboardError = ""   // retest on next load
@@ -109,6 +134,9 @@ class SetupFragment : androidx.fragment.app.Fragment() {
     }
 
     private fun save() {
+        val darkBefore = Settings.getBool("dark_mode", true)
+        darkSwitch?.let { Settings.set("dark_mode", it.isChecked) }
+        val darkChanged = darkBefore != Settings.getBool("dark_mode", true)
         val c = ctx ?: return
         fields.forEach { (key, et) ->
             val v = et.text.toString()
@@ -126,6 +154,10 @@ class SetupFragment : androidx.fragment.app.Fragment() {
             val url = Settings.get("dashboard_url", "")
             (ModuleManager.get("dashboard") as? DashboardModule)?.onUrlChanged?.invoke(url)
         } catch (_: Exception) {}
+        if (darkChanged) {
+            // night mode applies at activity creation — restart the UI
+            try { (c as? android.app.Activity)?.recreate() } catch (_: Exception) {}
+        }
     }
 
     // ---- view builders ---------------------------------------------------

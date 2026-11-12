@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
+import android.content.Context
+import android.content.res.Configuration
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
@@ -52,12 +54,72 @@ class MainActivity : FragmentActivity() {
     private var loginWeb: WebView? = null
     private var pendingInject = false
     private var lastInjectUrl: String? = null
+    private var darkFixSettle: Runnable? = null
+    private val darkFixHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** Decide once per settled page (never a polling loop — that fought itself). */
+    private fun scheduleDarkFix() {
+        try { darkFixSettle?.let { darkFixHandler.removeCallbacks(it) } } catch (_: Exception) {}
+        if (!Settings.getBool("dark_mode", true)) return
+        val r = Runnable {
+            val wv = dashboardView
+            if (wv == null || wv.visibility != View.VISIBLE) return@Runnable
+            try {
+                wv.evaluateJavascript(DARK_CHECK_JS) { result ->
+                    try {
+                        try { android.util.Log.i("NexusDark", "probe=" + result) } catch (_: Exception) {}
+                        val parts = (result ?: "").trim().trim('"').split("|")
+                        val sysDark = parts.getOrNull(0) == "dark"
+                        val filt = parts.getOrNull(3) == "f"
+                        fun lum(i: Int): Double? = parts.getOrNull(i)?.toDoubleOrNull()
+                        val b = lum(1); val h = lum(2)
+                        val v = if (b == null) h else if (h == null) b else maxOf(b, h)
+                        // Our own filter must not count: it inverts rendering, not styles,
+                        // so a dark reading with the filter present means native dark.
+                        val light = v != null && v > 0.5
+                        if (light) {
+                            wv.evaluateJavascript(DARK_ON_JS, null)
+                            try { android.util.Log.i("NexusDark", "page is light -> filter ON") } catch (_: Exception) {}
+                        } else {
+                            wv.evaluateJavascript(DARK_OFF_JS, null)
+                        }
+                    } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
+        }
+        darkFixSettle = r
+        darkFixHandler.postDelayed(r, 3000)
+    }
+
+    private fun cancelDarkFix() {
+        try {
+            darkFixSettle?.let { darkFixHandler.removeCallbacks(it) }
+            darkFixSettle = null
+        } catch (_: Exception) {}
+    }
 
     private val pages = listOf(
         "Setup" to { SetupFragment() },
         "Modules" to { ModulesFragment() },
         "Diagnostics" to { DiagnosticsFragment() },
     )
+
+    override fun attachBaseContext(newBase: Context) {
+        // Dark dashboard: HA follows prefers-color-scheme when its theme is auto.
+        // Wrapping the base context guarantees the WebView sees NIGHT_YES from birth
+        // (mutating resources later in onCreate is too late for some WebView versions).
+        try {
+            Settings.init(newBase.applicationContext)
+            if (Settings.getBool("dark_mode", true)) {
+                val conf = Configuration(newBase.resources.configuration)
+                conf.uiMode = conf.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv() or
+                    Configuration.UI_MODE_NIGHT_YES
+                super.attachBaseContext(newBase.createConfigurationContext(conf))
+                return
+            }
+        } catch (_: Exception) {}
+        super.attachBaseContext(newBase)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,6 +171,7 @@ class MainActivity : FragmentActivity() {
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
                     maybeInjectSession(view, url)
+                    scheduleDarkFix()
                 }
                 override fun onReceivedError(view: WebView, req: WebResourceRequest,
                                              err: WebResourceError) {
@@ -313,6 +376,9 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    /** Dark dashboard: HA follows prefers-color-scheme when its theme is auto. */
+
+
     // ---- Home Assistant login (OAuth, Companion-app style) ----------------
 
     private fun buildLoginView(): LinearLayout {
@@ -430,6 +496,16 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    companion object {
+        // Transparent bodies report rgba(0,0,0,0) (looks dark, is not) — probe <html> too
+        // and take the lightest opaque layer. Also reports the WebView's own
+        // prefers-color-scheme verdict so we can tell a broken signal apart
+        // from an explicit light theme (format: "scheme|body|html|filtered").
+        private const val DARK_CHECK_JS = "(function(){function lum(el){try{var c=getComputedStyle(el).backgroundColor.match(/[\\d.]+/g);if(!c||c.length<3)return 'null';if(c.length>3&&parseFloat(c[3])<0.5)return 'null';return ''+(0.299*parseFloat(c[0])+0.587*parseFloat(c[1])+0.114*parseFloat(c[2]))/255;}catch(e){return 'null';}}try{var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var f=!!document.getElementById('nexus-force-dark');return m+'|'+lum(document.body)+'|'+lum(document.documentElement)+'|'+(f?'f':'n');}catch(e){return 'error';}})()"
+        private const val DARK_ON_JS = "(function(){if(!document.getElementById('nexus-force-dark')){var st=document.createElement('style');st.id='nexus-force-dark';st.textContent=\"body{filter:invert(1) hue-rotate(180deg)!important}img,video,picture,canvas,svg,[role='img']{filter:invert(1) hue-rotate(180deg)!important}\";document.documentElement.appendChild(st);}})()"
+        private const val DARK_OFF_JS = "(function(){var st=document.getElementById('nexus-force-dark');if(st)st.remove();})()"
+    }
+
     // ---- dashboard mode ---------------------------------------------------
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -443,13 +519,17 @@ class MainActivity : FragmentActivity() {
         }
         titleBar?.text = "NSPanel Nexus — dashboard (6 taps to exit)"
         updateReturnButton()
+        scheduleDarkFix()
     }
 
     private fun hideDashboard() {
+        cancelDarkFix()
         dashboardView?.visibility = View.GONE
         titleBar?.text = "NSPanel Nexus"
         updateReturnButton()
     }
+
+
 
     private fun updateReturnButton() {
         returnBtn?.visibility =

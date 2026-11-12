@@ -55,13 +55,26 @@ class MqttModule : Module {
         Log.d("NexusMQTT", "start(): host=$host port=${Settings.mqttPort}")
         if (host.isBlank()) return
         stopped = false
-        // connect() and the qos=1 publishes block — never do them on the main thread
+        // connect() and the qos=1 publishes block — never do them on the main thread.
+        // Retry with backoff: at boot the network is often not up yet when the
+        // service starts, and paho's auto-reconnect only covers established
+        // sessions, not a failed initial connect().
         Thread {
-            try {
-                connectMqtt()
-                Log.d("NexusMQTT", "start(): connect() returned")
-            } catch (t: Throwable) {
-                Log.e("NexusMQTT", "connect failed", t)
+            var delay = 2000L
+            while (!stopped) {
+                try {
+                    connectMqtt()
+                    Log.d("NexusMQTT", "start(): connect() returned")
+                    return@Thread
+                } catch (t: Throwable) {
+                    Log.e("NexusMQTT", "connect failed, retry in ${delay}ms", t)
+                }
+                var waited = 0L
+                while (!stopped && waited < delay) {
+                    try { Thread.sleep(minOf(1000L, delay - waited)) } catch (_: InterruptedException) { break }
+                    waited += 1000L
+                }
+                delay = minOf(delay * 2, 60000L)
             }
         }.apply { isDaemon = true }.start()
     }

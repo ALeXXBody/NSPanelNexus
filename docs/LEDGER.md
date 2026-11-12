@@ -140,6 +140,22 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.18 Dark mode + auto-run at boot (user, 2026-11-13)
+
+1. Dark mode: the native firmware UI is already dark (Theme.Nexus); what is
+light is the dashboard WebView (HA follows `prefers-color-scheme` when its theme
+is auto). Fix in firmware: force app night mode so the WebView reports dark,
+behind a Setup toggle (`dark_mode`, default on; changing it recreates the
+activity). No AppCompat needed (`updateConfiguration`, works on API 27).
+2. Auto-run: BootReceiver already starts NexusService at boot, but never the
+kiosk UI — after a reboot MQTT/RD work but no dashboard is shown. Fix: the
+receiver also launches MainActivity (allowed on 8.1), plus QUICKBOOT_POWERON
+for Rockchip ROMs.
+
+- [x] N1: night-mode reporting + Setup toggle (+ recreate on change); WebView-local dark filter (body-targeted invert, media double-inverted) as the guaranteed mechanism
+- [x] N2: BootReceiver launches MainActivity (NEW_TASK) + QUICKBOOT_POWERON action; MQTT connect retry with backoff (boot race fix, found live)
+- [x] N3: verified (reboot → dashboard up + MQTT online with zero touches; dark/light both ways via flag; kiosk doc added), bump + release
+
 ### 2.17 Proper HA login in the app: OAuth, not trusted networks (user, 2026-11-13)
 
 User rejected trusted_networks ("not correct/safe") — right: IP-based auth can be
@@ -328,6 +344,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 24 | 2026-11-13 | Split 502 causes (rd-token-missing / panel-ip-unknown / panel-unreachable@host:port / panel-answered-401) with per-cause UI text; fixed UnboundLocalError 500 on panel-down (found by unit test); 8 proxy tests green | v0.4.49 |
 | 25 | 2026-11-13 | Kiosk loop live-verified: dashboard default, 6-tap exit, optional PIN pad (IME auto-hidden), Return-to-HA button, RD text input; removed Fully Kiosk + Pro Tools from panel (were device admins); raised RD stream cap 3→8 | v0.4.50 |
 | 26 | 2026-11-13 | Proper HA login (OAuth authorize in-app, custom-scheme code capture, refresh token stored, WebView session injected via hassTokens, logout clears) — verified to the credential step; user completes the one-time login | v0.4.51 |
+| 27 | 2026-11-13 | Dark dashboard (night reporting + WebView-local invert filter w/ media keep-normal; dark+light both verified live) + boot autostart (kiosk UI + MQTT backoff retry; verified by real reboot, zero touches) | v0.4.52 |
 
 ---
 
@@ -413,6 +430,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.49 | 2026-11-13 | Per-cause proxy errors incl. wrong-token (401) detection; fixed panel-down 500 crash; 8 tests green |
 | v0.4.50 | 2026-11-13 | Kiosk: 6-tap exit + PIN pad + Return-to-HA + RD text input (all live-verified); FK/Pro Tools removed; RD cap 8 |
 | v0.4.51 | 2026-11-13 | In-app OAuth login + WebView session injection (Companion-style); logout; verified to credential step |
+| v0.4.52 | 2026-11-13 | Dark dashboard toggle + boot autostart with MQTT retry (both live-verified incl. reboot test) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
