@@ -121,6 +121,14 @@ all aligned before the commit).
 
 ### 2.5 Full audit 2026-11-13 (user: "take over, full audit, app is a mess")
 
+### 2.7 Sidebar-first add flow + setup hardening (user: sidebar must show by default, add panel from there)
+
+Requested logic: install → sidebar visible → add panel from the sidebar. Fixes:
+- [x] S1: empty state keeps Panels tab with + Add panel button (no dead-end message; form survives refresh)
+- [x] S2: migration + update-listener registration wrapped so setup can never fail because of them
+- [x] S3: duplicate guard across unique_id schemes (old device-only vs new prefix/device) in user + zeroconf steps
+- [x] S4: verify: ruff + node --check + py_compile; bump + release
+
 ### 2.6 Open-item repair batch (user: "please start working on them")
 
 Remaining open items being repaired now (each verified, no dirty fixes):
@@ -180,7 +188,8 @@ Fix list for this pass (verify each, no dirty fixes):
 | 12 | 2026-11-12 | Stale browser cache masking new panel.js (unversioned module URL) | v0.4.31 |
 | 13 | 2026-11-13 | Full 4-angle audit (HA linkages / panel.js / Android / versions): _link_for not normalized, update listener not wired, options defaults stale, zeroconf segment raw, 3x topic_safe copies, deprecated units, float churn, DOMAIN hardcode, registry fallback missing, fallback panel/nspanel, brightness debounce, url guard, online default, form wipe, double refresh, XSS, select shape, dead token/logs/OBJ_ID, Android retain/exact-match/NPE/stale-URL/version-crash/OTA-su/Voice-proto, .gradle tracked, ha-brands untracked, LEDGER gaps, Android version frozen | v0.4.33 |
 | 14 | 2026-11-13 | Full 4-angle REPAIR applied + verified (ruff/node/gradle green); v0.4.34 cut but tag pointed at pre-fix commit, re-shipped as below | v0.4.34 |
-| 15 | 2026-11-13 | Open-item repairs (v0.4.35) + Paho callback deadlock root-caused via SIGQUIT trace and fixed (v0.4.36): touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified config-entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh single source | v0.4.35 |
+| 15 | 2026-11-13 | Open-item repairs (v0.4.35) + Paho callback deadlock root-caused via SIGQUIT trace and fixed (v0.4.36) |
+| 16 | 2026-11-13 | Sidebar-first add flow (empty state keeps +Add), setup hardening (migration/listener never fail setup), cross-scheme duplicate guard | v0.4.37 |: touch tap/swipe publisher, retained state/modules sync both sides, prefix-qualified config-entry unique_ids + migration, prefix-qualified device identifiers, zigbee panel-local publish, updater chmod 644, bump_version.sh single source | v0.4.35 |
 
 ---
 

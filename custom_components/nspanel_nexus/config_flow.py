@@ -75,6 +75,21 @@ def _format(panels: list[dict[str, Any]]) -> str:
     return "\n".join(f"• {p.get('name')}  ({p.get('_ip')})" for p in panels)
 
 
+def _existing_panel(config_entries: list, prefix: str, device: str) -> bool:
+    """True if a panel with the same (prefix, device) already has an entry.
+
+    Covers both unique_id schemes (device-only pre-0.4.35, prefix/device now).
+    """
+    for e in config_entries or []:
+        data = getattr(e, "data", {}) or {}
+        opts = getattr(e, "options", {}) or {}
+        d = topic_safe(opts.get(CONF_DEVICE_NAME, data.get(CONF_DEVICE_NAME, "")))
+        p = opts.get(CONF_TOPIC_PREFIX, data.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX))
+        if d == device and p == prefix:
+            return True
+    return False
+
+
 class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the NSPanel Nexus config flow."""
 
@@ -96,6 +111,8 @@ class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
         prefix = topic.split("/")[0] if topic else DEFAULT_TOPIC_PREFIX
         device = topic_safe(topic.split("/", 1)[1]) if "/" in topic else topic_safe(name)
 
+        if _existing_panel(self._async_current_entries(), prefix, device):
+            return self.async_abort(reason="already_configured")
         await self.async_set_unique_id(f"{prefix}/{device}")
         self._abort_if_unique_id_configured()
         self._discovered = {
@@ -111,11 +128,14 @@ class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         if user_input is not None:
             device = topic_safe(user_input[CONF_DEVICE_NAME])
+            prefix = user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)
+            if _existing_panel(self._async_current_entries(), prefix, device):
+                return self.async_abort(reason="already_configured")
             return self.async_create_entry(
                 title=f"NSPanel {device}",
                 data={
                     CONF_DEVICE_NAME: device,
-                    CONF_TOPIC_PREFIX: user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX),
+                    CONF_TOPIC_PREFIX: prefix,
                 },
             )
         return self.async_show_form(
@@ -134,6 +154,8 @@ class NexusConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             device = topic_safe(user_input[CONF_DEVICE_NAME])
             prefix = user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX)
+            if _existing_panel(self._async_current_entries(), prefix, device):
+                return self.async_abort(reason="already_configured")
             await self.async_set_unique_id(f"{prefix}/{device}")
             self._abort_if_unique_id_configured()
             return self.async_create_entry(

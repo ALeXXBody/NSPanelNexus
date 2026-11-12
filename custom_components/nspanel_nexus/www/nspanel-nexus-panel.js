@@ -103,7 +103,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.36";
+      return v || "v0.4.37";
     }
 
     connectedCallback() {
@@ -264,14 +264,6 @@
           <div class="about">Fix the integration setup, then reload.</div>`;
         return;
       }
-      if (!this._entries || !this._entries.length) {
-        body.innerHTML = `<h2>Panels</h2><div class="card">
-          No NSPanel Nexus panels are linked yet.<br>
-          <span class="about">Add one: Settings → Devices &amp; services → Add integration → NSPanel Nexus.</span>
-        </div>`;
-        return;
-      }
-
       if (this._tab === "panels") this._renderPanels(body);
       else if (this._tab === "firmware") this._renderFirmware(body);
       else if (this._tab === "settings") this._renderSettings(body);
@@ -293,6 +285,13 @@
         <div class="grid" id="grid"></div>`;
       const grid = body.querySelector("#grid");
       body.querySelector("#add").onclick = () => this._startAddFlow();
+      if (!this._entries || !this._entries.length) {
+        grid.innerHTML = `<div class="card">
+          No NSPanel Nexus panels are linked yet.<br>
+          <span class="about">Add one with + Add panel above — no need to leave this page.</span>
+        </div>`;
+        return;
+      }
       this._entries.forEach((entry) => {
         const merged = Object.assign({}, entry.data, entry.options, entry.raw_data);
         const data = (entry && (merged && Object.keys(merged).length ? merged : null)) || null;

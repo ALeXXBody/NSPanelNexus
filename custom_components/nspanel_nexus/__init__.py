@@ -120,20 +120,26 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("setting up entry %s data=%s", entry.entry_id, dict(entry.data))
     # Migrate pre-0.4.35 unique_ids (device only) to prefix/device.
-    _dev = topic_safe(entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME]))
-    _pfx = entry.options.get(CONF_TOPIC_PREFIX, entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro"))
-    if "/" not in (entry.unique_id or ""):
-        hass.config_entries.async_update_entry(entry, unique_id=f"{_pfx}/{_dev}")
-    link = PanelLink(
-        hass,
-        topic_safe(entry.options.get(CONF_DEVICE_NAME, entry.data[CONF_DEVICE_NAME])),
-        entry.options.get(CONF_TOPIC_PREFIX, entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro")),
-    )
+    # Never fail setup because of the migration: on newer HA the unique_id
+    # change may be rejected — the entry keeps working with the old id.
+    try:
+        _dev = topic_safe(entry.options.get(CONF_DEVICE_NAME, entry.data.get(CONF_DEVICE_NAME, "nspanel")))
+        _pfx = entry.options.get(CONF_TOPIC_PREFIX, entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro"))
+        if "/" not in (entry.unique_id or ""):
+            hass.config_entries.async_update_entry(entry, unique_id=f"{_pfx}/{_dev}")
+    except Exception:  # noqa: BLE001
+        _LOGGER.warning("unique_id migration skipped for entry %s", entry.entry_id)
+        _dev = topic_safe(entry.options.get(CONF_DEVICE_NAME, entry.data.get(CONF_DEVICE_NAME, "nspanel")))
+        _pfx = entry.options.get(CONF_TOPIC_PREFIX, entry.data.get(CONF_TOPIC_PREFIX, "nspanelpro"))
+    link = PanelLink(hass, _dev, _pfx)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"link": link}
     await link.async_start()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.info("entry %s forwarded to %s", entry.entry_id, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(async_update_options))
+    try:
+        entry.async_on_unload(entry.add_update_listener(async_update_options))
+    except Exception:  # noqa: BLE001
+        _LOGGER.warning("could not register options listener for entry %s", entry.entry_id)
     return True
 
 
