@@ -35,11 +35,17 @@ class FirmwareModule : Module {
     override fun status(): String = "version=${currentFirmwareVersion()}"
 
     override fun start(context: Context) {
-        val m = mqtt ?: return
+        android.util.Log.d("FirmwareModule", "start() called, enabled=${io.nexus.panel.core.Settings.moduleEnabled("firmware")}")
+        val m = mqtt ?: run { android.util.Log.e("FirmwareModule", "mqtt is null"); return }
         // Auto-discover firmware on start
         val ver = currentFirmwareVersion()
         Settings.set("nexus_version", ver)
-        m.state("firmware", JSONObject().put("current", ver))
+        // Publish after a delay so MQTT has time to connect
+        Thread {
+            Thread.sleep(5000)
+            android.util.Log.d("FirmwareModule", "publishing firmware state: $ver, client connected=${m.status()}")
+            try { m.state("firmware", JSONObject().put("current", ver)); android.util.Log.d("FirmwareModule", "state published") } catch (e: Exception) { android.util.Log.e("FirmwareModule", "state publish failed", e) }
+        }.apply { isDaemon = true }.start()
         m.onCommand["firmware:check"] = { _ -> checkForUpdate() }
         m.onCommand["firmware:install"] = { _ -> installPending() }
     }
@@ -51,6 +57,14 @@ class FirmwareModule : Module {
     /** Detect the running firmware version. */
     fun currentFirmwareVersion(): String {
         // 1. Written by nexus-updater.sh after a successful OTA
+        //    (file is root-owned, so read via su)
+        try {
+            val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", "cat /data/nexus/version"))
+            val v = proc.inputStream.bufferedReader().readText().trim()
+            proc.waitFor()
+            if (v.isNotEmpty()) return v
+        } catch (_: Exception) {}
+        // fallback: try direct read (works if permissions allow)
         val versionFile = File("/data/nexus/version")
         if (versionFile.exists()) {
             val v = versionFile.readText().trim()
