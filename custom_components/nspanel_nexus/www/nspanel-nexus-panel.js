@@ -167,7 +167,7 @@
         firmware: ["sensor", "firmware"],
         touch: ["event", "touch"],
         proximity: ["event", "proximity"],
-        light: ["event", "light"],
+        light_event: ["event", "light_event"],
         presence: ["binary_sensor", "presence"],
       };
       Object.keys(candidates).forEach((key) => {
@@ -186,7 +186,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.9</span>
+          <span class="ver">v0.4.10</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
