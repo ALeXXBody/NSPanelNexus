@@ -43,9 +43,12 @@ nspanel-nexus screenshot -o panel.png
 
 ## On-panel software
 
-Nexus does not replace on-panel apps. Install one of:
-- seaky NSPanel Pro Tools (reference; enables MQTT control)
-- Panel Assistant (HA-managed)
-- kiosk-satellite (voice + kiosk)
+The Nexus firmware (this repo's `app/`) IS the on-panel app: dashboard kiosk
+(default state, 6-tap exit with optional PIN, Return-to-HA button), MQTT control,
+remote desktop, display/voice/Zigbee modules. Install it and no third-party
+on-panel apps are needed — Fully Kiosk and NSPanel Pro Tools can be removed.
 
-Then drive it with Nexus over ADB/MQTT.
+The seaky protocol references in this repo (`mqtt.py`, `MQTT_COMMANDS.md`) only
+describe the wire format Nexus speaks for the legacy CLI-driven setup (panel
+running third-party firmware apps). With Nexus firmware installed, that setup
+is obsolete.

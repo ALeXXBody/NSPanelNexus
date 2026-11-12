@@ -140,6 +140,45 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.16 Nexus replaces Fully Kiosk + NSPanel Pro Tools (user, 2026-11-13)
+
+User: from my guidance, Nexus should replace (be better than) Fully Kiosk and the
+sneaky tools — those are not needed anymore. Found both installed on the live panel
+(`de.ozerov.fully`, `com.seaky.nspanelpro.tools`); the debloat script never removed
+them (user apps, not system bloat) and INSTALL.md still tells users to install seaky.
+Nexus firmware already covers it all: dashboard kiosk (WebView, default state),
+MQTT control (own MqttModule), RD, display/voice/zigbee — no third-party app needed.
+
+- [ ] R1: uninstall both apps from the live panel; verify Nexus still fully alive (MQTT status online, RD stream 200, dashboard showing) via evidence, not assumption
+- [ ] R2: docs: FIRMWARE.md verification note (FK/Pro Tools "still running" → removed, replaced by Nexus), INSTALL.md "On-panel software" section (no longer "install seaky" for Nexus firmware), DashboardModule docstring ("Fully-Kiosk path" → native WebView kiosk)
+- [ ] R3: verify (ruff/node/gradle unaffected — docs + uninstall only; live evidence), bump + release
+
+### 2.15 Dashboard kiosk: default state, 6-tap exit, Return button, RD text input (user, 2026-11-13)
+
+User: dashboard must be the default state; exit via 6 quick taps into firmware;
+a "Return to HA" button brings the dashboard back; (plus: panel showed the HA
+*login* page — login once through RD, so the Remote popup needs a text field).
+Verified on the live screenshot: after restart the panel shows the HA login page
+(dashboard loads at start — 2.14 works). WebView session cookies persist the login.
+
+- [ ] K1: MainActivity: title bar becomes a row (title + "Return to HA" button, visible only when a dashboard is set and hidden); 6 quick taps anywhere while dashboard shown → exit to firmware (replaces double-tap-titlebar); toast hints
+- [ ] K2: sidebar Remote popup: text field + Type button (POST input/text, value encoded) so HA login can be typed from the browser
+- [ ] K3: verify (gradle build, install on live panel, E2E screenshot; headless JS for popup), docs update, bump + release
+
+### 2.14 Dashboard URL saved but panel stays on Setup (user, 2026-11-13)
+
+Root cause (read the code): Setup → Save only restarts modules. The dashboard
+WebView loads in `MainActivity.onCreate` and on MQTT `dashboard:url` / `dashboard:wake`
+— never after a Setup save. So the panel keeps showing the firmware until the app
+is killed. The Setup "Test" button only checks the raw HTTP code (HA answers 200
+even for the login shell), which is why it said "link ok".
+Fix: `save()` invokes `DashboardModule.onUrlChanged` with the new URL (module
+instances persist, so the MainActivity wiring is intact) — dashboard appears instantly,
+clearing the URL hides it instantly.
+
+- [x] F1: Setup save() hot-applies dashboard_url via onUrlChanged (blank → hide)
+- [x] F2: verify (gradle build, install on live panel via ADB, E2E screenshot shows dashboard), docs update, bump + release
+
 ### 2.13 Exact 502 cause (user reports the 502 message, 2026-11-13)
 
 The 502 lumped three causes: token never saved into entry options (most likely —

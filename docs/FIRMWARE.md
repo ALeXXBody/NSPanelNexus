@@ -29,7 +29,7 @@ light, Zigbee, Wi-Fi, BT, speaker, relays) keep working — they are started by
 ## Verified on the live panel
 
 - Panel rebooted after the change: KISS desktop appears (screenshot verified).
-- ADB, Fully Kiosk, seaky NSPanel Pro Tools all still running.
+- Nexus app running (launcher + dashboard kiosk + MQTT + remote desktop). Fully Kiosk and NSPanel Pro Tools were removed from the panel — Nexus replaces both, so no third-party on-panel apps are needed.
 - Zigbee stack (`mosquitto` + `zgateway`) still running.
 - No bloat processes remain.
 

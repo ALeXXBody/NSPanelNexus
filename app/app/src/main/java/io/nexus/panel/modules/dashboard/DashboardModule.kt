@@ -10,9 +10,10 @@ import org.json.JSONObject
 /**
  * Dashboard kiosk.
  *
- * Phase 1: WebView renderer of an HA dashboard (the Fully-Kiosk path, works
- * today). Phase 2: a native renderer that draws the `nspanel-*` cards the
- * Flutter app proved feasible on this hardware — no WebView in the loop.
+ * Phase 1: native WebView kiosk renderer of an HA dashboard (no third-party
+ * kiosk app needed — the panel boots straight into the dashboard). Phase 2:
+ * a native renderer that draws the `nspanel-*` cards the Flutter app proved
+ * feasible on this hardware — no WebView in the loop.
  *
  * The module itself only owns the *configuration*; the WebView lives in the
  * MainActivity so it can be foregrounded and keep the app responsive.

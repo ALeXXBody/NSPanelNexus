@@ -132,7 +132,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.49";
+      return v || "v0.4.50";
     }
 
     connectedCallback() {
@@ -451,6 +451,10 @@
           <button class="btn" data-s="up">↑ up</button>
           <button class="btn" data-s="down">↓ down</button>
         </div>
+        <div class="rdbtnrow">
+          <input class="txt" id="rd-text" placeholder="type text…" style="flex:1;min-width:140px">
+          <button class="btn" data-t="send">Type</button>
+        </div>
         <div class="about" id="rd-log">connecting…</div>`;
       const img = body.querySelector("#rd-live");
       const log = body.querySelector("#rd-log");
@@ -483,6 +487,15 @@
         img.addEventListener("pointercancel", () => { down = null; });
       }
       body.querySelectorAll("[data-k]").forEach((b) => { b.onclick = () => post("input/key", "code=" + b.getAttribute("data-k")); });
+      const txt = body.querySelector("#rd-text");
+      const sendBtn = body.querySelector('[data-t="send"]');
+      if (sendBtn) sendBtn.onclick = () => {
+        const v = txt ? txt.value : "";
+        if (!v) return;
+        post("input/text", "text=" + encodeURIComponent(v));
+        if (txt) txt.value = "";
+        say("typed " + v.length + " chars");
+      };
       body.querySelectorAll("[data-s]").forEach((b) => {
         b.onclick = () => {
           const dir = b.getAttribute("data-s") === "up" ? -1 : 1;
@@ -740,6 +753,7 @@
         ["ha_token", "HA long-lived token", "password"],
         ["dashboard_url", "Dashboard URL", "text"],
         ["remote_desktop_token", "Remote desktop token", "password"],
+        ["exit_pin", "Exit PIN (optional)", "password"],
         ["nexus_manifest_url", "Firmware manifest URL", "text"],
         ["zigbee_topic_base", "Zigbee topic base", "text"],
         ["screen_on_weekday_begin", "Screen on, weekday from (HH:MM)", "text"],

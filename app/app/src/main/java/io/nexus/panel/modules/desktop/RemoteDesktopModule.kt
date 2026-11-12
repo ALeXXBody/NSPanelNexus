@@ -83,7 +83,8 @@ class RemoteDesktopModule : Module {
     // ---- tiny HTTP server ----------------------------------------------
 
     private fun handle(socket: Socket) {
-        if (active.incrementAndGet() > 3) {
+        // HA proxies every browser view as its own upstream stream, so allow headroom
+        if (active.incrementAndGet() > 8) {
             active.decrementAndGet()
             try {
                 val out = socket.getOutputStream()

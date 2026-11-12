@@ -14,7 +14,9 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import io.nexus.panel.core.ModuleManager
 import io.nexus.panel.core.Settings
+import io.nexus.panel.modules.dashboard.DashboardModule
 
 /** Page 1 — connection & device setup. */
 class SetupFragment : androidx.fragment.app.Fragment() {
@@ -63,6 +65,9 @@ class SetupFragment : androidx.fragment.app.Fragment() {
             InputType.TYPE_TEXT_VARIATION_PASSWORD)
         col += text("dashboard_url", "Dashboard URL", Settings.dashboardUrl,
             "The HA dashboard to show on the wall. Leave empty to keep the setup screen.")
+        col += text("exit_pin", "Exit PIN (optional)", Settings.get("exit_pin", ""),
+            "If set, 6 taps on the dashboard ask for this 4-digit PIN before showing the firmware.",
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_TEXT_VARIATION_PASSWORD)
 
         // ---- actions ----
         col.addView(button(c, "Save", "Apply and restart the modules") {
@@ -91,6 +96,12 @@ class SetupFragment : androidx.fragment.app.Fragment() {
         }
         Toast.makeText(c, "Saved — restarting modules", Toast.LENGTH_SHORT).show()
         NexusUi.restartModules(c)
+        // Hot-apply the dashboard: the WebView otherwise only (re)loads on app
+        // start or an MQTT dashboard:url command, leaving the panel on Setup.
+        try {
+            val url = Settings.get("dashboard_url", "")
+            (ModuleManager.get("dashboard") as? DashboardModule)?.onUrlChanged?.invoke(url)
+        } catch (_: Exception) {}
     }
 
     // ---- view builders ---------------------------------------------------
