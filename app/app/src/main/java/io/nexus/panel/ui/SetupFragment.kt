@@ -118,6 +118,20 @@ class SetupFragment : androidx.fragment.app.Fragment() {
             setPadding(0, dp(2), 0, dp(6))
         })
 
+        // ---- firmware (OTA) ----
+        col.addView(section(c, "Firmware"))
+        col += TextView(c).apply {
+            text = "Current: ${Settings.get("nexus_version", "unknown")}  (manifest: ${Settings.get("nexus_manifest_url", "default")})"
+            setTextColor(0xFF9AA5B1.toInt())
+            textSize = 12f
+            setPadding(0, dp(2), 0, dp(6))
+        }
+        col.addView(button(c, "Check for firmware update", "Downloads + verifies sha256, then reboots if newer") {
+            val fm = ModuleManager.get("firmware") as? io.nexus.panel.modules.firmware.FirmwareModule
+            if (fm == null) Toast.makeText(c, "Firmware module not registered", Toast.LENGTH_SHORT).show()
+            else { fm.checkForUpdate(); Toast.makeText(c, "Checking…", Toast.LENGTH_SHORT).show() }
+        })
+
         // ---- actions ----
         col.addView(button(c, "Save", "Apply and restart the modules") {
             Settings.lastDashboardError = ""   // retest on next load

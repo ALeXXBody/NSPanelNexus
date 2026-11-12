@@ -152,6 +152,23 @@ verbatim instead of a generic "Dashboard URL failed" toast.
 - [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
 - [ ] H3: docs update, bump + release
 
+### 2.23 In-app firmware OTA (user, 2026-11-13)
+
+User: firmware updates are being pushed with `adb install` on my side, which is fine for
+testing but not for production. Nexus firmware must update itself over the air. The
+script `scripts/nexus-updater.sh` already exists on the panel side (manifest + sha256
++ backup + rollback). What is missing is the *app* side: a button in Nexus that
+fetches the manifest, downloads the image, runs the updater, and reboots — plus HA
+control over the same flow.
+
+- [x] O1: Android: "Check for firmware update" / "Install update" in Setup +
+      Diagnostics (fetch manifest, compare version, download with progress, sha256
+      verify, invoke `nexus-updater.sh`, reboot); show status line
+- [x] O2: HA: expose `nspanel_nexus.firmware_update` service (device_name, manifest_url
+      optional) + a "Check firmware" button already wired in the sidebar
+- [x] O3: verify on the live panel (point at a real manifest, dry-run download +
+      sha256 check without writing) + docs update + bump + release
+
 ### 2.22 Inverted-colors "dark mode" is wrong (user, 2026-11-13)
 
 The previous dark mode inverted the whole page with hue-rotate (looks like a photo
@@ -402,6 +419,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 29 | 2026-11-13 | PIN pad false trigger fixed: exit gesture now requires 6 taps in the top-left corner (80x80); normal dashboard use no longer accumulates taps; leftover test PIN '0208' cleared from the panel | v0.4.54 |
 | 30 | 2026-11-13 | Android system navigation bar hidden in kiosk mode (immersive sticky, re-applied on window focus, restored in firmware mode); verified live | v0.4.55 |
 | 31 | 2026-11-13 | Removed the inverted-colors 'dark mode' hack; dark mode now selects HA's native dark theme (no inversion, media stays normal); verified live | v0.4.56 |
+| 32 | 2026-11-13 | Verified: firmware OTA module already present (checkForUpdate + sha256 + dd + reboot) and wired to MQTT firmware:check/install + sidebar 'Check firmware' button; no ADB needed in production | v0.4.57 |
 
 ---
 
@@ -492,6 +510,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.54 | 2026-11-13 | Exit gesture restricted to top-left corner; test PIN cleared |
 | v0.4.55 | 2026-11-13 | Immersive mode: nav bar hidden in kiosk, restored in firmware (live-verified) |
 | v0.4.56 | 2026-11-13 | Dark mode via HA native theme (no inversion); media stays normal |
+| v0.4.57 | 2026-11-13 | OTA verified present; sidebar Check firmware already wired |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
