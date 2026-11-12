@@ -1,6 +1,7 @@
 """NSPanel Nexus — sidebar panel + manager services."""
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -14,6 +15,16 @@ from .link import PanelLink
 _LOGGER = logging.getLogger(__name__)
 
 PANEL_URL = "/nspanel-nexus"
+
+_MANIFEST = Path(__file__).parent / "manifest.json"
+
+
+def _read_version() -> str:
+    """Read the integration version (blocking — executor only)."""
+    try:
+        return "v" + json.loads(_MANIFEST.read_text(encoding="utf-8"))["version"]
+    except Exception:  # noqa: BLE001
+        return "v0.0.0"
 
 SERVICE_COMMAND_SCHEMA = vol.Schema({
     vol.Required("device_name"): str,
@@ -36,6 +47,8 @@ async def _register_sidebar(hass: HomeAssistant) -> None:
     js_url = PANEL_URL + "/panel.js"
     js_path = Path(__file__).parent / "www" / "nspanel-nexus-panel.js"
 
+    version = await hass.async_add_executor_job(_read_version)
+
     # serve the panel script + brand images
     brand_path = Path(__file__).parent / "www" / "brand"
     await hass.http.async_register_static_paths([
@@ -49,8 +62,11 @@ async def _register_sidebar(hass: HomeAssistant) -> None:
         webcomponent_name="nspanel-nexus-manager",
         sidebar_title="NSPanel Nexus",
         sidebar_icon="mdi:tablet-dashboard",
-        js_url=js_url,
-        config={"domain": DOMAIN, "title": "NSPanel Nexus"},
+        # module_url is the modern load path; js_url is deprecated (and can
+        # be dropped by newer frontends, which left the panel element
+        # undefined and the page blank).
+        module_url=js_url,
+        config={"domain": DOMAIN, "title": "NSPanel Nexus", "version": version},
         require_admin=True,
     )
 

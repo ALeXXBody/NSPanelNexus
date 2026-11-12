@@ -87,9 +87,29 @@
       this._lastRefresh = 0;
       this._t = null;
       this._rendered = false;
+      this._skeleton();      // visible immediately — the panel is never blank
     }
 
     setConfig() { /* not needed */ }
+
+    set panel(panel) {
+      this._panel = panel;
+      if (this._rendered && this._hass) this._render();
+    }
+
+    get panel() {
+      return this._panel;
+    }
+
+    get _version() {
+      const v = this._panel && this._panel.config && this._panel.config.version;
+      return v || "v0.4.26";
+    }
+
+    connectedCallback() {
+      // Never leave the sidebar empty, even if hass is late or absent.
+      if (!this.shadowRoot.innerHTML) this._skeleton();
+    }
 
     set hass(hass) {
       this._hass = hass;
@@ -111,7 +131,7 @@
 
     _skeleton() {
       this.shadowRoot.innerHTML = `<style>${CSS}</style>
-        <div class="topbar"></div><div class="body">Loading…</div>`;
+        <div class="topbar"></div><div class="body">Loading NSPanel Nexus…</div>`;
     }
 
     async _refresh() {
@@ -127,7 +147,9 @@
           this._entries = (entries || []).filter((e) => e.domain === "nspanel_nexus");
         }
         try {
-          this._registry = await h.callApi("GET", "config/entity_registry/list");
+          // `config/entity_registry/list` is a WebSocket command, not a REST
+          // endpoint — calling it over REST always returned 404.
+          this._registry = await h.callWS({ type: "config/entity_registry/list" });
         } catch (_) { this._registry = []; }
         this._entries.forEach((e) => {
           if (!e.data) {
@@ -190,7 +212,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.26</span>
+          <span class="ver">${this._version}</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
