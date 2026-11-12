@@ -13,11 +13,11 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/ALeXXBody/NSPanelNexus/issues",
   "requirements": [],
-  "version": "0.4.17",
+  "version": "0.4.18",
   "homeassistant": "2026.10.0",
   "zeroconf": [
     {
-      "type": "_nspanel-nexus._tcp.",
+      "type": "_nspanel-nexus._tcp.local.",
       "name": "NSPanel *"
     }
   ]
