@@ -35,6 +35,7 @@ class DisplayModule : Module {
     }
 
     override fun start(context: Context) {
+        android.util.Log.d("DisplayModule", "start() called")
         appContext = context.applicationContext
         pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         sensorModule = ModuleManager.get("sensors") as? SensorModule
@@ -47,7 +48,14 @@ class DisplayModule : Module {
             }
             if (target >= 0) setBrightness(target)
         }
+        android.util.Log.d("DisplayModule", "setBrightness(${Settings.getInt("brightness", currentBrightness())})")
         setBrightness(Settings.getInt("brightness", currentBrightness()))
+        // publish initial state after MQTT connects (delayed)
+        Thread {
+            Thread.sleep(5000)
+            try { mqtt?.state("screen", JSONObject().put("screen", if (isScreenOn) "on" else "off")) } catch (_: Exception) {}
+            try { mqtt?.state("brightness", JSONObject().put("brightness", currentBrightness())) } catch (_: Exception) {}
+        }.apply { isDaemon = true; start() }
         startScheduleLoop()
     }
 
@@ -97,12 +105,21 @@ class DisplayModule : Module {
         wakeLock?.acquire(60_000)
         // sysfs backlights on this panel can be forced on as a fallback
         mqtt?.state("screen", JSONObject().put("screen", "on"))
+        // retry if mqtt wasn't ready
+        Thread {
+            Thread.sleep(2000)
+            try { mqtt?.state("screen", JSONObject().put("screen", "on")) } catch (_: Exception) {}
+        }.apply { isDaemon = true; start() }
     }
 
     fun sleep() {
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
         mqtt?.state("screen", JSONObject().put("screen", "off"))
+        Thread {
+            Thread.sleep(2000)
+            try { mqtt?.state("screen", JSONObject().put("screen", "off")) } catch (_: Exception) {}
+        }.apply { isDaemon = true; start() }
     }
 
     val isScreenOn: Boolean get() = pm?.isInteractive == true
@@ -118,6 +135,10 @@ class DisplayModule : Module {
         try {
             SysSettings.System.putInt(appContext!!.contentResolver, SysSettings.System.SCREEN_BRIGHTNESS, v)
             mqtt?.state("brightness", JSONObject().put("brightness", v))
+            Thread {
+                Thread.sleep(2000)
+                try { mqtt?.state("brightness", JSONObject().put("brightness", v)) } catch (_: Exception) {}
+            }.apply { isDaemon = true; start() }
         } catch (_: SecurityException) {
             // WRITE_SETTINGS not granted — needs a one-time toggle or `adb shell appops set`
         }

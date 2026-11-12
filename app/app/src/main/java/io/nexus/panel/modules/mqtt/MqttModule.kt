@@ -137,7 +137,7 @@ class MqttModule : Module {
         val c = client ?: return
         val body = payload.toByteArray()
         publishExecutor.execute {
-            try { c.publish(topic, body, qos, retain) } catch (_: Exception) {}
+            try { c.publish(topic, body, qos, retain); Log.d("NexusMQTT", "published $topic (qos=$qos retain=$retain)") } catch (e: Exception) { Log.e("NexusMQTT", "publish failed: $topic", e) }
         }
     }
 
