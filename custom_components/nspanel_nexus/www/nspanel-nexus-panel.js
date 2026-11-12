@@ -113,7 +113,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.42";
+      return v || "v0.4.43";
     }
 
     connectedCallback() {
@@ -332,13 +332,18 @@
       return v || "";
     }
     _panelSvg() {
-      return `<svg viewBox="0 0 480 480" width="100%" style="display:block;border-radius:6px;background:#0d1016" role="img" aria-label="NSPanel Pro (remote desktop off)">
-        <rect x="110" y="20" width="260" height="440" rx="18" fill="#1c1f26" stroke="#333945" stroke-width="2"/>
-        <rect x="130" y="44" width="220" height="340" rx="8" fill="#101319"/>
-        <text x="240" y="150" text-anchor="middle" fill="#FF8C28" font-family="monospace" font-size="44">--:--</text>
-        <text x="240" y="190" text-anchor="middle" fill="#8d97a3" font-family="monospace" font-size="16">remote desktop off</text>
-        <rect x="130" y="404" width="220" height="10" rx="5" fill="#2c323b"/>
-        <circle cx="240" cy="409" r="8" fill="#3a414d"/>
+      return `<svg viewBox="0 0 240 320" width="100%" style="display:block;border-radius:6px;background:#0d1016" role="img" aria-label="NSPanel Pro (remote desktop off)">
+        <!-- NSPanel Pro: 3.95 inch portrait, ~3:4, thin bezel, top status bar -->
+        <rect x="12" y="8" width="216" height="304" rx="14" fill="#1a1d24" stroke="#2a2f3a" stroke-width="1.5"/>
+        <rect x="20" y="16" width="200" height="288" rx="10" fill="#0f1218"/>
+        <rect x="20" y="16" width="200" height="22" rx="10" fill="#161a22"/>
+        <circle cx="40" cy="27" r="3" fill="#2e9e44"/>
+        <text x="52" y="31" fill="#8d97a3" font-family="sans-serif" font-size="10">NSPanel Pro</text>
+        <text x="200" y="31" text-anchor="end" fill="#8d97a3" font-family="sans-serif" font-size="10">--:--</text>
+        <text x="120" y="150" text-anchor="middle" fill="#FF8C28" font-family="monospace" font-size="22" font-weight="bold">remote desktop</text>
+        <text x="120" y="178" text-anchor="middle" fill="#8d97a3" font-family="monospace" font-size="14">off</text>
+        <rect x="80" y="260" width="80" height="24" rx="12" fill="#2c323b"/>
+        <text x="120" y="276" text-anchor="middle" fill="#aab2bd" font-family="sans-serif" font-size="10">tap to wake</text>
       </svg>`;
     }
 
