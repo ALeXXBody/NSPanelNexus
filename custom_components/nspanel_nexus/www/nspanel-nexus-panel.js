@@ -179,7 +179,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.5</span>
+          <span class="ver">v0.4.6</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -268,20 +268,29 @@
           const el = card.querySelector(sel);
           if (el) el.onclick = fn;
         };
-        on("[data-br]", (e) => {
-          if (ents["brightness"]) h.callService("number", "set_value",
-            { entity_id: ents["brightness"], value: Number(e.target.value) });
-        });
+        const brEl = card.querySelector("[data-br]");
+        if (brEl && ents["brightness"]) {
+          brEl.oninput = (e) => {
+            h.callService("number", "set_value",
+              { entity_id: ents["brightness"], value: Number(e.target.value) });
+          };
+        }
         on("[data-act=screen]", () => {
+          const btn = card.querySelector("[data-act=screen]");
+          const turningOff = screen && screen.state === "on";
+          if (btn) btn.textContent = turningOff ? "Wake" : "Sleep";
           if (ents["screen"]) h.callService("switch",
-            screen && screen.state === "on" ? "turn_off" : "turn_on", { entity_id: ents["screen"] });
-          setTimeout(() => this._schedule(true), 700);
+            turningOff ? "turn_off" : "turn_on", { entity_id: ents["screen"] });
+          setTimeout(() => this._schedule(true), 300);
         });
         on("[data-act=rdp]", () => {
+          const btn = card.querySelector("[data-act=rdp]");
+          const turningOff = rdp && rdp.state === "on";
+          if (btn) btn.textContent = turningOff ? "RD off" : "RD on";
           if (ents["module_remote_desktop"]) h.callService("switch",
-            rdp && rdp.state === "on" ? "turn_off" : "turn_on",
+            turningOff ? "turn_off" : "turn_on",
             { entity_id: ents["module_remote_desktop"] });
-          setTimeout(() => this._schedule(true), 700);
+          setTimeout(() => this._schedule(true), 300);
         });
         on("[data-act=open]", () => { if (url && url.state) window.open(url.state, "_blank"); });
         on("[data-act=reboot]", () =>
