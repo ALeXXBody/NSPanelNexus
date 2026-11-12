@@ -21,6 +21,7 @@ class ModulesFragment : androidx.fragment.app.Fragment() {
 
     private var ctx: Context? = null
     private val rows = mutableMapOf<String, View>()
+    private var suppressSwitch = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -60,13 +61,16 @@ class ModulesFragment : androidx.fragment.app.Fragment() {
 
     private fun refresh() {
         val c = ctx ?: return
-        ModuleManager.all().forEach { mod ->
-            rows[mod.name]?.let { row ->
-                row.findViewById<TextView>(R.id.module_status)?.text = mod.status()
-                row.findViewById<Switch>(R.id.module_switch)?.isChecked =
-                    Settings.moduleEnabled(mod.name)
+        suppressSwitch = true
+        try {
+            ModuleManager.all().forEach { mod ->
+                rows[mod.name]?.let { row ->
+                    row.findViewById<TextView>(R.id.module_status)?.text = mod.status()
+                    row.findViewById<Switch>(R.id.module_switch)?.isChecked =
+                        Settings.moduleEnabled(mod.name)
+                }
             }
-        }
+        } finally { suppressSwitch = false }
     }
 
     // ---- card builder ----------------------------------------------------
@@ -91,6 +95,7 @@ class ModulesFragment : androidx.fragment.app.Fragment() {
             id = R.id.module_switch
             isChecked = Settings.moduleEnabled(name)
             setOnCheckedChangeListener { _, checked ->
+                if (suppressSwitch) return@setOnCheckedChangeListener
                 Settings.setModuleEnabled(name, checked)
                 ModuleManager.applyDesired(c, name)
                 postDelayed({ refresh() }, 400)

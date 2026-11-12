@@ -171,9 +171,18 @@ class NexusOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
-            user_input = dict(user_input)
-            user_input[CONF_DEVICE_NAME] = topic_safe(user_input[CONF_DEVICE_NAME])
-            return self.async_create_entry(title="", data=user_input)
+            # Device name is the entity identity (unique_ids embed it).
+            # Renaming here would orphan every entity, so it is read-only:
+            # keep the existing name, only the topic prefix is editable.
+            current = self.config_entry.data.get(CONF_DEVICE_NAME, "")
+            current = topic_safe(current)
+            if topic_safe(user_input.get(CONF_DEVICE_NAME, current)) != current:
+                _LOGGER.warning("device_name rename ignored (%s -> %s); remove/re-add to rename",
+                                current, user_input.get(CONF_DEVICE_NAME))
+            return self.async_create_entry(title="", data={
+                CONF_DEVICE_NAME: current,
+                CONF_TOPIC_PREFIX: user_input.get(CONF_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX),
+            })
         merged = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(
             step_id="init",

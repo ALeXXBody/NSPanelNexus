@@ -30,7 +30,8 @@ class VoiceModule : Module {
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
     private var streaming = false
-    private var nextId = 1
+    private var nextId = java.util.concurrent.atomic.AtomicInteger(1)
+    @Volatile private var reconnectAt = 0L
 
     private var appContext: Context? = null
 
@@ -75,15 +76,25 @@ class VoiceModule : Module {
             }
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 ws = null
-                // reconnect handled by a scheduled re-start from ModuleManager
+                // reconnect with backoff while the module is still wanted
+                reconnectAt = System.currentTimeMillis() + 5000
+                Thread {
+                    try { Thread.sleep(5000) } catch (_: InterruptedException) { return@Thread }
+                    if (System.currentTimeMillis() >= reconnectAt - 1000 && appContext != null) {
+                        try { start(appContext!!) } catch (_: Exception) {}
+                    }
+                }.apply { isDaemon = true }.start()
             }
         })
     }
 
     override fun stop() {
         stopStreaming()
-        ws?.close(1000, "module stopped")
+        try { ws?.close(1000, "module stopped") } catch (_: Exception) {}
         ws = null
+        reconnectAt = 0L
+        try { client?.dispatcher?.executorService?.shutdownNow() } catch (_: Exception) {}
+        client = null
     }
 
     // ---- HA entities ----------------------------------------------------
@@ -98,7 +109,7 @@ class VoiceModule : Module {
     /** Start an Assist pipeline run: STT -> TTS. */
     fun startListening() {
         val w = ws ?: return
-        val id = nextId++
+        val id = nextId.getAndIncrement()
         w.send(JSONObject()
             .put("id", id)
             .put("type", "assist_pipeline/run")

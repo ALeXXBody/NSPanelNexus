@@ -83,17 +83,17 @@ class FirmwareModule : Module {
         return "stock (sonoff)"
     }
 
-    /** Heuristic: is this panel running Nexus firmware? */
+    /** Heuristic: is this panel running Nexus firmware? Requires a positive marker. */
     private fun isNexusFirmware(): Boolean {
         // KISS launcher installed → Nexus
-        if (File("/system/priv-app/Kiss").exists() || File("/data/app/fr.neamar.kiss").exists()) return true
-        // Sonoff bloat removed → Nexus
-        if (!File("/system/app/kz_app").exists() && !File("/system/app/factoryApp").exists()) return true
-        // frp backdoor removed → Nexus
-        return try {
-            val rootsudaemon = File("/system/bin/rootsudaemon.sh")
-            !rootsudaemon.exists() || !rootsudaemon.readText().contains("frp")
+        if (File("/system/priv-app/Kiss").exists()) return true
+        // Bloat gone AND frp backdoor gone → Nexus (both must hold)
+        val bloatGone = !File("/system/app/kz_app").exists() && !File("/system/app/factoryApp").exists()
+        val frpGone = try {
+            val f = File("/system/bin/rootsudaemon.sh")
+            f.exists() && !f.readText().contains("frp")
         } catch (_: Exception) { false }
+        return bloatGone && frpGone
     }
 
     // ---- manifest -------------------------------------------------------

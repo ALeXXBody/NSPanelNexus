@@ -24,8 +24,8 @@ class FleetModule : Module {
 
     override val name = "fleet"
 
-    private var socket: DatagramSocket? = null
-    private var thread: Thread? = null
+    @Volatile private var socket: DatagramSocket? = null
+    @Volatile private var thread: Thread? = null
     @Volatile private var running = false
     private var nsdManager: NsdManager? = null
     private var nsdListener: NsdManager.RegistrationListener? = null

@@ -169,6 +169,7 @@ class MainActivity : FragmentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     private fun loadDashboard(url: String) {
         if (url.isBlank()) return hideDashboard()
+        try { (ModuleManager.get("dashboard") as? io.nexus.panel.modules.dashboard.DashboardModule)?.reportCurrent(url) } catch (_: Exception) {}
         dashboardView?.let { wv ->
             if (wv.url != url) wv.loadUrl(url)
             wv.visibility = View.VISIBLE
@@ -220,6 +221,16 @@ class MainActivity : FragmentActivity() {
 
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    override fun onDestroy() {
+        try {
+            (ModuleManager.get("dashboard") as? io.nexus.panel.modules.dashboard.DashboardModule)?.let {
+                it.onUrlChanged = null
+                it.onWake = null
+            }
+        } catch (_: Exception) {}
+        super.onDestroy()
+    }
 
     private var lastTap = 0L
 

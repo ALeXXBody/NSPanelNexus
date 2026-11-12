@@ -30,7 +30,6 @@ class NexusPresence(BinarySensorEntity, NexusEntity):
         self._attr_is_on = None
         self._last_trigger = None
         self._unsub = None
-        self._expire_unsub = None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -46,11 +45,7 @@ class NexusPresence(BinarySensorEntity, NexusEntity):
         self.async_on_remove(
             async_track_time_interval(self.hass, _expire, self._timeout))
         self.async_on_remove(self._unsub)
-
-    async def async_will_remove_from_hass(self) -> None:
-        if self._unsub:
-            self._unsub()
-            self._unsub = None
+        # single unsub path owned by async_on_remove (no will_remove override).
 
     @callback
     def _on_event(self, msg) -> None:

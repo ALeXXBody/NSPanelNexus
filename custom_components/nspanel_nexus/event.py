@@ -41,7 +41,6 @@ class NexusEvent(EventEntity, NexusEntity):
         if not event_type:
             return
         self._trigger_event(event_type)
-        self.async_write_ha_state()
 
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:

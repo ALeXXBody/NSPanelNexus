@@ -38,6 +38,7 @@ class RemoteDesktopModule : Module {
     private var server: ServerSocket? = null
     private var thread: Thread? = null
     @Volatile private var running = false
+    private val active = java.util.concurrent.atomic.AtomicInteger(0)
 
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
     private val port: Int get() = Settings.getInt("remote_desktop_port", 8080)
@@ -82,6 +83,16 @@ class RemoteDesktopModule : Module {
     // ---- tiny HTTP server ----------------------------------------------
 
     private fun handle(socket: Socket) {
+        if (active.incrementAndGet() > 3) {
+            active.decrementAndGet()
+            try {
+                val out = socket.getOutputStream()
+                out.write("HTTP/1.1 503 Busy\r\nContent-Length: 0\r\n\r\n".toByteArray())
+                out.flush()
+            } catch (_: Exception) {}
+            try { socket.close() } catch (_: Exception) {}
+            return
+        }
         Thread {
             try {
                 socket.tcpNoDelay = true
@@ -105,9 +116,12 @@ class RemoteDesktopModule : Module {
                     if (line.startsWith("X-Nexus-Token:", ignoreCase = true))
                         headerToken = line.substringAfter(':').trim()
                 }
-                val provided = query.substringBefore('&')
-                    .split('&').firstOrNull { it.startsWith("token=") }
-                    ?.substringAfter("token=") ?: headerToken ?: ""
+                var provided = headerToken ?: ""
+                if (provided.isEmpty() && query.isNotEmpty()) {
+                    query.split('&').forEach { kv ->
+                        if (kv.startsWith("token=")) { provided = kv.substringAfter("token=") }
+                    }
+                }
                 if (provided != token) {
                     val out = socket.getOutputStream()
                     out.write("HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n".toByteArray())
@@ -132,7 +146,7 @@ class RemoteDesktopModule : Module {
                     else -> write(out, "404 Not Found", "text/plain", "not found".toByteArray())
                 }
             } catch (_: Exception) { /* drop the connection */ }
-            finally { try { socket.close() } catch (_: Exception) {} }
+            finally { try { socket.close() } catch (_: Exception) {} finally { active.decrementAndGet() } }
         }.start()
     }
 
@@ -182,7 +196,8 @@ class RemoteDesktopModule : Module {
         out.write("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=FRAME\r\n\r\n".toByteArray())
         out.flush()
         while (running) {
-            val jpg = captureJpeg(50) ?: break
+            val jpg = captureJpeg(50)
+            if (jpg == null) { try { Thread.sleep(500) } catch (_: InterruptedException) { break }; continue }
             out.write("--FRAME\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpg.size}\r\n\r\n".toByteArray())
             out.write(jpg)
             out.write("\r\n".toByteArray())
@@ -192,10 +207,15 @@ class RemoteDesktopModule : Module {
     }
 
     private fun servePng(out: OutputStream) {
-        val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", "screencap -p"))
-        val png = proc.inputStream.readBytes()
-        proc.waitFor()
-        write(out, "200 OK", "image/png", png)
+        try {
+            val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", "screencap -p"))
+            val png = proc.inputStream.readBytes()
+            proc.waitFor()
+            if (png.isEmpty()) { write(out, "500 Empty", "text/plain", "capture failed".toByteArray()); return }
+            write(out, "200 OK", "image/png", png)
+        } catch (_: Exception) {
+            try { write(out, "500 Error", "text/plain", "capture failed".toByteArray()) } catch (_: Exception) {}
+        }
     }
 
     private fun serveIndex(out: OutputStream) {

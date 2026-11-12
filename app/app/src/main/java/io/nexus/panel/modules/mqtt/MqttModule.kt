@@ -35,7 +35,7 @@ class MqttModule : Module {
         java.util.concurrent.Executors.newSingleThreadExecutor { r ->
             Thread(r, "nexus-mqtt-publish").apply { isDaemon = true }
         }
-    private val listeners = mutableMapOf<String, (JSONObject) -> Unit>()
+    private val pending = java.util.concurrent.ConcurrentLinkedQueue<Triple<String, ByteArray, Pair<Int, Boolean>>>()
 
     /** Callbacks for device commands: command -> handler */
     val onCommand = java.util.concurrent.ConcurrentHashMap<String, (JSONObject) -> Unit>()
@@ -98,6 +98,8 @@ class MqttModule : Module {
         stopped = true
         uptimeThread?.interrupt()
         uptimeThread = null
+        onCommand.clear()
+        onConfigUpdated = null
         try { client?.disconnect() } catch (_: Exception) {}
         try { client?.close() } catch (_: Exception) {}
         client = null
@@ -110,11 +112,15 @@ class MqttModule : Module {
             return
         }
         Log.d("NexusMQTT", "connected to ${Settings.mqttHost}:${Settings.mqttPort}")
+        var q = pending.poll()
+        while (q != null) {
+            try { c.publish(q.first, q.second, q.third.first, q.third.second) } catch (_: Exception) {}
+            q = pending.poll()
+        }
         publish(base + "/status", "online", retain = true, qos = 1)
         state("ip_address", JSONObject().put("ip_address", localIp()))
         c.subscribe(base + "/command/#", 1)
         c.subscribe(base + "/config/#", 1)
-        state("started_at", JSONObject().put("started_at", System.currentTimeMillis()))
         // periodic uptime publisher
         uptimeThread?.interrupt()
         uptimeThread = Thread {
@@ -130,11 +136,20 @@ class MqttModule : Module {
 
     fun publish(topic: String, payload: String, qos: Int = 0, retain: Boolean = false) {
         // paho publish() with qos>=1 blocks for the ack — single executor,
-        // not a new thread per message (illuminance alone fires at ~1 Hz)
-        val c = client ?: return
+        // not a new thread per message (illuminance alone fires at ~1 Hz).
+        // If not connected yet, queue and flush in onConnected (fixes cold-start drops).
         val body = payload.toByteArray()
+        val c = client
+        if (c == null || !c.isConnected) {
+            if (pending.size < 200) pending.offer(Triple(topic, body, Pair(qos, retain)))
+            return
+        }
         publishExecutor.execute {
-            try { c.publish(topic, body, qos, retain); Log.d("NexusMQTT", "published $topic (qos=$qos retain=$retain)") } catch (e: Exception) { Log.e("NexusMQTT", "publish failed: $topic", e) }
+            try {
+                val cc = client
+                if (cc != null && cc.isConnected) cc.publish(topic, body, qos, retain)
+                else if (pending.size < 200) pending.offer(Triple(topic, body, Pair(qos, retain)))
+            } catch (e: Exception) { Log.e("NexusMQTT", "publish failed: $topic", e) }
         }
     }
 
@@ -214,10 +229,6 @@ class MqttModule : Module {
                 relative == "command/device" -> {
                     val cmd = JSONObject(text).optString("command")
                     onCommand[cmd]?.invoke(JSONObject(text))
-                }
-                relative.startsWith("command/") -> {
-                    val switchId = relative.removePrefix("command/")
-                    onCommand["switch:$switchId"]?.invoke(JSONObject(text))
                 }
                 relative.startsWith("config/update") -> {
                     Settings.patch(JSONObject(text))

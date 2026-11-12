@@ -22,13 +22,15 @@ _MANIFEST = Path(__file__).parent / "manifest.json"
 def _read_version() -> str:
     """Read the integration version (blocking — executor only)."""
     try:
-        return "v" + json.loads(_MANIFEST.read_text(encoding="utf-8"))["version"]
+        return str(json.loads(_MANIFEST.read_text(encoding="utf-8"))["version"])
     except Exception:  # noqa: BLE001
-        return "v0.0.0"
+        _LOGGER.warning("could not read integration version")
+        return "0.0.0"
 
 SERVICE_COMMAND_SCHEMA = vol.Schema({
     vol.Required("device_name"): str,
     vol.Required("command"): str,
+    vol.Optional("payload"): dict,
 })
 
 SERVICE_CONFIG_UPDATE_SCHEMA = vol.Schema({
@@ -70,7 +72,7 @@ async def _register_sidebar(hass: HomeAssistant) -> None:
         # (older builds used REST entity-registry calls that 404 on HA 2026.11
         # and never rendered). Bump = guaranteed cache miss.
         module_url=f"{js_url}?v={version}",
-        config={"domain": DOMAIN, "title": "NSPanel Nexus", "version": version},
+        config={"domain": DOMAIN, "title": "NSPanel Nexus", "version": f"v{version}"},
         require_admin=True,
     )
 
@@ -91,7 +93,7 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
         if link is None:
             _LOGGER.warning("no panel named %s", call.data["device_name"])
             return
-        await link.async_command(call.data["command"])
+        await link.async_command(call.data["command"], **(call.data.get("payload") or {}))
 
     async def _config_update(call) -> None:
         link = await _link_for(call.data["device_name"])

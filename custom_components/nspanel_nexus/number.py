@@ -30,12 +30,17 @@ class NexusBrightness(NumberEntity, NexusEntity):
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self._unsub = await self._link.async_subscribe_state("brightness", self._on_state)
+        self._unsub_cfg = await self._link.async_subscribe_config(self._on_config)
         await self._link.async_config_query(["brightness"])
 
     async def async_will_remove_from_hass(self) -> None:
         if self._unsub:
             self._unsub()
             self._unsub = None
+        unsub_cfg = getattr(self, "_unsub_cfg", None)
+        if unsub_cfg:
+            unsub_cfg()
+            self._unsub_cfg = None
 
     @callback
     def _on_state(self, msg) -> None:
@@ -46,6 +51,16 @@ class NexusBrightness(NumberEntity, NexusEntity):
             except (TypeError, ValueError):
                 return
             self.async_write_ha_state()
+
+    @callback
+    def _on_config(self, msg) -> None:
+        data = self._link.parse_json(msg.payload)
+        if isinstance(data, dict) and data.get("brightness") is not None:
+            try:
+                self._attr_native_value = int(float(data["brightness"]))
+                self.async_write_ha_state()
+            except (TypeError, ValueError):
+                pass
 
     async def async_set_native_value(self, value: float) -> None:
         ivalue = int(value)

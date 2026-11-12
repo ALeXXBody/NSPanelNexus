@@ -25,18 +25,21 @@ object ModuleManager {
     fun get(name: String): Module? = synchronized(lock) { modules[name] }
     fun isRunning(name: String) = synchronized(lock) { name in running }
 
-    fun startDesired(context: Context) = synchronized(lock) {
-        modules.values.toList().forEach { m ->
-            val want = Settings.moduleEnabled(m.name)
-            if (want && m.name !in running) {
-                try { m.start(context); running += m.name } catch (t: Throwable) { m.stop() }
+    fun startDesired(context: Context) {
+        val todo = synchronized(lock) {
+            modules.values.toList().filter { m ->
+                Settings.moduleEnabled(m.name) && m.name !in running
             }
+        }
+        todo.forEach { m ->
+            try { m.start(context); synchronized(lock) { running += m.name } }
+            catch (t: Throwable) { try { m.stop() } catch (_: Throwable) {} }
         }
     }
 
-    fun stopAll() = synchronized(lock) {
-        modules.values.toList().forEach { it.stop() }
-        running.clear()
+    fun stopAll() {
+        val all = synchronized(lock) { modules.values.toList().also { running.clear() } }
+        all.forEach { try { it.stop() } catch (_: Throwable) {} }
     }
 
     fun stop(name: String) = synchronized(lock) {

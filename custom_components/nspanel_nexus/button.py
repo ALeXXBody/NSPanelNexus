@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 class NexusButton(ButtonEntity, NexusEntity):
     def __init__(self, link: PanelLink, object_id: str, name: str,
                  command: str, icon: str | None = None,
-                 entity_category: str | None = None) -> None:
+                 entity_category: EntityCategory | None = None) -> None:
         NexusEntity.__init__(self, link, object_id, name)
         ButtonEntity.__init__(self)
         self._command = command

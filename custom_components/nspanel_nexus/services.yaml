@@ -1,7 +1,6 @@
 command:
   name: Send device command
-  description: Send a device command to a Nexus panel (wake_up, sleep, reboot, …).
-  target: {}
+  description: Send a device command to a Nexus panel (wake_up, sleep, reboot, …). Device name is topic-safe (spaces become underscores).
   fields:
     device_name:
       name: Panel name
@@ -17,11 +16,16 @@ command:
       example: wake_up
       selector:
         text:
+    payload:
+      name: Payload
+      description: Optional extra fields merged into the command JSON (e.g. {"url": "..."} for dashboard:url, {"seconds": 180} for zigbee:permit_join).
+      required: false
+      selector:
+        object:
 
 config_update:
   name: Update panel config
   description: Change one or more settings on a Nexus panel.
-  target: {}
   fields:
     device_name:
       name: Panel name

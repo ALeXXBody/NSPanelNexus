@@ -25,7 +25,7 @@ class NexusSensor(SensorEntity, NexusEntity):
         state_class: SensorStateClass | None = None,
         json_key: str | None = None,
         icon: str | None = None,
-        entity_category: str | None = None,
+        entity_category: EntityCategory | None = None,
     ) -> None:
         NexusEntity.__init__(self, link, f"sensor_{key}", name)
         SensorEntity.__init__(self)

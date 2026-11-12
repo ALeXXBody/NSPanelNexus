@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Add an NSPanel Nexus panel",
-        "description": "Panels that answered on the LAN:\n\n{panels}\n\nEnter the panel name exactly as the Nexus app shows it.",
+        "description": "Panels that answered on the LAN:\n\n{panels}\n\nEnter the panel name; spaces/symbols become underscores in MQTT topics.",
         "data": {
           "device_name": "Panel name",
           "topic_prefix": "MQTT topic prefix"

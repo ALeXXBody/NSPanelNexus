@@ -35,10 +35,10 @@ class SensorModule : Module, SensorEventListener {
     private var lightSensor: Sensor? = null
 
     // learned proximity baseline
-    private var baseline = -1f
-    private var baselineSamples = 0
-    private var lastWakeAt = 0L
-    private var consecutiveAway = 0
+    @Volatile private var baseline = -1f
+    @Volatile private var baselineSamples = 0
+    @Volatile private var lastWakeAt = 0L
+    @Volatile private var consecutiveAway = 0
 
     // last values for MQTT reporting
     @Volatile private var lastProx = 0f

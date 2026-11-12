@@ -75,6 +75,9 @@ class PanelLink:
     async def async_subscribe_event(self, kind: str, cb: Callable[[str], None], qos: int = 0):
         return await self.mqtt.async_subscribe(self.hass, f"{self.base}/event/{kind}", cb, qos)
 
+    async def async_subscribe_config(self, cb: Callable[[str], None], qos: int = 0):
+        return await self.mqtt.async_subscribe(self.hass, f"{self.base}/config", cb, qos)
+
     # ---- publishing ------------------------------------------------------
 
     async def async_command(self, command: str, **payload: Any) -> None:

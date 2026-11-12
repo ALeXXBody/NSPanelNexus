@@ -41,6 +41,7 @@ class NexusService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ModuleManager.startDesired(this)
+        registerRemoteCommands()
         return START_STICKY
     }
 
@@ -81,13 +82,27 @@ class NexusService : Service() {
             mqtt.publish(mqtt.base + "/config", mqtt.maskedConfig().toString(), qos = 1, retain = true)
         }
 
-        // settings changed remotely: apply brightness + module switches live
+        // settings changed remotely: apply brightness + module switches live.
+        // Runs on the MQTT callback thread — hop to a worker so stop()/disconnect()
+        // never runs on the Paho thread (deadlock risk).
         mqtt.onConfigUpdated = { patch ->
-            patch.optInt("brightness", -1).takeIf { it >= 0 }?.let { display?.setBrightness(it) }
-            ModuleManager.all().forEach { m ->
-                val key = "module.${m.name}.enabled"
-                if (patch.has(key)) ModuleManager.applyDesired(this, m.name)
-            }
+            Thread {
+                try {
+                    patch.optInt("brightness", -1).takeIf { it >= 0 }?.let { display?.setBrightness(it) }
+                    ModuleManager.all().forEach { m ->
+                        val key = "module.${m.name}.enabled"
+                        if (patch.has(key)) ModuleManager.applyDesired(this, m.name)
+                    }
+                    val connKeys = arrayOf("mqtt_host", "mqtt_port", "mqtt_user", "mqtt_pass", "topic_prefix", "ha_topic_prefix")
+                    if (connKeys.any { patch.has(it) }) {
+                        val m = ModuleManager.get("mqtt")
+                        if (m != null) {
+                            ModuleManager.stop("mqtt")
+                            ModuleManager.start("mqtt", this)
+                        }
+                    }
+                } catch (_: Exception) {}
+            }.apply { isDaemon = true }.start()
         }
     }
 
