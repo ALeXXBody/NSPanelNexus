@@ -84,6 +84,9 @@
       this._error = null;
       this._loading = false;
       this._addForm = null;   // config-flow state when adding a panel
+      this._lastRefresh = 0;
+      this._t = null;
+      this._rendered = false;
     }
 
     setConfig() { /* not needed */ }
@@ -187,7 +190,7 @@
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">v0.4.23</span>
+          <span class="ver">v0.4.24</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
@@ -205,7 +208,7 @@
       root.appendChild(body);
 
       if (this._addForm) {           // an add-panel flow is open: keep it on screen
-        this._renderAddFlowView(body);
+        this._renderAddFlow();
         return;
       }
       if (this._toast) {
