@@ -1,4 +1,5 @@
 """NSPanel Nexus — sidebar panel + manager services."""
+
 from __future__ import annotations
 
 import json
@@ -9,6 +10,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from . import rd_proxy
 from .const import CONF_DEVICE_NAME, CONF_TOPIC_PREFIX, DOMAIN, PLATFORMS, topic_safe
 from .link import PanelLink
 
@@ -26,6 +28,7 @@ def _read_version() -> str:
     except Exception:  # noqa: BLE001
         _LOGGER.warning("could not read integration version")
         return "0.0.0"
+
 
 SERVICE_COMMAND_SCHEMA = vol.Schema({
     vol.Required("device_name"): str,
@@ -53,10 +56,12 @@ async def _register_sidebar(hass: HomeAssistant) -> None:
 
     # serve the panel script + brand images
     brand_path = Path(__file__).parent / "www" / "brand"
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(js_url, str(js_path), False),
-        StaticPathConfig(PANEL_URL + "/brand", str(brand_path), True),
-    ])
+    await hass.http.async_register_static_paths(
+        [
+            StaticPathConfig(js_url, str(js_path), False),
+            StaticPathConfig(PANEL_URL + "/brand", str(brand_path), True),
+        ]
+    )
 
     await panel_custom.async_register_panel(
         hass,
@@ -101,11 +106,32 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
             _LOGGER.warning("no panel named %s", call.data["device_name"])
             return
         await link.async_config_update(call.data["config"])
+        # The RD proxy serves the stream from the server side, so it needs the
+        # panel token/port here too. Persist them in the entry options (the
+        # proxy reads them live; the options listener reload is harmless).
+        patch = {
+            k: call.data["config"][k]
+            for k in ("remote_desktop_token", "remote_desktop_port")
+            if k in call.data["config"]
+        }
+        if patch:
+            for entry in hass.config_entries.async_entries(DOMAIN):
+                dev = topic_safe(entry.options.get(CONF_DEVICE_NAME, entry.data.get(CONF_DEVICE_NAME, "")))
+                if dev == link.device_name:
+                    hass.config_entries.async_update_entry(
+                        entry, options={**entry.options, **patch}
+                    )
+                    break
 
     hass.services.async_register(DOMAIN, "command", _command,
                                  schema=SERVICE_COMMAND_SCHEMA)
     hass.services.async_register(DOMAIN, "config_update", _config_update,
                                  schema=SERVICE_CONFIG_UPDATE_SCHEMA)
+
+    try:
+        rd_proxy.async_register(hass)
+    except Exception:
+        _LOGGER.exception("RD proxy registration failed — live stream falls back to direct panel URL")
 
     # register the sidebar last, and never let a frontend problem disable
     # the whole integration (entities keep working without it)

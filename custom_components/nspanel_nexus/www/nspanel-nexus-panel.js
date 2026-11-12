@@ -132,7 +132,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.46";
+      return v || "v0.4.47";
     }
 
     connectedCallback() {
@@ -221,6 +221,7 @@
         screen: ["switch", "screen", "screen"],
         brightness: ["number", "brightness", "brightness"],
         remote_desktop_switch: ["switch", "remote_desktop", "module_remote_desktop"],
+        module_remote_desktop: ["switch", "remote_desktop", "module_remote_desktop"],
         module_voice: ["switch", "voice_satellite", "module_voice"],
         module_zigbee: ["switch", "zigbee", "module_zigbee"],
         module_sensors: ["switch", "sensors", "module_sensors"],
@@ -336,19 +337,37 @@
       if (this._modal) { try { this._modal.remove(); } catch (_) {} this._modal = null; }
     }
 
-    _rdTokenKey(devSafe) { return "nexus-rd-token-" + devSafe; }
-    _rdToken(devSafe) {
-      try { return localStorage.getItem(this._rdTokenKey(devSafe)) || ""; } catch (_) { return ""; }
+    async _rdUrl(entryId, path) {
+      // Same-origin signed URL for the RD proxy (works over http/https, LAN/remote).
+      // Cached for 9 of the 10 minutes the signature stays valid.
+      this._rdUrls = this._rdUrls || {};
+      const key = entryId + ":" + path;
+      const hit = this._rdUrls[key];
+      if (hit && hit.exp > Date.now()) return hit.url;
+      const res = await this._hass.callWS({ type: "nspanel_nexus/rd_url", entry_id: entryId, path });
+      this._rdUrls[key] = { url: res.url, exp: Date.now() + 9 * 60 * 1000 };
+      return res.url;
     }
-    _rdSetToken(devSafe) {
-      const cur = this._rdToken(devSafe);
-      const v = prompt("Remote desktop token for this panel (panel Setup page → Remote desktop token):", cur || "");
-      if (v == null) return null;
-      try {
-        if (v) localStorage.setItem(this._rdTokenKey(devSafe), v);
-        else localStorage.removeItem(this._rdTokenKey(devSafe));
-      } catch (_) {}
-      return v || "";
+
+    _rdFailHtml(msg) {
+      return this._panelSvg() + `<div class="about" style="margin:8px 0">${this._esc(msg)}</div>`;
+    }
+
+    _resolveRDStream(scopeEl, entryId) {
+      const img = scopeEl.querySelector('[data-rd="img"]');
+      if (!img) return;
+      this._rdUrl(entryId, "stream").then((url) => {
+        if (!img.isConnected) return;
+        img.onerror = () => {
+          const wrap = img.closest('[data-rd="wrap"]');
+          if (wrap) wrap.innerHTML = this._rdFailHtml("Live screen unavailable (panel unreachable). If this persists, re-save the RD token in Settings.");
+        };
+        img.src = url;
+      }).catch(() => {
+        if (!img.isConnected) return;
+        const wrap = img.closest('[data-rd="wrap"]');
+        if (wrap) wrap.innerHTML = this._rdFailHtml("Live screen unavailable — save the RD token in Settings first.");
+      });
     }
     _panelSvg() {
       return `<svg viewBox="0 0 240 320" width="100%" style="display:block;border-radius:6px;background:#0d1016" role="img" aria-label="NSPanel Pro (remote desktop off)">
@@ -366,37 +385,38 @@
       </svg>`;
     }
 
-    _rdBase(ip, portSt) {
-      if (!ip || !ip.state || ["unknown","unavailable",""].includes(ip.state)) return null;
-      let port = 8080;
-      if (portSt && portSt.state != null && !isNaN(Number(portSt.state))) port = Number(portSt.state);
-      return "http://" + ip.state + ":" + port + "/";
-    }
-
-    _openRemote(dev, devSafe, rdBase, rdToken) {
+    _openRemote(dev, devSafe, entryId) {
       const veil = this._openModal(dev + " — remote desktop");
       if (!veil) return;
       const body = veil.querySelector(".mbody");
       if (!body) return;
-      if (!rdBase) { body.innerHTML = `<div class="about">Waiting for the panel IP address…</div>`; return; }
-      let token = rdToken || this._rdToken(devSafe);
-      if (!token) { token = this._rdSetToken(devSafe); if (!token) { this._closeModal(); return; } }
       body.innerHTML = `
-        <img class="rdimg" id="rd-live" src="${rdBase}stream?token=${encodeURIComponent(token)}" alt="live panel screen" style="cursor:crosshair;touch-action:none">
+        <img class="rdimg" id="rd-live" alt="live panel screen" style="cursor:crosshair;touch-action:none">
         <div class="rdbtnrow">
           <button class="btn" data-k="3">HOME</button>
           <button class="btn" data-k="4">BACK</button>
           <button class="btn" data-k="26">POWER</button>
           <button class="btn" data-s="up">↑ up</button>
           <button class="btn" data-s="down">↓ down</button>
-          <button class="btn" data-tok>Set token</button>
         </div>
-        <div class="about" id="rd-log">click to tap · drag to swipe · wheel/keys to scroll</div>`;
+        <div class="about" id="rd-log">connecting…</div>`;
       const img = body.querySelector("#rd-live");
       const log = body.querySelector("#rd-log");
-      const post = (url, bodyStr) => fetch(rdBase + url, { method: "POST", body: bodyStr, headers: { "X-Nexus-Token": token } });
-      const tap = (x, y) => { post("input/tap", "x=" + x + "&y=" + y); if (log) log.textContent = "tap " + x + "," + y; };
+      const say = (t) => { if (log && log.isConnected) log.textContent = t; };
+      const post = (sub, bodyStr) => {
+        // Same-origin POST with the HA bearer token (no mixed content, no per-tap signing).
+        this._hass.fetchWithAuth(`/api/nspanel_nexus/rd/${entryId}/${sub}`, { method: "POST", body: bodyStr })
+          .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); })
+          .catch((e) => say("input failed: " + (e && e.message || e)));
+      };
+      const tap = (x, y) => { post("input/tap", "x=" + x + "&y=" + y); say("tap " + x + "," + y); };
       const swipe = (x1, y1, x2, y2, ms) => { post("input/swipe", "x1=" + x1 + "&y1=" + y1 + "&x2=" + x2 + "&y2=" + y2 + "&ms=" + ms); };
+      this._rdUrl(entryId, "stream").then((url) => {
+        if (!img.isConnected) return;
+        img.onerror = () => say("Live screen unavailable (panel unreachable or RD token not saved — set it in Settings).");
+        img.src = url;
+        say("click to tap · drag to swipe");
+      }).catch(() => say("Live screen unavailable — save the RD token in Settings first."));
       let down = null;
       if (img) {
         img.addEventListener("pointerdown", (e) => { e.preventDefault(); try { img.setPointerCapture(e.pointerId); } catch (_) {} down = { x: e.clientX, y: e.clientY }; });
@@ -417,10 +437,7 @@
           if (dir > 0) swipe(240, 360, 240, 140, 300); else swipe(240, 140, 240, 360, 300);
         };
       });
-      const tokBtn = body.querySelector("[data-tok]");
-      if (tokBtn) tokBtn.onclick = () => { const t = this._rdSetToken(devSafe); if (t != null) { const im = body.querySelector("#rd-live"); if (im) im.src = rdBase + "stream?token=" + encodeURIComponent(t); } };
-      const im2 = body.querySelector("#rd-live");
-      if (im2) im2.onerror = () => { if (log) log.textContent = "Live screen unavailable (wrong token or panel unreachable)."; };
+
     }
 
     _openInfoModal(dev, devSafe, ents, h) {
@@ -516,10 +533,6 @@
         const bright = st("brightness");
         const rdp = st("remote_desktop_switch");
         const lux = st("illuminance");
-        const ip = st("ip_address");
-        const rdPort = st("cfg_remote_desktop_port");
-        const rdBase = this._rdBase(ip, rdPort);
-        const rdToken = this._rdToken(devSafe);
         const rdpOn = rdp && rdp.state === "on";
 
         const card = document.createElement("div");
@@ -527,19 +540,15 @@
         let rdHtml = "";
         if (!rdp || !rdpOn) {
           rdHtml = this._panelSvg() + `<div class="about" style="margin:8px 0">Remote desktop is off — turn it on in Settings.</div>`;
-        } else if (!rdBase) {
-          rdHtml = `<div class="about" style="margin:8px 0">Waiting for the panel IP address…</div>`;
-        } else if (!rdToken) {
-          rdHtml = this._panelSvg() + `<div class="about" style="margin:8px 0">Remote desktop is on. Set the token in <b>Settings</b> to show the live screen.</div>`;
         } else {
-          rdHtml = `<img class="rdimg" data-rd="img" src="${rdBase}stream?token=${encodeURIComponent(rdToken)}" alt="live panel screen" title="Click to open remote desktop">`;
+          rdHtml = `<img class="rdimg" data-rd="img" alt="live panel screen" title="Click to open remote desktop">`;
         }
         card.innerHTML = `
           <div data-rd="wrap">${rdHtml}</div>
           <div class="actions" style="display:flex;border:0;padding:6px 0 0;justify-content:center">
             <button class="btn" data-act="info">Info</button>
             <button class="btn" data-act="settings">Settings</button>
-            ${rdpOn && rdBase ? `<button class="btn primary" data-act="remote">Remote</button>` : ""}
+            ${rdpOn ? `<button class="btn primary" data-act="remote">Remote</button>` : ""}
           </div>
 `;
 
@@ -585,15 +594,9 @@
             .catch((err) => console.error("Nexus rdp failed:", err));
           setTimeout(() => this._schedule(true), 1000);
         });
-        on("[data-rd=img]", () => this._openRemote(dev, devSafe, rdBase, rdToken));
-        on("[data-act=remote]", () => this._openRemote(dev, devSafe, rdBase, rdToken));
-        {
-          const img = card.querySelector("[data-rd=img]");
-          if (img) img.onerror = () => {
-            const wrap = card.querySelector('[data-rd="wrap"]');
-            if (wrap) wrap.innerHTML = `<div class="about" style="margin:8px 0">Live screen unavailable (wrong token or panel unreachable). Set the token in <b>Settings</b>.</div>`;
-          };
-        }
+        on("[data-rd=img]", () => this._openRemote(dev, devSafe, entry.entry_id));
+        on("[data-act=remote]", () => this._openRemote(dev, devSafe, entry.entry_id));
+        if (rdpOn) this._resolveRDStream(card, entry.entry_id);
         on("[data-act=reboot]", () => {
           h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" })
             .catch((e) => { console.error("reboot failed:", e); alert("Reboot command failed: " + (e && e.message || e)); }); });
@@ -746,7 +749,6 @@
         const rdpIsOn = rdpSw && rdpSw.state === "on";
         const rdPortSt = st("cfg_remote_desktop_port");
         const rdPortVal = rdPortSt && rdPortSt.state != null && !isNaN(Number(rdPortSt.state)) ? Number(rdPortSt.state) : 8080;
-        const rdBase = this._rdBase(st("ip_address"), rdPortSt);
         let html = `<div class="pname">${this._esc(dev)}</div>
           <div class="actions" style="display:flex;border:0;padding:6px 0 10px">
             <button class="btn" data-act="load">Load from panel</button>
@@ -757,15 +759,14 @@
             <div class="rdhead">Remote desktop <span class="rdpill${rdpIsOn ? " on" : ""}" data-rd="pill">${rdpSw ? (rdpIsOn ? "ON" : "OFF") : "?"}</span></div>
             <div class="rdrow">
               <button class="btn${rdpIsOn ? "" : " primary"}" data-rd="toggle">${rdpIsOn ? "Turn off" : "Turn on"}</button>
-              ${rdpIsOn && rdBase ? `<button class="btn" data-rd="open">Open remote</button>` : ""}
+              ${rdpIsOn ? `<button class="btn" data-rd="open">Open remote</button>` : ""}
             </div>
             <div class="rdrow">
               <input class="txt" data-rd="token" type="password" placeholder="Panel token (empty = unchanged)" title="Panel-side remote desktop token">
               <input class="txt num" data-rd="port" type="number" min="1" max="65535" step="1" value="${rdPortVal}" title="Remote desktop port">
               <button class="btn primary" data-rd="saverd">Save RD</button>
-              <button class="btn" data-rd="btoken" title="Store the panel token in this browser so the card shows the live screen">Browser token</button>
             </div>
-            <div class="hint">On/off and Save RD apply immediately. The same token field also lives in the full form below. "Browser token" stores it in this browser so the card stream can load.</div>
+            <div class="hint">On/off and Save RD apply immediately and work over http/https, local or remote. Save RD stores the token on the panel and in Home Assistant; the same token field also lives in the full form below.</div>
           </div>
           <div class="setgrid">`;
         this._textFields.forEach(([key, label, type]) => {
@@ -863,12 +864,7 @@
             setTimeout(() => this._schedule(true), 1000);
           };
           const openBtn = card.querySelector('[data-rd="open"]');
-          if (openBtn) openBtn.onclick = () => {
-            const ip = st("ip_address");
-            const base = this._rdBase(ip, st("cfg_remote_desktop_port"));
-            const t = this._rdToken(devSafe);
-            if (base) this._openRemote(dev, devSafe, base, t);
-          };
+          if (openBtn) openBtn.onclick = () => this._openRemote(dev, devSafe, entry.entry_id);
           const saveRd = card.querySelector('[data-rd="saverd"]');
           if (saveRd) saveRd.onclick = async () => {
             const patch = {};
@@ -888,11 +884,6 @@
               setTimeout(() => this._schedule(true), 1500);
               msg("");
             } catch (e) { msg("RD save failed: " + (e && e.message || e)); }
-          };
-          const bt = card.querySelector('[data-rd="btoken"]');
-          if (bt) bt.onclick = () => {
-            const v = this._rdSetToken(devSafe);
-            if (v != null) { flash("Browser token stored."); setTimeout(() => this._schedule(true), 300); }
           };
         }
 

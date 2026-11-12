@@ -140,6 +140,18 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
 
+### 2.11 Live RD stream must work over https (user: "make it work as it is now", 2026-11-13)
+
+Root cause (verified by me): panel serves `http://192.168.50.22:8080/stream?token=…` fine (HTTP 200, valid MJPEG).
+But the user opens HA via `https://ha.bit-service.co.uk` — browsers block the plain-http image (mixed content).
+No token can fix that; HA must serve the stream itself (same-origin https).
+
+- [x] P1: backend proxy view `GET/POST /api/nspanel_nexus/rd/<entry_id>/<path>` (requires_auth=False, HMAC-signed `?auth_sig=` via `async_sign_path`/`async_validate_signed_request`); forwards to panel with server-side token, streams bytes back
+- [x] P2: WS command `nspanel_nexus/rd_url` {entry_id, path} → signed URL (10 min, bound to caller's refresh token)
+- [x] P3: persist `remote_desktop_token`/`remote_desktop_port` into entry options on `config_update` (proxy reads them live; survives restart)
+- [x] P4: panel.js card + Remote popup use signed same-origin URLs for stream AND input POSTs; drop browser-token/localStorage flow
+- [x] P5: verify (ruff/node/py + proxy unit test vs fake panel + headless JS render), docs update, bump + release
+
 ### 2.10 Settings popup rework: RD on/off + token stay in Settings, wider + compact (user request, 2026-11-13)
 
 User: "remote desktop should be activated/deactivated from Settings! and the token tab should stay there as well. you have to rework the Settings pop-up to be wider and more compact"
@@ -235,6 +247,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 19 | 2026-11-13 | Panels-first redesign: card = RD image + Info/Settings/Remote only; all data/actions in popups; wider+compact Settings; RD on/off + token in Settings | v0.4.44 |
 | 20 | 2026-11-13 | Settings rework: RD section pinned at top (on/off toggle, token+port, Save RD, Browser token, Open remote); token stays in full form; 2-column compact grid, 900px modal | v0.4.45 |
 | 21 | 2026-11-13 | OBSERVED via headless render: settings card squeezed into narrow grid column (`.grid` auto-fill); fixed with `.modal .grid{1fr}` single-column; re-rendered to confirm full-width | v0.4.46 |
+| 22 | 2026-11-13 | HA-side RD proxy (same-origin signed URLs, server-side token) so live screen works over https/remote; fixed missing `module_remote_desktop` entity-map alias (RD toggle was dead); verified: 6 proxy unit tests + live E2E (real panel screen in card) | v0.4.47 |
 
 ---
 
@@ -315,6 +328,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.44 | 2026-11-13 | Panels-first redesign: card = RD image + Info/Settings/Remote; all data/actions in popups; wider+compact Settings |
 | v0.4.45 | 2026-11-13 | Settings rework: RD section on top (on/off + token + Save RD + Browser token + Open remote); 2-column compact grid |
 | v0.4.46 | 2026-11-13 | Settings modal cards full-width (`.modal .grid` single column); verified with headless render |
+| v0.4.47 | 2026-11-13 | RD proxy (signed same-origin URLs, server-side token, HA-authed input); fixed dead RD module toggle alias; proxy unit-tested + live E2E verified |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to

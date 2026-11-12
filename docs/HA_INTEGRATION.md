@@ -39,6 +39,16 @@ Plus services: `nspanel_nexus.command` to send any device command
 `nspanel_nexus.config_update` to patch any setting
 (`{"device_name": "Conservatory_Panel", "config": {"brightness": 180}}`).
 
+Live screen: the sidebar card and Remote popup no longer talk to the panel
+directly (browsers block plain-http streams inside an https page). Home
+Assistant proxies the stream and the tap/swipe/key input through same-origin
+`/api/nspanel_nexus/rd/<entry_id>/…` URLs (short-lived signed URLs for the
+image, HA-authenticated POSTs for input), so the live screen works over http
+and https, on the LAN and remotely. The panel RD token/port are persisted in
+the config entry options whenever they are saved from Settings (or any
+`config_update` call), so the proxy survives HA restarts. If the stream says
+the token is not saved yet, set it once in Settings → Remote desktop → Save RD.
+
 The sidebar's **Settings tab** is a full configuration form: Load from panel,
 edit, Save to panel (one update).
 
