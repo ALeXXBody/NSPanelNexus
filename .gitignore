@@ -14,3 +14,6 @@ build/
 !/logo.png
 .env
 device.json
+app/.gradle/
+app/app/build/
+app/build/
