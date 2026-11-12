@@ -116,7 +116,12 @@ class NexusService : Service() {
 
     companion object {
         fun start(context: Context) {
-            context.startService(Intent(context, NexusService::class.java))
+            val intent = Intent(context, NexusService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
     }
 }
