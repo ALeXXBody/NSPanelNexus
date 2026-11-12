@@ -129,7 +129,9 @@ plain `"lx"`/`"s"` fallback (works on every HA version, old or new).
 Lesson: never import version-fragile names unguarded; the venv here (2026.2.3)
 is NOT the user's HA. Verified: ruff + py_compile clean.
 
-### 2.8 Full firmware configuration from the Nexus app (user: "user should be able to fully configure the Nexus Firmware from the Nexus App")
+### 2.8 Full firmware configuration from the Nexus app (user: done, released v0.4.39)
+
+### 2.8 Full firmware configuration from the Nexus app (done, released v0.4.39)
 
 Transport already exists (config_update service + Settings.patch); what's missing is UI + entities. Scope for this pass (verify each):
 - [x] C1: HA `text` entities for all string settings (mqtt_host/user/pass, topic_prefix, ha_topic_prefix, ha_url, ha_token, dashboard_url, remote_desktop_token, nexus_manifest_url, zigbee_topic_base, 4× screen schedules); password mode for secrets; ignore `"<set>"` masked values on read
@@ -137,6 +139,17 @@ Transport already exists (config_update service + Settings.patch); what's missin
 - [x] C3: Sidebar Settings tab becomes a real form (Load from panel via query button, Save-all via single config_update, module toggles via switch entities)
 - [x] C4: Android: mask remote_desktop_token in config answers; hot-apply dashboard_url + remote_desktop token/port changes; publish modules state (already done v0.4.35)
 - [x] C5: verify (ruff/node/py/gradle), docs update, bump + release
+
+### 2.9 Panels-first sidebar redesign (user: firmware/settings pages are useless, remove them)
+
+New card layout per panel (Panels tab only):
+- [ ] R1: card shows live remote-desktop image on top (MJPEG stream, token from browser localStorage, prompt-once UX like the RD web UI)
+- [ ] R2: under the image: quick actions (kept) + **Info** and **Settings** buttons opening modal popups
+- [ ] R3: Info popup = full live info (IP, lux, uptime, firmware + check-for-update, sensors, module states)
+- [ ] R4: Settings popup = full config form (Load/Save-all) + module toggles (moved from removed Settings tab)
+- [ ] R5: REMOVE Firmware and Settings top tabs (keep Panels + About); delete dead tab renderers
+- [ ] R6: modal suspends background refresh while open (same pattern as add-flow); Esc/✕/overlay-click closes
+- [ ] R7: verify (node --check), docs update, bump + release
 
 ### 2.7 Sidebar-first add flow + setup hardening (user: sidebar must show by default, add panel from there)
 

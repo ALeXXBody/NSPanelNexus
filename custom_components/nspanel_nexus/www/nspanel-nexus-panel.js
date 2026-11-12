@@ -44,6 +44,12 @@
     .actions button.warn{background:#5d1d1d;color:#ff9b9b}
     input[type=range]{width:100%;max-width:220px;accent-color:#FF8C28;vertical-align:middle}
     select{padding:8px;border-radius:3px;background:#232830;color:#dfe4ea;border:1px solid #2c323b}
+    .rdimg{width:100%;border-radius:6px;background:#0d1016;min-height:120px;display:block;cursor:pointer}
+    .rdbtnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+    .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto}
+    .modal{background:#22252b;border-radius:8px;max-width:640px;width:100%;padding:18px 20px;color:#dfe4ea;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+    .modal h3{margin:0 0 12px;font-size:18px;color:#fff}
+    .modal .x{float:right;border:0;background:transparent;color:#9aa2ad;font-size:18px;cursor:pointer}
     .field{margin:10px 0}
     .lbl{font-size:12px;color:#9aa2ad;margin-bottom:4px}
     input.txt{width:100%;max-width:420px;box-sizing:border-box;padding:8px 10px;border-radius:3px;background:#232830;color:#dfe4ea;border:1px solid #2c323b;font-size:13px}
@@ -87,6 +93,7 @@
       this._error = null;
       this._loading = false;
       this._addForm = null;   // config-flow state when adding a panel
+      this._modal = null;     // open modal overlay (suspends refresh like _addForm)
       this._lastRefresh = 0;
       this._t = null;
       this._rendered = false;
@@ -106,7 +113,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.39";
+      return v || "v0.4.40";
     }
 
     connectedCallback() {
@@ -122,7 +129,7 @@
     }
 
     _schedule(force) {
-      if (this._addForm) return; // don't wipe open form with background refresh
+      if (this._addForm || this._modal) return; // don't wipe open form/modal with background refresh
       const now = Date.now();
       if (!force && now - this._lastRefresh < 5000) {
         clearTimeout(this._t);
@@ -245,7 +252,7 @@
     }
 
     _topbar() {
-      const tabs = [["panels","Panels"],["firmware","Firmware"],["settings","Settings"],["about","About"]]
+      const tabs = [["panels","Panels"],["about","About"]]
         .map(([id, label]) => `<div class="tab ${this._tab === id ? "active" : ""}" data-t="${id}">${label}</div>`)
         .join("");
       return `<div class="topbar">
@@ -282,14 +289,112 @@
           <div class="about">Fix the integration setup, then reload.</div>`;
         return;
       }
-      if (this._tab === "panels") this._renderPanels(body);
-      else if (this._tab === "firmware") this._renderFirmware(body);
-      else if (this._tab === "settings") this._renderSettings(body);
-      else this._renderAbout(body);
+      if (this._tab === "about") this._renderAbout(body);
+      else this._renderPanels(body);
     } catch (e) {
       if (root) root.innerHTML = `<div style="color:#ff8a8a;padding:20px">Render error: ${e && e.message ? e.message : e}</div>`;
       console.error("Nexus render error:", e);
     }
+    }
+
+    // ---- modal popups (Info / Settings per panel) ----------------------
+    _openModal(title) {
+      this._closeModal();
+      const veil = document.createElement("div");
+      veil.className = "modal-veil";
+      veil.innerHTML = `<div class="modal" role="dialog"><button class="x" title="Close">\u2715</button><h3>${this._esc(title)}</h3><div class="mbody"></div></div>`;
+      veil.querySelector(".x").onclick = () => this._closeModal();
+      veil.addEventListener("mousedown", (e) => { if (e.target === veil) this._closeModal(); });
+      veil.tabIndex = -1;
+      veil.onkeydown = (e) => { if (e.key === "Escape") this._closeModal(); };
+      this.shadowRoot.appendChild(veil);
+      this._modal = veil;
+      try { veil.focus(); } catch (_) {}
+      return veil.querySelector(".mbody");
+    }
+
+    _closeModal() {
+      if (this._modal) { try { this._modal.remove(); } catch (_) {} this._modal = null; }
+    }
+
+    _rdTokenKey(devSafe) { return "nexus-rd-token-" + devSafe; }
+    _rdToken(devSafe) {
+      try { return localStorage.getItem(this._rdTokenKey(devSafe)) || ""; } catch (_) { return ""; }
+    }
+    _rdSetToken(devSafe) {
+      const cur = this._rdToken(devSafe);
+      const v = prompt("Remote desktop token for this panel (panel Setup page → Remote desktop token):", cur || "");
+      if (v == null) return null;
+      try {
+        if (v) localStorage.setItem(this._rdTokenKey(devSafe), v);
+        else localStorage.removeItem(this._rdTokenKey(devSafe));
+      } catch (_) {}
+      return v || "";
+    }
+    _panelSvg() {
+      return `<svg viewBox="0 0 480 480" width="100%" style="display:block;border-radius:6px;background:#0d1016" role="img" aria-label="NSPanel Pro (remote desktop off)">
+        <rect x="110" y="20" width="260" height="440" rx="18" fill="#1c1f26" stroke="#333945" stroke-width="2"/>
+        <rect x="130" y="44" width="220" height="340" rx="8" fill="#101319"/>
+        <text x="240" y="150" text-anchor="middle" fill="#FF8C28" font-family="monospace" font-size="44">--:--</text>
+        <text x="240" y="190" text-anchor="middle" fill="#8d97a3" font-family="monospace" font-size="16">remote desktop off</text>
+        <rect x="130" y="404" width="220" height="10" rx="5" fill="#2c323b"/>
+        <circle cx="240" cy="409" r="8" fill="#3a414d"/>
+      </svg>`;
+    }
+
+    _rdBase(ip, portSt) {
+      if (!ip || !ip.state || ["unknown","unavailable",""].includes(ip.state)) return null;
+      let port = 8080;
+      if (portSt && portSt.state != null && !isNaN(Number(portSt.state))) port = Number(portSt.state);
+      return "http://" + ip.state + ":" + port + "/";
+    }
+
+    _openRemote(dev, devSafe, rdBase, rdToken) {
+      const body = this._openModal(dev + " — remote desktop");
+      if (!body) return;
+      if (!rdBase) { body.innerHTML = `<div class="about">Waiting for the panel IP address…</div>`; return; }
+      let token = rdToken || this._rdToken(devSafe);
+      if (!token) { token = this._rdSetToken(devSafe); if (!token) { this._closeModal(); return; } }
+      body.innerHTML = `
+        <img class="rdimg" id="rd-live" src="${rdBase}stream?token=${encodeURIComponent(token)}" alt="live panel screen" style="cursor:crosshair;touch-action:none">
+        <div class="rdbtnrow">
+          <button class="btn" data-k="3">HOME</button>
+          <button class="btn" data-k="4">BACK</button>
+          <button class="btn" data-k="26">POWER</button>
+          <button class="btn" data-s="up">↑ up</button>
+          <button class="btn" data-s="down">↓ down</button>
+          <button class="btn" data-tok>Set token</button>
+        </div>
+        <div class="about" id="rd-log">click to tap · drag to swipe · wheel/keys to scroll</div>`;
+      const img = body.querySelector("#rd-live");
+      const log = body.querySelector("#rd-log");
+      const post = (url, bodyStr) => fetch(rdBase + url, { method: "POST", body: bodyStr, headers: { "X-Nexus-Token": token } });
+      const tap = (x, y) => { post("input/tap", "x=" + x + "&y=" + y); if (log) log.textContent = "tap " + x + "," + y; };
+      const swipe = (x1, y1, x2, y2, ms) => { post("input/swipe", "x1=" + x1 + "&y1=" + y1 + "&x2=" + x2 + "&y2=" + y2 + "&ms=" + ms); };
+      let down = null;
+      if (img) {
+        img.addEventListener("pointerdown", (e) => { e.preventDefault(); try { img.setPointerCapture(e.pointerId); } catch (_) {} down = { x: e.clientX, y: e.clientY }; });
+        img.addEventListener("pointerup", (e) => {
+          if (!down) return;
+          const r = img.getBoundingClientRect(); const dx = e.clientX - down.x, dy = e.clientY - down.y; const d0 = down; down = null;
+          const px = (v) => Math.round((v - r.left) / r.width * 480);
+          const py = (v) => Math.round((v - r.top) / r.height * 480);
+          if (Math.hypot(dx, dy) < 6) tap(px(d0.x), py(d0.y));
+          else swipe(px(d0.x), py(d0.y), px(e.clientX), py(e.clientY), Math.min(600, Math.max(250, Math.hypot(dx, dy))));
+        });
+        img.addEventListener("pointercancel", () => { down = null; });
+      }
+      body.querySelectorAll("[data-k]").forEach((b) => { b.onclick = () => post("input/key", "code=" + b.getAttribute("data-k")); });
+      body.querySelectorAll("[data-s]").forEach((b) => {
+        b.onclick = () => {
+          const dir = b.getAttribute("data-s") === "up" ? -1 : 1;
+          if (dir > 0) swipe(240, 360, 240, 140, 300); else swipe(240, 140, 240, 360, 300);
+        };
+      });
+      const tokBtn = body.querySelector("[data-tok]");
+      if (tokBtn) tokBtn.onclick = () => { const t = this._rdSetToken(devSafe); if (t != null) { const im = body.querySelector("#rd-live"); if (im) im.src = rdBase + "stream?token=" + encodeURIComponent(t); } };
+      const im2 = body.querySelector("#rd-live");
+      if (im2) im2.onerror = () => { if (log) log.textContent = "Live screen unavailable (wrong token or panel unreachable)."; };
     }
 
     _renderPanels(body) {
@@ -324,24 +429,42 @@
         const screen = st("screen");
         const bright = st("brightness");
         const rdp = st("remote_desktop_switch");
-        const url = st("remote_desktop_url");
         const lux = st("illuminance");
         const ip = st("ip_address");
+        const rdPort = st("cfg_remote_desktop_port");
+        const rdBase = this._rdBase(ip, rdPort);
+        const rdToken = this._rdToken(devSafe);
+        const rdpOn = rdp && rdp.state === "on";
 
         const card = document.createElement("div");
         card.className = "card " + (online ? "on" : "off");
+        let rdHtml = "";
+        if (!rdp || !rdpOn) {
+          rdHtml = this._panelSvg() + `<div class="about" style="margin:8px 0">Remote desktop is off — turn it on in Settings.</div>`;
+        } else if (!rdBase) {
+          rdHtml = `<div class="about" style="margin:8px 0">Waiting for the panel IP address…</div>`;
+        } else if (!rdToken) {
+          rdHtml = this._panelSvg() + `<div class="about" style="margin:8px 0">Remote desktop is on. <button class="btn" data-rd="token">Set access token</button> to show the live screen.</div>`;
+        } else {
+          rdHtml = `<img class="rdimg" data-rd="img" src="${rdBase}stream?token=${encodeURIComponent(rdToken)}" alt="live panel screen" title="Click to open remote desktop">`;
+        }
         card.innerHTML = `
           <div class="pname">${this._esc(dev)}</div>
+          <div data-rd="wrap">${rdHtml}</div>
           ${ip ? `<div class="stat"><span class="ic">⌂</span>${ip.state}</div>` : ""}
           ${lux ? `<div class="stat"><span class="ic">☀</span>${lux.state} lx</div>` : ""}
           ${probe ? `<div class="stat"><span class="ic">⏱</span>uptime ${probe.state} s</div>` : ""}
           <div class="actions" style="display:flex;border:0;padding:6px 0 0">
             <button class="primary" data-act="screen">${screen && screen.state === "on" ? "Sleep" : "Wake"}</button>
             <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br title="brightness">
-            ${rdp ? `<button data-act="rdp">${rdp.state === "on" ? "RD on" : "RD off"}</button>` : ""}
-            ${url && url.state && !["unknown","unavailable",""].includes(url.state) ? `<button data-act="open">Open</button>` : ""}
+            ${rdp ? `<button data-act="rdp">${rdpOn ? "RD on" : "RD off"}</button>` : ""}
             <button class="warn" data-act="reboot">Reboot</button>
             <button class="warn" data-act="remove" title="Unlink this panel from Home Assistant">Unlink</button>
+          </div>
+          <div class="actions" style="display:flex;border:0;padding:6px 0 0">
+            ${rdpOn && rdBase ? `<button class="btn primary" data-act="remote">Remote</button>` : ""}
+            <button class="btn" data-act="info">Info</button>
+            <button class="btn" data-act="settings">Settings</button>
           </div>
 `;
 
@@ -379,7 +502,7 @@
         });
         on("[data-act=rdp]", () => {
           const btn = card.querySelector("[data-act=rdp]");
-          const turningOff = rdp && rdp.state === "on";
+          const turningOff = rdpOn;
           if (btn) btn.textContent = turningOff ? "RD off" : "RD on";
           if (ents["remote_desktop_switch"]) h.callService("switch",
             turningOff ? "turn_off" : "turn_on",
@@ -387,13 +510,63 @@
             .catch((err) => console.error("Nexus rdp failed:", err));
           setTimeout(() => this._schedule(true), 1000);
         });
-        on("[data-act=open]", () => { if (url && url.state && !["unknown","unavailable",""].includes(url.state)) window.open(url.state, "_blank"); });
+        on("[data-rd=img]", () => this._openRemote(dev, devSafe, rdBase, rdToken));
+        on("[data-act=remote]", () => this._openRemote(dev, devSafe, rdBase, rdToken));
+        on("[data-rd=token]", () => {
+          const t = this._rdSetToken(devSafe);
+          if (t != null) setTimeout(() => this._schedule(true), 300);
+        });
+        {
+          const img = card.querySelector("[data-rd=img]");
+          if (img) img.onerror = () => {
+            const wrap = card.querySelector('[data-rd="wrap"]');
+            if (wrap) wrap.innerHTML = `<div class="about" style="margin:8px 0">Live screen unavailable (wrong token or panel unreachable). <button class="btn" data-rd="token2">Set token</button></div>`;
+            const b2 = card.querySelector('[data-rd="token2"]');
+            if (b2) b2.onclick = () => { const t = this._rdSetToken(devSafe); if (t != null) setTimeout(() => this._schedule(true), 300); };
+          };
+        }
         on("[data-act=reboot]", () => {
           h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" })
             .catch((e) => { console.error("reboot failed:", e); alert("Reboot command failed: " + (e && e.message || e)); }); });
         on("[data-act=remove]", () => {
           if (!confirm(`Unlink ${dev} from Home Assistant? The panel itself is not touched.`)) return;
           this._deleteEntry(entry.entry_id);
+        });
+
+        on("[data-act=info]", () => {
+          const body = this._openModal(dev + " — info");
+          if (!body) return;
+          const renderInfo = () => {
+            const cur = (id) => (ents[id] ? h.states[ents[id]] : null);
+            const screen = cur("screen"); const bright = cur("brightness");
+            const rdp = cur("remote_desktop_switch"); const firmware = cur("firmware");
+            const lux = cur("illuminance"); const ip = cur("ip_address");
+            const probe = cur("uptime") || ip;
+            body.innerHTML = `
+              <div class="stat"><span class="ic">⌂</span>IP: ${ip ? ip.state : "—"}</div>
+              <div class="stat"><span class="ic">☀</span>Ambient: ${lux ? lux.state + " lx" : "—"}</div>
+              <div class="stat"><span class="ic">⏱</span>Uptime: ${probe ? probe.state + " s" : "—"}</div>
+              <div class="stat"><span class="ic">📺</span>Screen: ${screen ? screen.state : "—"}</div>
+              <div class="stat"><span class="ic">☀</span>Brightness: ${bright ? bright.state : "—"}</div>
+              <div class="stat"><span class="ic">📡</span>Remote desktop: ${rdp ? rdp.state : "—"}</div>
+              <div class="stat"><span class="ic">🧠</span>Firmware: ${firmware ? firmware.state : "—"}</div>
+              <div style="margin-top:12px">
+                <button class="btn primary" data-act="fwcheck">Check for firmware update</button>
+                <button class="btn" data-act="reboot2">Reboot panel</button>
+              </div>`;
+            const fw = body.querySelector("[data-act=fwcheck]");
+            if (fw) fw.onclick = () => h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "firmware:check" }).catch(e => alert(e && e.message || e));
+            const rb = body.querySelector("[data-act=reboot2]");
+            if (rb) rb.onclick = () => { if (!confirm("Reboot " + dev + "?")) return; h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" }).catch(e => alert(e && e.message || e)); };
+          };
+          renderInfo();
+          const infoTimer = setInterval(() => { if (!this._modal) { clearInterval(infoTimer); return; } renderInfo(); }, 3000);
+        });
+
+        on("[data-act=settings]", () => {
+          const body = this._openModal(dev + " — settings");
+          if (!body) return;
+          this._renderSettingsForEntry(body, entry, dev, devSafe, ents, h);
         });
 
         grid.appendChild(card);
@@ -469,8 +642,7 @@
       ];
     }
 
-    _renderSettings(body) {
-      const h = this._hass;
+    _renderSettingsForEntry(body, entry, dev, devSafe, ents, h) {
       body.innerHTML = `<h2>Firmware configuration</h2>
         <div class="card about" style="margin-bottom:16px">
           Every setting of the Nexus firmware on the panel, editable from here.
