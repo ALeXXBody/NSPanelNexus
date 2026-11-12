@@ -100,7 +100,7 @@ class FirmwareModule : Module {
 
     fun checkForUpdate() {
         val manifestUrl = Settings.get("nexus_manifest_url",
-            "https://github.com/ALeXXBody/NSPanelNexus/releases/download/firmware-1.0.0/manifest.json")
+            "https://raw.githubusercontent.com/ALeXXBody/NSPanelNexus/main/firmware/manifest.json")
         if (manifestUrl.isBlank()) return
         Thread {
             try {
@@ -116,11 +116,50 @@ class FirmwareModule : Module {
                 if (version.isNotBlank() && version != cur && !cur.startsWith("stock") && cur != "nexus (unknown version)") {
                     downloadAndWrite(url, size, sha, version)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("FirmwareModule", "checkForUpdate failed", e)
+                try { mqtt?.state("firmware", JSONObject()
+                    .put("current", currentFirmwareVersion())
+                    .put("error", e.message ?: "unknown")) } catch (_: Exception) {}
+            }
         }.start()
     }
 
     fun installPending() { checkForUpdate() }
+
+    // ---- Nexus app (APK) update check ---------------------------------
+
+    /** Check GitHub releases for a newer Nexus app version. */
+    fun checkForAppUpdate(onResult: (current: String, latest: String, downloadUrl: String?) -> Unit) {
+        Thread {
+            try {
+                val conn = java.net.URL("https://api.github.com/repos/ALeXXBody/NSPanelNexus/releases/latest").openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
+                conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+                val body = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+                val json = JSONObject(body)
+                val tag = json.optString("tag_name").trimStart('v')
+                val current = try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }
+                var apkUrl: String? = null
+                val assets = json.optJSONArray("assets")
+                if (assets != null) {
+                    for (i in 0 until assets.length()) {
+                        val a = assets.getJSONObject(i)
+                        if (a.optString("name").endsWith(".apk")) {
+                            apkUrl = a.optString("browser_download_url")
+                            break
+                        }
+                    }
+                }
+                onResult(current, tag, apkUrl)
+            } catch (e: Exception) {
+                android.util.Log.e("FirmwareModule", "app update check failed", e)
+                onResult(try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }, "", null)
+            }
+        }.start()
+    }
 
     private fun downloadAndWrite(url: String, size: Long, sha: String, version: String) {
         synchronized(updateLock) {
@@ -137,8 +176,14 @@ class FirmwareModule : Module {
                 input.copyTo(out, 1024 * 1024)
             }
         }
-        if (tmp.length() != size) { tmp.delete(); return }
-        if (sha256(tmp) != sha) { tmp.delete(); return }
+        if (tmp.length() != size) {
+            android.util.Log.e("FirmwareModule", "size mismatch: ${tmp.length()} != $size")
+            tmp.delete(); return
+        }
+        if (sha256(tmp) != sha) {
+            android.util.Log.e("FirmwareModule", "sha256 mismatch")
+            tmp.delete(); return
+        }
 
         // backup current system partition for rollback (best effort)
         val backup = File("/data/nexus/system.img.bak")

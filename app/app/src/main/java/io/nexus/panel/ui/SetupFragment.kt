@@ -126,10 +126,27 @@ class SetupFragment : androidx.fragment.app.Fragment() {
             textSize = 12f
             setPadding(0, dp(2), 0, dp(6))
         }
-        col.addView(button(c, "Check for firmware update", "Downloads + verifies sha256, then reboots if newer") {
+        col.addView(button(c, "Check for firmware update", "Downloads + verifies sha256, then reboots if newer (panel system)") {
             val fm = ModuleManager.get("firmware") as? io.nexus.panel.modules.firmware.FirmwareModule
             if (fm == null) Toast.makeText(c, "Firmware module not registered", Toast.LENGTH_SHORT).show()
-            else { fm.checkForUpdate(); Toast.makeText(c, "Checking…", Toast.LENGTH_SHORT).show() }
+            else { fm.checkForUpdate(); Toast.makeText(c, "Checking panel firmware…", Toast.LENGTH_SHORT).show() }
+        })
+
+        col.addView(button(c, "Check for app update", "Checks GitHub releases for a newer Nexus app (APK)") {
+            val fm = ModuleManager.get("firmware") as? io.nexus.panel.modules.firmware.FirmwareModule
+            if (fm == null) Toast.makeText(c, "Firmware module not registered", Toast.LENGTH_SHORT).show()
+            else fm.checkForAppUpdate { cur, latest, url ->
+                android.os.Handler(c.mainLooper).post {
+                    if (latest.isBlank()) {
+                        Toast.makeText(c, "App update check failed", Toast.LENGTH_LONG).show()
+                    } else if (latest == cur) {
+                        Toast.makeText(c, "Nexus app is up to date ($cur)", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(c, "Update available: $latest (current $cur). Downloading…", Toast.LENGTH_LONG).show()
+                        if (url != null) downloadAndInstallApk(c, url)
+                    }
+                }
+            }
         })
 
         // ---- actions ----
@@ -145,6 +162,34 @@ class SetupFragment : androidx.fragment.app.Fragment() {
         }
 
         return ScrollView(c).apply { addView(col) }
+    }
+
+    private fun downloadAndInstallApk(c: Context, url: String) {
+        Thread {
+            try {
+                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 15000
+                conn.readTimeout = 60000
+                val tmp = java.io.File(c.cacheDir, "nexus-update.apk")
+                conn.inputStream.use { input ->
+                    tmp.outputStream().use { out -> input.copyTo(out) }
+                }
+                conn.disconnect()
+                android.os.Handler(c.mainLooper).post {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW)
+                    intent.setDataAndType(
+                        android.net.Uri.fromFile(tmp),
+                        "application/vnd.android.package-archive"
+                    )
+                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    c.startActivity(intent)
+                }
+            } catch (e: Exception) {
+                android.os.Handler(c.mainLooper).post {
+                    Toast.makeText(c, "Download failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
     }
 
     private fun save() {

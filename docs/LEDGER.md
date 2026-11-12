@@ -152,6 +152,19 @@ verbatim instead of a generic "Dashboard URL failed" toast.
 - [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
 - [ ] H3: docs update, bump + release
 
+### 2.25 Firmware update button checked panel firmware, not Nexus app (user, 2026-11-13)
+
+User: the firmware update button was searching for the panel firmware, not for the
+Nexus firmware/app. The FirmwareModule OTA (system image) stays for the panel OS,
+but Setup now also has a "Check for app update" button that queries GitHub releases
+for a newer Nexus APK and downloads + installs it via the system package installer.
+The original "Check for firmware update" button is relabelled to make clear it
+updates the panel system image.
+
+- [ ] A1: add checkForAppUpdate() to FirmwareModule (GitHub releases API, tag compare, APK asset URL)
+- [ ] A2: add "Check for app update" button to Setup (download APK to cache, launch ACTION_VIEW installer)
+- [ ] A3: verify on the live panel (button reports "up to date" since 0.4.60 is latest) + docs + bump + release
+
 ### 2.24 HA sidebar lost connection after v0.4.58 — root cause + fix (user, 2026-11-13)
 
 User reported the HA sidebar lost connection with the panel after the last update.
