@@ -596,6 +596,7 @@ Remaining program items deferred to the next batch (still open):
 | 35 | 2026-11-13 | Ecosystem program (F1–F15). Live-found defect: activity bound dashboard callbacks before the service registered modules, so screensaver/camera/TTS/toast/navigate/refresh commands were dropped; binding retries + rebinds onResume, kiosk/day-night state self-heal, disabling the screensaver now hides it. Verified on-panel: kiosk transitions, auto-return, scheduled reload, day/night brightness, zigbee/wifi/storage/ram state, TTS SUCCESS, camera overlay, app_available=0.4.69 | v0.4.69 |
 | 36 | 2026-11-13 | Docs catch-up for the ecosystem program: HA_INTEGRATION (entity + 12-service tables, Info/Kiosk UI) and MQTT_COMMANDS (new commands + state topics). No code changes; APK re-versioned, installed, state/firmware shows app 0.4.70 | v0.4.70 |
 | 37 | 2026-11-13 | Version-truth fixes (user: top bar stuck at v0.4.69 while Marketplace showed 0.4.70). Found by reading the code: device_info sw_version was hardcoded "Nexus", and the top bar showed one bare number mixing two products. Top bar now shows "integration vX · panel app vY" (app part live from MQTT firmware sensor); sw_version reads manifest.json. Verified: harness asserts both labels, panel on 0.4.71 (state/firmware app 0.4.71, kiosk dashboard) | v0.4.71 |
+| 38 | 2026-11-13 | Regression suite (user asked: what tests exist? — answer was 2). Added tests/test_release.py (version sync, services==yaml, no hardcoded LAN, MQTT state/event contract, panel.js keys), tests/test_link.py (PanelLink logic with stubbed HA: 11 tests), tests/test_panel_js.py (headless Chromium in-repo, skips without browser). CI runs node --check now. 20/20 green + ruff clean. No functional changes; APK re-versioned, installed, state/firmware app 0.4.72 | v0.4.72 |
 
 ---
 
@@ -692,6 +693,7 @@ Remaining program items deferred to the next batch (still open):
 | v0.4.69 | 2026-11-13 | Ecosystem program: screensaver, auto-return, reload, day/night, TTS/toast/camera, navigate/refresh, kiosk+health+zigbee state, capabilities, HA update/notify entities, 12 services, config backup/restore (live-verified) |
 | v0.4.70 | 2026-11-13 | Docs for the ecosystem program (no code changes) |
 | v0.4.71 | 2026-11-13 | Labeled versions: top bar shows integration + panel app; device sw_version is real (was hardcoded "Nexus") |
+| v0.4.72 | 2026-11-13 | Regression test suite: 20 tests (release/link/panel.js), CI hardened (no functional changes) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
