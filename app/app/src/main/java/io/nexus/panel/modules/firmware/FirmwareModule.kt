@@ -31,11 +31,22 @@ class FirmwareModule : Module {
     private val updateLock = Any()
 
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
+    @Volatile private var appCtx: Context? = null
+
+    private fun toast(msg: String) {
+        try {
+            val c = appCtx ?: return
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try { android.widget.Toast.makeText(c, msg, android.widget.Toast.LENGTH_LONG).show() } catch (_: Exception) {}
+            }
+        } catch (_: Exception) { }
+    }
 
     override fun status(): String = "version=${currentFirmwareVersion()}"
 
     override fun start(context: Context) {
         android.util.Log.d("FirmwareModule", "start() called, enabled=${io.nexus.panel.core.Settings.moduleEnabled("firmware")}")
+        appCtx = context.applicationContext
         val m = mqtt ?: run { android.util.Log.e("FirmwareModule", "mqtt is null"); return }
         // Auto-discover firmware on start
         val ver = currentFirmwareVersion()
@@ -117,10 +128,14 @@ class FirmwareModule : Module {
                     .put("available", version))
                 val cur = currentFirmwareVersion()
                 if (version.isNotBlank() && version != cur && !cur.startsWith("stock") && cur != "nexus (unknown version)") {
+                    toast("Downloading system update $version…")
                     downloadAndWrite(url, size, sha, version)
+                } else {
+                    toast("System firmware is up to date ($cur)")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("FirmwareModule", "checkForUpdate failed", e)
+                toast("Firmware check failed: ${e.message ?: "unknown error"}")
                 try {
                     val appVer2 = try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }
                     mqtt?.state("firmware", JSONObject()

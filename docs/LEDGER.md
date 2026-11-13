@@ -193,20 +193,7 @@ short labels at the source, denser grids, toggle chips for modules.
 - [x] L2: RD token/port live ONLY in the RD box (removed from generic lists)
 - [x] L3: verify (node --check + headless render), bump + release
 
-### 2.29 OTA end-to-end proven + fixes found by testing it (user follow-up, 2026-11-13)
-
-Testing the real path exposed two blockers: (1) no release ever shipped an APK,
-so there was nothing to download; (2) the installer intent used a bare file://
-URI and the app lacked REQUEST_INSTALL_PACKAGES, so the system installer refused
-it. Fixed with a FileProvider content URI + grant flag, the permission, and APK
-assets attached to releases going forward.
-
-- [x] Add REQUEST_INSTALL_PACKAGES + FileProvider (cache-path) + grant flag
-- [x] Test release proved discovery+download+installer intent; then deleted
-- [x] Real 0.4.67 release ships the APK; panel updated to it live
-- [ ] Docs: note that every release must attach the APK (bump script does it)
-
-### 2.28 Version split fixed: Nexus app vs system image, OTA channel repaired (user, 2026-11-13)
+### 2.28 Version split: Nexus app vs system image, OTA channel repaired (user, 2026-11-13)
 
 User: info popup showed "Firmware 1.0.0" with no Nexus version anywhere and no working
 Nexus update path. Root causes found: (1) no UI ever showed the APK version —
@@ -221,6 +208,20 @@ releases/latest (an app release, no manifest) so system OTA was dead too.
 - [x] V4: repo firmware/manifest.json tracks latest system release; release script refreshes it
 - [x] V5: attach APK to releases going forward; bump, build, release with APK, install on panel
 - [x] V6: verify live (sensor attribute, sidebar rows, setup text, check-for-update no-op vs 1.0.0)
+
+### 2.29 OTA end-to-end proven + fixes found by testing it (user follow-up, 2026-11-13)
+
+Testing the real path exposed two blockers: (1) no release ever shipped an APK,
+so there was nothing to download; (2) the installer intent used a bare file://
+URI and the app lacked REQUEST_INSTALL_PACKAGES, so the system installer refused
+it. Fixed with a FileProvider content URI + grant flag, the permission, and APK
+assets attached to releases going forward. Panel self-updated 0.4.67 -> 0.4.68
+entirely on its own (proven live).
+
+- [x] Add REQUEST_INSTALL_PACKAGES + FileProvider (cache-path) + grant flag
+- [x] Test release proved discovery+download+installer intent; then deleted
+- [x] Real 0.4.67 release ships the APK; panel updated to 0.4.68 fully on its own (check -> download -> installer UI -> user taps INSTALL -> verified running 0.4.68, publishes app 0.4.68)
+- [x] Update toasts: system-check reports up-to-date/failure on screen; app-check warns when a release has no APK (ships next release)
 
 ### 2.27 Modern compact futuristic settings page (user, 2026-11-13)
 
