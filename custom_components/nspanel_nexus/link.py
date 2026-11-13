@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
@@ -13,6 +14,21 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from .const import DOMAIN, topic_safe
 
 _LOGGER = logging.getLogger(__name__)
+
+_INTEGRATION_VERSION: str | None = None
+
+
+def integration_version() -> str:
+    """The running integration version (from our own manifest, read once)."""
+    global _INTEGRATION_VERSION
+    if _INTEGRATION_VERSION is None:
+        try:
+            _INTEGRATION_VERSION = str(
+                json.loads((Path(__file__).parent / "manifest.json").read_text(encoding="utf-8"))["version"]
+            )
+        except Exception:  # noqa: BLE001
+            _INTEGRATION_VERSION = "unknown"
+    return _INTEGRATION_VERSION
 
 
 class PanelLink:
@@ -37,7 +53,7 @@ class PanelLink:
             name=f"NSPanel {self.device_name}",
             manufacturer="Sonoff",
             model="NSPanel Pro (Nexus firmware)",
-            sw_version="Nexus",
+            sw_version=integration_version(),
         )
 
     # ---- lifecycle -------------------------------------------------------

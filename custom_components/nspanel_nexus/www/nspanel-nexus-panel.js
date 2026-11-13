@@ -156,7 +156,25 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.70";
+      return v || "v0.4.71";
+    }
+
+    // Panel APK versions reported over MQTT (sensor.nspanel_*_firmware
+    // attribute app_version). Shown next to the integration version so the
+    // two can never be confused again.
+    _panelAppVersions() {
+      const apps = new Set();
+      try {
+        const states = (this._hass && this._hass.states) || {};
+        for (const eid of Object.keys(states)) {
+          if (/^sensor\.nspanel_.*_firmware$/.test(eid)) {
+            const st = states[eid];
+            const a = st && st.attributes && st.attributes.app_version;
+            if (a) apps.add("v" + String(a).replace(/^v/, ""));
+          }
+        }
+      } catch (_) { /* states not ready yet — integration version alone */ }
+      return [...apps];
     }
 
     connectedCallback() {
@@ -309,11 +327,15 @@
       const tabs = [["panels","Panels"],["about","About"]]
         .map(([id, label]) => `<div class="tab ${this._tab === id ? "active" : ""}" data-t="${id}">${label}</div>`)
         .join("");
+      const apps = this._panelAppVersions();
+      const verLine = apps.length
+        ? `integration ${this._esc(this._version)} · panel app ${this._esc(apps.join(", "))}`
+        : `integration ${this._esc(this._version)}`;
       return `<div class="topbar">
         <img src="/nspanel-nexus/brand/icon.png" alt="NSPanel Nexus">
         <div style="display:flex;flex-direction:column;justify-content:center">
           <span class="name">NSPanel <b>Nexus</b></span>
-          <span class="ver">${this._version}</span>
+          <span class="ver">${verLine}</span>
         </div>
         <div class="tabs">${tabs}</div>
       </div>`;
