@@ -34,6 +34,8 @@ FIELDS: list[tuple[str, str, TextMode, str | None]] = [
     ("screen_on_weekday_end", "Screen on weekday until", TextMode.TEXT, "mdi:clock-end"),
     ("screen_on_weekend_begin", "Screen on weekend from", TextMode.TEXT, "mdi:clock-start"),
     ("screen_on_weekend_end", "Screen on weekend until", TextMode.TEXT, "mdi:clock-end"),
+    ("night_start", "Night mode from", TextMode.TEXT, "mdi:weather-night"),
+    ("night_end", "Night mode until", TextMode.TEXT, "mdi:weather-sunset-up"),
 ]
 
 

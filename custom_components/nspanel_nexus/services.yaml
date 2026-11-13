@@ -18,7 +18,7 @@ command:
         text:
     payload:
       name: Payload
-      description: Optional extra fields merged into the command JSON (e.g. {"url": "..."} for dashboard:url, {"seconds": 180} for zigbee:permit_join).
+      description: 'Optional extra fields merged into the command JSON (e.g. {"url": "..."} for dashboard:url, {"seconds": 180} for zigbee:permit_join).'
       required: false
       selector:
         object:
@@ -39,5 +39,170 @@ config_update:
       description: Settings to change, e.g. {"brightness":180} or {"module.remote_desktop.enabled":true}.
       required: true
       example: '{"brightness":180}'
+      selector:
+        object:
+
+speak:
+  name: Speak on panel
+  description: Speak text on the panel speaker (Android TTS).
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+    message:
+      name: Message
+      required: true
+      example: The front door is open
+      selector:
+        text:
+
+toast:
+  name: Show toast on panel
+  description: Show a short toast message on the panel screen.
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+    message:
+      name: Message
+      required: true
+      example: Bin day tomorrow
+      selector:
+        text:
+
+show_camera:
+  name: Show camera on panel
+  description: Open a camera/doorbell popup full-screen on the panel, then auto-close.
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+    url:
+      name: Image URL
+      description: Camera still/snapshot URL (entity_picture, /api/camera_proxy/...).
+      required: true
+      selector:
+        text:
+    title:
+      name: Title
+      required: false
+      example: Front door
+      selector:
+        text:
+    duration:
+      name: Duration (seconds)
+      required: false
+      default: 30
+      selector:
+        number:
+          min: 5
+          max: 3600
+          unit_of_measurement: s
+
+hide_camera:
+  name: Hide camera popup
+  description: Close the camera/doorbell popup on the panel.
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+
+navigate:
+  name: Navigate dashboard
+  description: Open a path (e.g. "lovelace/cameras") or full URL in the panel dashboard.
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+    path:
+      name: Path
+      required: true
+      example: lovelace/cameras
+      selector:
+        text:
+
+refresh_dashboard:
+  name: Reload dashboard
+  description: Reload the panel's dashboard WebView (recovers a hung frontend).
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+
+show_screensaver:
+  name: Show screensaver
+  description: Turn on the panel screensaver (clock, blank or dim).
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+    mode:
+      name: Mode
+      description: Empty = the panel's configured mode.
+      required: false
+      selector:
+        select:
+          options:
+            - ""
+            - clock
+            - blank
+            - dim
+
+hide_screensaver:
+  name: Hide screensaver
+  description: Dismiss the panel screensaver.
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+
+get_config:
+  name: Get panel config
+  description: Return the panel's current settings (secrets appear as "<set>"). Use in templates/automations.
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+
+restore_config:
+  name: Restore panel config
+  description: Apply a previously saved config object. Keys set to "<set>" are skipped so secrets are never overwritten.
+  fields:
+    device_name:
+      name: Panel name
+      required: true
+      example: Conservatory_Panel
+      selector:
+        text:
+    config:
+      name: Config
+      required: true
       selector:
         object:

@@ -40,6 +40,31 @@ class DashboardModule : Module {
             }
         }
         m.onCommand["dashboard:wake"] = { _ -> onWake?.invoke() }
+        // Remote control of the kiosk (HA services / automations)
+        m.onCommand["dashboard:refresh"] = { _ -> onRefresh?.invoke() }
+        m.onCommand["dashboard:navigate"] = { p ->
+            val path = p.optString("path")
+            if (path.isNotBlank()) onNavigate?.invoke(path)
+        }
+        m.onCommand["dashboard:return"] = { _ -> onWake?.invoke() }
+        m.onCommand["screensaver:show"] = { p ->
+            onScreensaverShow?.invoke(p.optString("mode", ""))
+        }
+        m.onCommand["screensaver:hide"] = { _ -> onScreensaverHide?.invoke() }
+        m.onCommand["camera:show"] = { p ->
+            val url = p.optString("url")
+            if (url.isNotBlank()) onCameraShow?.invoke(
+                url, p.optString("title", "Camera"), p.optInt("duration", 30))
+        }
+        m.onCommand["camera:hide"] = { _ -> onCameraHide?.invoke() }
+        m.onCommand["tts:speak"] = { p ->
+            val text = p.optString("text")
+            if (text.isNotBlank()) onSpeak?.invoke(text)
+        }
+        m.onCommand["notify:toast"] = { p ->
+            val msg = p.optString("message")
+            if (msg.isNotBlank()) onToast?.invoke(msg)
+        }
     }
 
     override fun stop() {}
@@ -48,8 +73,32 @@ class DashboardModule : Module {
     var onUrlChanged: ((String) -> Unit)? = null
     /** Called when HA wants the dashboard back on screen. */
     var onWake: (() -> Unit)? = null
+    /** Reload the current dashboard (recover a hung frontend). */
+    var onRefresh: (() -> Unit)? = null
+    /** Navigate the dashboard to a path (e.g. "lovelace/cameras") or full URL. */
+    var onNavigate: ((String) -> Unit)? = null
+    var onScreensaverShow: ((String) -> Unit)? = null
+    var onScreensaverHide: (() -> Unit)? = null
+    var onCameraShow: ((String, String, Int) -> Unit)? = null
+    var onCameraHide: (() -> Unit)? = null
+    var onSpeak: ((String) -> Unit)? = null
+    var onToast: ((String) -> Unit)? = null
 
     fun reportCurrent(url: String) {
         mqtt?.state("dashboard", JSONObject().put("url", url))
+    }
+
+    /** Which kiosk face is on screen: dashboard / firmware / pin / login / camera. */
+    fun reportKiosk(mode: String, screensaver: String = "off", camera: Boolean = false) {
+        try {
+            mqtt?.state("kiosk", JSONObject()
+                .put("kiosk", mode)
+                .put("screensaver", screensaver)
+                .put("camera", camera))
+        } catch (_: Exception) {}
+    }
+
+    fun reportScreensaver(mode: String) {
+        try { mqtt?.state("screensaver", JSONObject().put("screensaver", mode)) } catch (_: Exception) {}
     }
 }

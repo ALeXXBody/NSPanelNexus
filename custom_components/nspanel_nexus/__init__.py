@@ -8,7 +8,8 @@ from pathlib import Path
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, SupportsResponse
+from homeassistant.exceptions import ServiceValidationError
 
 from . import rd_proxy
 from .const import CONF_DEVICE_NAME, CONF_TOPIC_PREFIX, DOMAIN, PLATFORMS, topic_safe
@@ -37,6 +38,37 @@ SERVICE_COMMAND_SCHEMA = vol.Schema({
 })
 
 SERVICE_CONFIG_UPDATE_SCHEMA = vol.Schema({
+    vol.Required("device_name"): str,
+    vol.Required("config"): dict,
+})
+
+SERVICE_PANEL_SCHEMA = vol.Schema({
+    vol.Required("device_name"): str,
+})
+
+SERVICE_MESSAGE_SCHEMA = vol.Schema({
+    vol.Required("device_name"): str,
+    vol.Required("message"): str,
+})
+
+SERVICE_CAMERA_SCHEMA = vol.Schema({
+    vol.Required("device_name"): str,
+    vol.Required("url"): str,
+    vol.Optional("title", default="Camera"): str,
+    vol.Optional("duration", default=30): vol.All(int, vol.Range(min=5, max=3600)),
+})
+
+SERVICE_NAVIGATE_SCHEMA = vol.Schema({
+    vol.Required("device_name"): str,
+    vol.Required("path"): str,
+})
+
+SERVICE_SCREENSAVER_SCHEMA = vol.Schema({
+    vol.Required("device_name"): str,
+    vol.Optional("mode", default=""): vol.In(["", "clock", "blank", "dim"]),
+})
+
+SERVICE_RESTORE_CONFIG_SCHEMA = vol.Schema({
     vol.Required("device_name"): str,
     vol.Required("config"): dict,
 })
@@ -93,6 +125,14 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
                 return link
         return None
 
+    def _resolve(name: str) -> PanelLink:
+        want = topic_safe(name)
+        for entry_data in hass.data[DOMAIN].values():
+            link = entry_data.get("link")
+            if link is not None and link.device_name == want:
+                return link
+        raise ServiceValidationError(f"No Nexus panel named {name}")
+
     async def _command(call) -> None:
         link = await _link_for(call.data["device_name"])
         if link is None:
@@ -127,6 +167,71 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
                                  schema=SERVICE_COMMAND_SCHEMA)
     hass.services.async_register(DOMAIN, "config_update", _config_update,
                                  schema=SERVICE_CONFIG_UPDATE_SCHEMA)
+
+    # ---- kiosk / presence services ---------------------------------------
+
+    async def _speak(call) -> None:
+        await _resolve(call.data["device_name"]).async_command(
+            "tts:speak", text=call.data["message"])
+
+    async def _toast(call) -> None:
+        await _resolve(call.data["device_name"]).async_command(
+            "notify:toast", message=call.data["message"])
+
+    async def _show_camera(call) -> None:
+        await _resolve(call.data["device_name"]).async_command(
+            "camera:show", url=call.data["url"], title=call.data["title"],
+            duration=call.data["duration"])
+
+    async def _hide_camera(call) -> None:
+        await _resolve(call.data["device_name"]).async_command("camera:hide")
+
+    async def _navigate(call) -> None:
+        await _resolve(call.data["device_name"]).async_command(
+            "dashboard:navigate", path=call.data["path"])
+
+    async def _refresh_dashboard(call) -> None:
+        await _resolve(call.data["device_name"]).async_command("dashboard:refresh")
+
+    async def _show_screensaver(call) -> None:
+        await _resolve(call.data["device_name"]).async_command(
+            "screensaver:show", mode=call.data.get("mode", ""))
+
+    async def _hide_screensaver(call) -> None:
+        await _resolve(call.data["device_name"]).async_command("screensaver:hide")
+
+    async def _get_config(call) -> dict:
+        link = _resolve(call.data["device_name"])
+        return {"device_name": link.device_name, "config": await link.async_get_config()}
+
+    async def _restore_config(call) -> None:
+        link = _resolve(call.data["device_name"])
+        # Masked placeholders ("<set>") must never overwrite a real secret.
+        patch = {
+            k: v for k, v in call.data["config"].items()
+            if v is not None and v != "<set>"
+        }
+        await link.async_config_update(patch)
+
+    hass.services.async_register(DOMAIN, "speak", _speak, schema=SERVICE_MESSAGE_SCHEMA)
+    hass.services.async_register(DOMAIN, "toast", _toast, schema=SERVICE_MESSAGE_SCHEMA)
+    hass.services.async_register(DOMAIN, "show_camera", _show_camera,
+                                 schema=SERVICE_CAMERA_SCHEMA)
+    hass.services.async_register(DOMAIN, "hide_camera", _hide_camera,
+                                 schema=SERVICE_PANEL_SCHEMA)
+    hass.services.async_register(DOMAIN, "navigate", _navigate,
+                                 schema=SERVICE_NAVIGATE_SCHEMA)
+    hass.services.async_register(DOMAIN, "refresh_dashboard", _refresh_dashboard,
+                                 schema=SERVICE_PANEL_SCHEMA)
+    hass.services.async_register(DOMAIN, "show_screensaver", _show_screensaver,
+                                 schema=SERVICE_SCREENSAVER_SCHEMA)
+    hass.services.async_register(DOMAIN, "hide_screensaver", _hide_screensaver,
+                                 schema=SERVICE_PANEL_SCHEMA)
+    hass.services.async_register(DOMAIN, "get_config", _get_config,
+                                 schema=SERVICE_PANEL_SCHEMA,
+                                 supports_response=SupportsResponse.OPTIONAL)
+    hass.services.async_register(DOMAIN, "restore_config", _restore_config,
+                                 schema=SERVICE_RESTORE_CONFIG_SCHEMA)
 
     try:
         rd_proxy.async_register(hass)

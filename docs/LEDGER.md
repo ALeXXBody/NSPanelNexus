@@ -148,9 +148,9 @@ for any path, including the login shell, so that test proves nothing about the
 dashboard itself). Need to capture the actual WebView error and report it
 verbatim instead of a generic "Dashboard URL failed" toast.
 
-- [ ] H1: log every `onReceivedError` / `onReceivedHttpError` to logcat and toast the exact url + description + code
-- [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
-- [ ] H3: docs update, bump + release
+- [x] H1: log every `onReceivedError` / `onReceivedHttpError` to logcat (tag `NexusDash`) with url + description + code (v0.4.55)
+- [x] H2: diagnosed on the live panel — the "error" was the unauthenticated dashboard shell before OAuth; after in-app OAuth (v0.4.51) and the HA native dark theme (v0.4.56) the dashboard loads with no `NexusDash` errors (re-checked 2026-11-13 on 0.4.69)
+- [x] H3: closed here; superseded by the kiosk work in 2.15/2.18/2.30/2.31
 
 ### 2.30 Info + Remote popups match Settings style (user, 2026-11-13)
 
@@ -496,6 +496,50 @@ Fix list for this pass (verify each, no dirty fixes):
 
 ---
 
+### 2.31 Ecosystem improvement program — "please do them all" (user, 2026-11-13)
+
+User approved the full researched improvement program and asked for all of it:
+kiosk completeness (screensaver, idle return, scheduled reload, day/night
+brightness), remote control/presence (TTS, toasts, camera/doorbell popup,
+dashboard navigate/refresh), voice, Zigbee depth (permit-join + device state),
+fleet/ops (health sensors, config backup/restore, update entities), hardware
+variants (capability flags) and reliability (MQTT hygiene, OTA rollback
+safety). Shipped incrementally; each item is only checked when it compiles and
+is verified on the live panel.
+
+- [x] F1: screensaver engine (clock/blank/dim, idle timeout, tap-to-dismiss)
+- [x] F2: idle auto-return to the dashboard from firmware pages
+- [x] F3: scheduled dashboard reload (`dashboard_reload_minutes`)
+- [x] F4: day/night brightness curve (window + two levels, manual override safe)
+- [x] F5: TTS `speak`, `notify:toast`, camera/doorbell overlay (`camera:show`)
+- [x] F6: dashboard `navigate` / `refresh` / `return` remote commands
+- [x] F7: kiosk + screensaver state publishing (dashboard/firmware/pin/camera)
+- [x] F8: health sensors (Wi-Fi RSSI, free storage %, free RAM %)
+- [x] F9: Zigbee permit-join countdown + device-count state
+- [x] F10: HA `update` entities (Nexus app + system image) with install action
+- [x] F11: HA `notify` entity + services `speak`/`toast`/`show_camera`/`navigate`/`refresh_dashboard`/`show_screensaver`/`hide_screensaver`
+- [x] F12: config backup/restore services (`get_config`, `restore_config`) with secrets masked
+- [x] F13: panel capability flags published (`capabilities`) for hardware variants
+- [x] F14: sidebar Info popup shows dashboard/screensaver/RSSI/storage + Speak/Refresh controls
+- [x] F15: docs, version bump, release with signed APK, installed + verified on panel
+
+**Verified live on the panel (2026-11-13, app 0.4.69 / system image 1.0.0):**
+`state/kiosk` dashboard→screensaver→dashboard (forced + idle timeout + tap-to-dismiss),
+dashboard→firmware→dashboard on `auto_return_seconds=10`, WebView reload at
+`dashboard_reload_minutes=1`, `day_night` switching to `night` with
+`brightness=80` inside a test window, `state/zigbee` published
+(role coordinator, permit_join 0), `state/capabilities`, `state/wifi|storage|ram`,
+TTS engine `eng_GBR` with `speak result=0`, toast shown, camera overlay state
+`camera:true`→false, and `app_available=0.4.69` after the GitHub release.
+Sidebar UI verified with the headless Chromium harness (Info rows + Kiosk
+behaviour fields, no console/page errors).
+
+Remaining program items deferred to the next batch (still open):
+- Voice wake word on device (needs a wake-word model + audio pipeline work).
+- Full Zigbee device list UI (depends on the panel-local zgateway topic set).
+- Gen2 hardware profiles (no Gen2 unit available to verify against).
+- OTA automatic rollback trigger (backup image is written; restore is manual).
+
 ## 3. Rules for development
 
 1. **Write in this ledger FIRST** before starting any task
@@ -549,6 +593,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | 32 | 2026-11-13 | Verified: firmware OTA module already present (checkForUpdate + sha256 + dd + reboot) and wired to MQTT firmware:check/install + sidebar 'Check firmware' button; no ADB needed in production | v0.4.58 |
 | 33 | 2026-11-13 | HA sidebar lost connection: root cause was a dropped retained status (no re-publish); fixed with status=online on every connectComplete + 60s keepalive watchdog; verified live (status online after restart, stays online) | v0.4.59 |
 | 34 | 2026-11-13 | Settings wiped: root cause was empty-string patches from sidebar Save + Settings.patch blindly putting them; guarded both sides; verified settings intact after update | v0.4.61 |
+| 35 | 2026-11-13 | Ecosystem program (F1–F15). Live-found defect: activity bound dashboard callbacks before the service registered modules, so screensaver/camera/TTS/toast/navigate/refresh commands were dropped; binding retries + rebinds onResume, kiosk/day-night state self-heal, disabling the screensaver now hides it. Verified on-panel: kiosk transitions, auto-return, scheduled reload, day/night brightness, zigbee/wifi/storage/ram state, TTS SUCCESS, camera overlay, app_available=0.4.69 | v0.4.69 |
 
 ---
 
@@ -642,6 +687,7 @@ Fix list for this pass (verify each, no dirty fixes):
 | v0.4.58 | 2026-11-13 | OTA exposed in Setup; sidebar Check firmware already wired |
 | v0.4.59 | 2026-11-13 | MQTT keepalive: status re-published on connect + every 60s (fixes silent offline) |
 | v0.4.61 | 2026-11-13 | Settings wipe guard (panel + sidebar) |
+| v0.4.69 | 2026-11-13 | Ecosystem program: screensaver, auto-return, reload, day/night, TTS/toast/camera, navigate/refresh, kiosk+health+zigbee state, capabilities, HA update/notify entities, 12 services, config backup/restore (live-verified) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to

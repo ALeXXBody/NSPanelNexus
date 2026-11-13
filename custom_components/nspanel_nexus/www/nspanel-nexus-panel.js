@@ -156,7 +156,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.68";
+      return v || "v0.4.69";
     }
 
     connectedCallback() {
@@ -275,12 +275,22 @@
         });
       } catch (_) { regByUid = null; }
       const wantUid = (obj) => "nexus_" + dev + "_" + obj;
-      ["mqtt_host","mqtt_user","mqtt_pass","topic_prefix","ha_topic_prefix","ha_url","ha_token","dashboard_url","remote_desktop_token","nexus_manifest_url","zigbee_topic_base","screen_on_weekday_begin","screen_on_weekday_end","screen_on_weekend_begin","screen_on_weekend_end"].forEach((k) => {
+      ["mqtt_host","mqtt_user","mqtt_pass","topic_prefix","ha_topic_prefix","ha_url","ha_token","dashboard_url","remote_desktop_token","nexus_manifest_url","zigbee_topic_base","screen_on_weekday_begin","screen_on_weekday_end","screen_on_weekend_begin","screen_on_weekend_end","night_start","night_end"].forEach((k) => {
         candidates["cfg_" + k] = ["text", k, "config_" + k];
       });
-      ["mqtt_port","remote_desktop_port","light_below","light_above","proximity_delta","brightness_on_light_below","brightness_on_light_above"].forEach((k) => {
+      ["mqtt_port","remote_desktop_port","light_below","light_above","proximity_delta","brightness_on_light_below","brightness_on_light_above","brightness_day","brightness_night","screensaver_timeout","screensaver_brightness","auto_return_seconds","dashboard_reload_minutes"].forEach((k) => {
         candidates["cfg_" + k] = ["number", k, "config_" + k];
       });
+      candidates["cfg_screensaver_mode"] = ["select", "screensaver_mode", "config_screensaver_mode"];
+      candidates["cfg_screensaver_enabled"] = ["switch", "screensaver_enabled", "config_screensaver_enabled"];
+      // ---- kiosk / health state ----------------------------------------
+      candidates["kiosk"] = ["sensor", "kiosk", "sensor_kiosk"];
+      candidates["screensaver"] = ["sensor", "screensaver", "sensor_screensaver"];
+      candidates["day_night"] = ["sensor", "day_night", "sensor_day_night"];
+      candidates["wifi"] = ["sensor", "wifi", "sensor_wifi"];
+      candidates["storage"] = ["sensor", "storage", "sensor_storage"];
+      candidates["ram"] = ["sensor", "ram", "sensor_ram"];
+      candidates["zigbee"] = ["sensor", "zigbee", "sensor_zigbee"];
       Object.keys(candidates).forEach((key) => {
         const [domain, suffix, obj] = candidates[key];
         let eid = null;
@@ -549,6 +559,13 @@
         const lux = cur("illuminance"); const ip = cur("ip_address");
         const probe = cur("uptime") || ip;
         const appVer = firmware && firmware.attributes && firmware.attributes.app_version;
+        const kiosk = cur("kiosk"); const screensaver = cur("screensaver");
+        const dayNight = cur("day_night"); const wifi = cur("wifi");
+        const storage = cur("storage"); const ram = cur("ram");
+        const zigbee = cur("zigbee");
+        const pct = (s) => (s && s.state && s.state !== "unknown" && s.state !== "unavailable") ? this._esc(s.state) + "%" : "—";
+        const val = (s) => (s && s.state && s.state !== "unknown" && s.state !== "unavailable") ? this._esc(s.state) : "—";
+        const ssOn = screensaver && screensaver.state && screensaver.state !== "off";
         body.innerHTML = `
           <div class="setgrid cols3">
             <div class="field"><div class="lbl">IP</div><div class="statval">${ip ? this._esc(ip.state) : "—"}</div></div>
@@ -558,12 +575,27 @@
             <div class="field"><div class="lbl">Remote desktop</div><div class="statval">${rdp ? rdp.state : "—"}</div></div>
             <div class="field"><div class="lbl">Nexus app</div><div class="statval">${appVer ? "v" + this._esc(appVer) : "—"}</div></div>
             <div class="field"><div class="lbl">System image</div><div class="statval">${firmware ? this._esc(firmware.state) : "—"}</div></div>
+            <div class="field"><div class="lbl">Kiosk</div><div class="statval">${val(kiosk)}</div></div>
+            <div class="field"><div class="lbl">Screensaver</div><div class="statval">${val(screensaver)}</div></div>
+            <div class="field"><div class="lbl">Day / night</div><div class="statval">${val(dayNight)}</div></div>
+            <div class="field"><div class="lbl">Wi-Fi</div><div class="statval">${wifi && wifi.state ? this._esc(wifi.state) + " dBm" : "—"}</div></div>
+            <div class="field"><div class="lbl">Storage free</div><div class="statval">${pct(storage)}</div></div>
+            <div class="field"><div class="lbl">RAM free</div><div class="statval">${pct(ram)}</div></div>
+            <div class="field"><div class="lbl">Zigbee join</div><div class="statval">${zigbee && zigbee.state && Number(zigbee.state) > 0 ? this._esc(zigbee.state) + " s" : "closed"}</div></div>
           </div>
           <div class="field"><div class="lbl">Brightness</div>
             <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br2 title="brightness" style="max-width:220px">
           </div>
+          <div class="field"><div class="lbl">Speak on panel</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input class="txt" data-speak type="text" placeholder="Text to speak" style="flex:1">
+              <button class="btn primary" data-act="speak">Speak</button>
+            </div>
+          </div>
           <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px">
             <button class="btn primary" data-act="wake">${screen && screen.state === "on" ? "Sleep" : "Wake"}</button>
+            <button class="btn" data-act="refresh">Refresh dashboard</button>
+            <button class="btn" data-act="ssToggle">${ssOn ? "Hide screensaver" : "Show screensaver"}</button>
             <button class="btn" data-act="fwcheck">Check firmware</button>
             <button class="btn" data-act="reboot2">Reboot</button>
             <button class="btn" data-act="unlink" style="opacity:.7">Unlink</button>
@@ -573,6 +605,24 @@
             const turningOff = screen && screen.state === "on";
             wake.textContent = turningOff ? "Wake" : "Sleep";
             if (ents["screen"]) h.callService("switch", turningOff ? "turn_off" : "turn_on", { entity_id: ents["screen"] }).catch(e => alert(e && e.message || e));
+            setTimeout(() => this._schedule(true), 1000);
+          };
+          const sp = body.querySelector("[data-act=speak]");
+          const spIn = body.querySelector("[data-speak]");
+          if (sp) sp.onclick = () => {
+            const v = spIn ? spIn.value.trim() : "";
+            if (!v) return;
+            h.callService("nspanel_nexus", "speak", { device_name: devSafe, message: v })
+              .then(() => { if (spIn) spIn.value = ""; })
+              .catch(e => alert(e && e.message || e));
+          };
+          const rf = body.querySelector("[data-act=refresh]");
+          if (rf) rf.onclick = () => h.callService("nspanel_nexus", "refresh_dashboard", { device_name: devSafe }).catch(e => alert(e && e.message || e));
+          const ss = body.querySelector("[data-act=ssToggle]");
+          if (ss) ss.onclick = () => {
+            const on = ss.textContent === "Hide screensaver";
+            h.callService("nspanel_nexus", on ? "hide_screensaver" : "show_screensaver", { device_name: devSafe })
+              .catch(e => alert(e && e.message || e));
             setTimeout(() => this._schedule(true), 1000);
           };
           const br2 = body.querySelector("[data-br2]");
@@ -767,6 +817,8 @@
         ["screen_on_weekday_end", "Weekday until", "text"],
         ["screen_on_weekend_begin", "Weekend from", "text"],
         ["screen_on_weekend_end", "Weekend until", "text"],
+        ["night_start", "Night from", "text"],
+        ["night_end", "Night until", "text"],
       ];
     }
 
@@ -779,6 +831,12 @@
         ["proximity_delta", "Proximity \u0394", 0, 1000, 1],
         ["brightness_on_light_below", "Brightness dark", -1, 255, 1],
         ["brightness_on_light_above", "Brightness bright", -1, 255, 1],
+        ["brightness_day", "Day brightness", -1, 255, 1],
+        ["brightness_night", "Night brightness", -1, 255, 1],
+        ["screensaver_timeout", "Screensaver after (s)", 5, 3600, 5],
+        ["screensaver_brightness", "Screensaver brightness", 0, 255, 1],
+        ["auto_return_seconds", "Return to dashboard (s)", 0, 3600, 5],
+        ["dashboard_reload_minutes", "Reload dashboard (min)", 0, 1440, 5],
       ];
     }
 
@@ -907,6 +965,26 @@
           mods += `<div class="about" style="grid-column:1/-1;font-size:10px;opacity:.55">Modules apply immediately. No MQTT switch — it would silence the panel.</div>`;
           html += acc(5, "Modules", `<div class="modgrid">${mods}</div>`, true);
         }
+        {
+          const sel = (key, label, options) => {
+            const kn = knownOf(key);
+            const stale = !kn.live && kn.v !== "";
+            return `<div class="field"><div class="lbl">${label}${stale ? ' <span class="stale-tag" title="Last known value — panel may be offline">•</span>' : ""}</div>` +
+              `<select class="${stale ? "stale" : ""}" data-cfg="${key}" data-kind="select">` +
+              options.map((o) => `<option value="${o}"${kn.v === o ? " selected" : ""}>${o}</option>`).join("") +
+              `</select></div>`;
+          };
+          const numByKey2 = Object.fromEntries(this._numFields.map((f) => [f[0], f]));
+          html += acc(6, "Kiosk behaviour", grid2(
+            sel("screensaver_enabled", "Screensaver", ["off", "on"]) +
+            sel("screensaver_mode", "Screensaver mode", ["clock", "blank", "dim"]) +
+            tfield("night_start") + tfield("night_end") +
+            ["screensaver_timeout", "screensaver_brightness", "auto_return_seconds",
+             "dashboard_reload_minutes", "brightness_day", "brightness_night"]
+              .map((k) => nfield(numByKey2[k])).join("") +
+            `<div class="about" style="grid-column:1/-1;font-size:10px;opacity:.55">Screensaver needs Screensaver = on. Day/night brightness -1 = leave alone.</div>`
+          ), false);
+        }
         html += `<div class="savebar">
           <button class="btn" data-act="load">Load</button>
           <button class="btn primary" data-act="save">Save</button>
@@ -986,7 +1064,7 @@
               patch[key] = Number(el.value);
             } else if (kind === "select") {
               if (curVal != null && curVal !== "" && el.value === curVal) return;
-              patch[key] = el.value;
+              patch[key] = key === "screensaver_enabled" ? (el.value === "on") : el.value;
             } else {
               if (el.type === "password") { if (!el.value) return; }
               else if (curVal != null && el.value === curVal) return;

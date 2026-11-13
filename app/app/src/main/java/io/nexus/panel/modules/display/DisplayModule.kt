@@ -89,6 +89,7 @@ class DisplayModule : Module {
                             sleep()
                         }
                     }
+                    applyDayNight(now)
                 } catch (_: Exception) {}
                 scheduler.postDelayed(this, 30_000)
             }
@@ -148,6 +149,46 @@ class DisplayModule : Module {
         }
     }
 
+    /** Current backlight value (0–255) — used by the screensaver to restore it. */
+    fun brightnessValue(): Int = currentBrightness()
+
+    /** Force the next day/night tick to re-apply (settings changed remotely). */
+    fun refreshDayNight() {
+        lastPeriod = null
+        lastPublishedPeriod = null
+    }
+
+    // ---- day/night brightness curve -------------------------------------
+
+    @Volatile private var lastPeriod: String? = null
+    @Volatile private var lastPublishedPeriod: String? = null
+
+    /**
+     * Apply `brightness_night` inside the night window and `brightness_day`
+     * outside it. Applied only when the period changes, so a manual slider
+     * move from HA is never fought by the loop.
+     */
+    private fun applyDayNight(now: java.util.Calendar) {
+        val day = Settings.getInt("brightness_day", -1)
+        val night = Settings.getInt("brightness_night", -1)
+        val isNight = inWindow(now, Settings.get("night_start", "22:00"),
+            Settings.get("night_end", "07:00"))
+        val period = if (isNight) "night" else "day"
+        val target = if (isNight) night else day
+        if (period != lastPeriod) {
+            lastPeriod = period
+            if (target >= 0) setBrightness(target)
+        }
+        // Publish the period separately: the first tick often runs before MQTT
+        // is up, so the state message would otherwise be lost until a change.
+        if (period == lastPublishedPeriod || mqtt == null) return
+        try {
+            mqtt?.state("day_night", JSONObject().put("period", period)
+                .put("brightness", if (target >= 0) target else currentBrightness()))
+            lastPublishedPeriod = period
+        } catch (_: Exception) {}
+    }
+
     // ---- schedules -----------------------------------------------------
 
     fun inScreenOnWindow(now: java.util.Calendar): Boolean {
@@ -157,11 +198,17 @@ class DisplayModule : Module {
         val begin = Settings.get("${prefix}_begin", "00:00")
         val end = Settings.get("${prefix}_end", "00:00")
         if (begin == "00:00" && end == "00:00") return true
+        return inWindow(now, begin, end)
+    }
+
+    /** Minutes-of-day containment that handles windows crossing midnight. */
+    private fun inWindow(now: java.util.Calendar, begin: String, end: String): Boolean {
         val minute = now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
         val b = begin.split(":").map { it.toIntOrNull() ?: 0 }.takeIf { it.size == 2 }
             ?.let { it[0] * 60 + it[1] } ?: 0
         val e = end.split(":").map { it.toIntOrNull() ?: 0 }.takeIf { it.size == 2 }
             ?.let { it[0] * 60 + it[1] } ?: 0
+        if (b == e) return false
         return if (b <= e) minute in b..e else minute >= b || minute <= e
     }
 }

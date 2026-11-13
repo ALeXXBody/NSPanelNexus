@@ -94,6 +94,20 @@ object Settings {
 
     val haToken: String get() = get("ha_token", "")
 
+    // ---- kiosk behaviour -------------------------------------------------
+
+    /** Screensaver after `screensaver_timeout` seconds without a touch. */
+    val screensaverEnabled: Boolean get() = getBool("screensaver_enabled", false)
+    val screensaverTimeout: Int get() = getInt("screensaver_timeout", 60).coerceIn(5, 3600)
+    val screensaverMode: String get() = get("screensaver_mode", "clock")
+    val screensaverBrightness: Int get() = getInt("screensaver_brightness", 0)
+
+    /** Return to the dashboard after this many idle seconds on firmware pages (0 = off). */
+    val autoReturnSeconds: Int get() = getInt("auto_return_seconds", 0).coerceIn(0, 3600)
+
+    /** Reload the dashboard every N minutes (0 = never) — recovers a hung HA frontend. */
+    val dashboardReloadMinutes: Int get() = getInt("dashboard_reload_minutes", 0).coerceIn(0, 1440)
+
     /**
      * Topic-safe identifier derived from the device name: spaces and special
      * characters break some MQTT brokers (and HA entity ids), so the MQTT

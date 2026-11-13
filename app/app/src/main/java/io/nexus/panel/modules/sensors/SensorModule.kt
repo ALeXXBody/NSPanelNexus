@@ -46,20 +46,27 @@ class SensorModule : Module, SensorEventListener {
 
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
 
+    @Volatile private var appCtx: Context? = null
+    @Volatile private var healthThread: Thread? = null
+
     override fun status(): String =
         "prox=%.0f lux=%.0f baseline=%.0f".format(lastProx, lastLux, baseline)
 
     override fun start(context: Context) {
+        appCtx = context.applicationContext
         sm = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         proxSensor = sm?.getDefaultSensor(Sensor.TYPE_PROXIMITY)
         lightSensor = sm?.getDefaultSensor(Sensor.TYPE_LIGHT)
         proxSensor?.let { sm?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
         lightSensor?.let { sm?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        startHealth()
     }
 
     override fun stop() {
         sm?.unregisterListener(this)
         sm = null
+        healthThread?.interrupt()
+        healthThread = null
     }
 
     override fun onSensorChanged(event: SensorEvent) {
@@ -135,6 +142,57 @@ class SensorModule : Module, SensorEventListener {
 
     private var lastLuxKind = ""
     private var lastLuxPublish = 0L
+
+    // ---- panel health ---------------------------------------------------
+
+    /**
+     * Wi-Fi signal, free storage and free RAM every 60 s. These drive the HA
+     * diagnostic sensors, so a failing panel shows up before it drops off.
+     */
+    private fun startHealth() {
+        if (healthThread != null) return
+        healthThread = Thread {
+            // let MQTT connect on boot before the first burst
+            try { Thread.sleep(6000) } catch (_: InterruptedException) { return@Thread }
+            while (true) {
+                try { publishHealth() } catch (_: Exception) {}
+                try { Thread.sleep(60_000) } catch (_: InterruptedException) { break }
+            }
+        }.apply { isDaemon = true; start() }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun publishHealth() {
+        val m = mqtt ?: return
+        val ctx = appCtx ?: return
+        try {
+            val wm = ctx.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+            val info = wm.connectionInfo
+            val rssi = info?.rssi ?: 0
+            if (rssi != 0) {
+                m.state("wifi", JSONObject().put("rssi", rssi)
+                    .put("ssid", (info.ssid ?: "").trim('"')))
+            }
+        } catch (_: Exception) {}
+        try {
+            val st = android.os.StatFs(android.os.Environment.getDataDirectory().absolutePath)
+            val free = st.availableBytes / (1024 * 1024)
+            val total = st.totalBytes / (1024 * 1024)
+            m.state("storage", JSONObject().put("free", free).put("total", total)
+                .put("free_pct", round1(if (total > 0) 100.0 * free / total else 0.0)))
+        } catch (_: Exception) {}
+        try {
+            val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val mi = android.app.ActivityManager.MemoryInfo()
+            am.getMemoryInfo(mi)
+            val free = mi.availMem / (1024 * 1024)
+            val total = mi.totalMem / (1024 * 1024)
+            m.state("ram", JSONObject().put("free", free).put("total", total)
+                .put("free_pct", round1(if (total > 0) 100.0 * free / total else 0.0)))
+        } catch (_: Exception) {}
+    }
+
+    private fun round1(v: Double): Double = Math.round(v * 10.0) / 10.0
 
     /** Hook for the display module: "someone walked up, wake the screen". */
     var onProximity: (() -> Unit)? = null

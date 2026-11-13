@@ -1,6 +1,7 @@
 """MQTT link to one NSPanel Nexus panel."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import Callable
@@ -25,6 +26,9 @@ class PanelLink:
         self.available = True
         self._listeners: set[Callable[[], None]] = set()
         self._unsubs: list[Callable[[], None]] = []
+        # last known config (secrets already masked by the panel)
+        self.config: dict[str, Any] = {}
+        self._config_waiters: list[asyncio.Event] = []
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -48,6 +52,10 @@ class PanelLink:
         self._unsubs.append(
             await self.mqtt.async_subscribe(self.hass, f"{self.base}/status", self._on_status, 0)
         )
+        # config answers (retained, so this also primes `async_get_config`)
+        self._unsubs.append(
+            await self.async_subscribe_config(self._on_config, 0)
+        )
 
     async def async_stop(self) -> None:
         for unsub in self._unsubs:
@@ -66,6 +74,43 @@ class PanelLink:
     def register_listener(self, listener: Callable[[], None]) -> Callable[[], None]:
         self._listeners.add(listener)
         return lambda: self._listeners.discard(listener)
+
+    # ---- config cache ----------------------------------------------------
+
+    @callback
+    def _on_config(self, msg) -> None:
+        """Merge a config answer (full object or patch) and wake waiters."""
+        payload = self.parse_json(msg.payload)
+        if not isinstance(payload, dict):
+            return
+        # The panel answers config/query with either {"config": {...}} or a
+        # bare object depending on the app version — accept both.
+        inner = payload.get("config")
+        if isinstance(inner, dict):
+            payload = inner
+        self.config.update(payload)
+        waiters, self._config_waiters = self._config_waiters, []
+        for event in waiters:
+            event.set()
+
+    async def async_get_config(self, timeout: float = 5.0) -> dict[str, Any]:
+        """Return the last known config, asking the panel once if we have none."""
+        if self.config:
+            return dict(self.config)
+        event = asyncio.Event()
+        self._config_waiters.append(event)
+        try:
+            await self.async_config_query()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("config query failed for %s", self.device_name)
+        try:
+            await asyncio.wait_for(event.wait(), timeout)
+        except TimeoutError:
+            _LOGGER.debug("config answer timed out for %s", self.device_name)
+        finally:
+            if event in self._config_waiters:
+                self._config_waiters.remove(event)
+        return dict(self.config)
 
     # ---- subscriptions ---------------------------------------------------
 

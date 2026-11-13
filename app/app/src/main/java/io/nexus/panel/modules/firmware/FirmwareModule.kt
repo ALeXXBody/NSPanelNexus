@@ -33,6 +33,27 @@ class FirmwareModule : Module {
     private val mqtt get() = ModuleManager.get("mqtt") as? MqttModule
     @Volatile private var appCtx: Context? = null
 
+    /** Merged firmware state: several sources write this key, so keep one copy. */
+    private val fwState = JSONObject()
+
+    private fun publishState(patch: JSONObject) {
+        synchronized(fwState) {
+            try {
+                val keys = patch.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    fwState.put(k, patch.get(k))
+                }
+                mqtt?.state("firmware", JSONObject(fwState.toString()))
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun publishState(build: JSONObject.() -> Unit) {
+        val patch = JSONObject().apply(build)
+        publishState(patch)
+    }
+
     private fun toast(msg: String) {
         try {
             val c = appCtx ?: return
@@ -56,10 +77,29 @@ class FirmwareModule : Module {
         Thread {
             Thread.sleep(5000)
             android.util.Log.d("FirmwareModule", "publishing firmware state: $ver (app $appVer), client connected=${m.status()}")
-            try { m.state("firmware", JSONObject().put("current", ver).put("app", appVer)); android.util.Log.d("FirmwareModule", "state published") } catch (e: Exception) { android.util.Log.e("FirmwareModule", "state publish failed", e) }
+            try {
+                publishState(JSONObject().put("current", ver).put("app", appVer))
+                android.util.Log.d("FirmwareModule", "state published")
+            } catch (e: Exception) { android.util.Log.e("FirmwareModule", "state publish failed", e) }
+            publishCapabilities()
         }.apply { isDaemon = true }.start()
         m.onCommand["firmware:check"] = { _ -> checkForUpdate() }
         m.onCommand["firmware:install"] = { _ -> installPending() }
+        m.onCommand["app:update"] = { _ -> installLatestApp() }
+        m.onCommand["app:check"] = { _ -> checkAppUpdateAndPublish() }
+        m.onCommand["update:check"] = { _ -> checkEverything() }
+    }
+
+    /** Ask both channels for their latest versions and publish the answers. */
+    fun checkEverything() {
+        checkAppUpdateAndPublish()
+        checkForUpdate()
+    }
+
+    fun checkAppUpdateAndPublish() {
+        checkForAppUpdate { cur, latest, _ ->
+            publishState(JSONObject().put("app", cur).put("app_available", latest))
+        }
     }
 
     override fun stop() {}
@@ -122,7 +162,7 @@ class FirmwareModule : Module {
                 val size = manifest.optLong("size")
                 val sha = manifest.optString("sha256")
                 val appVer = try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }
-                mqtt?.state("firmware", JSONObject()
+                publishState(JSONObject()
                     .put("current", currentFirmwareVersion())
                     .put("app", appVer)
                     .put("available", version))
@@ -138,7 +178,7 @@ class FirmwareModule : Module {
                 toast("Firmware check failed: ${e.message ?: "unknown error"}")
                 try {
                     val appVer2 = try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }
-                    mqtt?.state("firmware", JSONObject()
+                    publishState(JSONObject()
                         .put("current", currentFirmwareVersion())
                         .put("app", appVer2)
                         .put("error", e.message ?: "unknown"))
@@ -150,6 +190,82 @@ class FirmwareModule : Module {
     fun installPending() { checkForUpdate() }
 
     // ---- Nexus app (APK) update check ---------------------------------
+
+    /**
+     * Capability flags so HA knows what this hardware can actually do
+     * (Gen1/Gen2, sensors present, OTA channels). Published once at start.
+     */
+    private fun publishCapabilities() {
+        try {
+            val c = appCtx ?: return
+            val sm = c.getSystemService(Context.SENSOR_SERVICE) as android.hardware.SensorManager
+            val dm = c.resources.displayMetrics
+            val caps = JSONObject()
+                .put("model", android.os.Build.MODEL ?: "unknown")
+                .put("device", android.os.Build.DEVICE ?: "unknown")
+                .put("android", android.os.Build.VERSION.RELEASE ?: "?")
+                .put("sdk", android.os.Build.VERSION.SDK_INT)
+                .put("width", dm.widthPixels)
+                .put("height", dm.heightPixels)
+                .put("density", dm.density)
+                .put("proximity", sm.getDefaultSensor(android.hardware.Sensor.TYPE_PROXIMITY) != null)
+                .put("light", sm.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT) != null)
+                .put("zigbee", File("/vendor/bin/siliconlabs_host").exists() || isNexusFirmware())
+                .put("remote_desktop", true)
+                .put("screensaver", true)
+                .put("camera_popup", true)
+                .put("ota_app", true)
+                .put("ota_system", !currentFirmwareVersion().startsWith("stock"))
+            mqtt?.state("capabilities", caps)
+        } catch (_: Exception) {}
+    }
+
+    /** Check GitHub for a newer app and install it (system installer confirms). */
+    fun installLatestApp() {
+        checkForAppUpdate { cur, latest, url ->
+            when {
+                latest.isBlank() -> toast("App update check failed")
+                latest == cur -> toast("Nexus app is up to date ($cur)")
+                url == null -> toast("Update $latest exists but the release has no APK attached")
+                else -> {
+                    toast("Downloading Nexus app $latest…")
+                    installApk(url)
+                }
+            }
+        }
+    }
+
+    /** Download an APK and hand it to the system installer. */
+    fun installApk(url: String) {
+        val c = appCtx ?: return
+        Thread {
+            try {
+                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 15000
+                conn.readTimeout = 120000
+                val tmp = File(c.cacheDir, "nexus-update.apk")
+                conn.inputStream.use { input ->
+                    tmp.outputStream().use { out -> input.copyTo(out) }
+                }
+                conn.disconnect()
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    val uri = try {
+                        androidx.core.content.FileProvider.getUriForFile(
+                            c, c.packageName + ".fileprovider", tmp)
+                    } catch (_: Exception) {
+                        android.net.Uri.fromFile(tmp)
+                    }
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW)
+                    intent.setDataAndType(uri, "application/vnd.android.package-archive")
+                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    try { c.startActivity(intent) } catch (_: Exception) {}
+                }
+            } catch (e: Exception) {
+                toast("App download failed: ${e.message ?: "unknown"}")
+            }
+        }.apply { isDaemon = true }.start()
+    }
 
     /** Check GitHub releases for a newer Nexus app version. */
     fun checkForAppUpdate(onResult: (current: String, latest: String, downloadUrl: String?) -> Unit) {

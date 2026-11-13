@@ -81,6 +81,16 @@ CONFIG_NUMBERS: list[tuple[str, str, float, float, float, str | None, str | None
     ("brightness_on_light_above", "Brightness when bright", -1, 255, 1, "mdi:brightness-5", None),
 ]
 
+# Kiosk behaviour settings (added in the ecosystem program).
+KIOSK_NUMBERS: list[tuple[str, str, float, float, float, str | None, str | None]] = [
+    ("brightness_day", "Day brightness", -1, 255, 1, "mdi:white-balance-sunny", None),
+    ("brightness_night", "Night brightness", -1, 255, 1, "mdi:weather-night", None),
+    ("screensaver_timeout", "Screensaver after", 5, 3600, 5, "mdi:timer-sand", "s"),
+    ("screensaver_brightness", "Screensaver brightness", 0, 255, 1, "mdi:brightness-3", None),
+    ("auto_return_seconds", "Return to dashboard after", 0, 3600, 5, "mdi:undo-variant", "s"),
+    ("dashboard_reload_minutes", "Reload dashboard every", 0, 1440, 5, "mdi:refresh", "min"),
+]
+
 
 class NexusConfigNumber(NumberEntity, NexusEntity):
     """One firmware numeric setting, synced via the panel's config topic."""
@@ -136,7 +146,7 @@ async def async_setup_entry(hass, entry, async_add_entities) -> None:
     async_add_entities(
         [NexusBrightness(link)] + [
             NexusConfigNumber(link, key, name, lo, hi, step, icon, unit)
-            for key, name, lo, hi, step, icon, unit in CONFIG_NUMBERS
+            for key, name, lo, hi, step, icon, unit in CONFIG_NUMBERS + KIOSK_NUMBERS
         ],
         False,
     )

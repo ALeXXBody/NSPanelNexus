@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.speech.tts.TextToSpeech
 import android.view.Gravity
 import android.content.Context
 import android.content.res.Configuration
@@ -55,10 +58,57 @@ class MainActivity : FragmentActivity() {
     private var pendingInject = false
     private var lastInjectUrl: String? = null
     private var firmwareShown = false
+
+    // ---- kiosk overlays: screensaver, camera/doorbell, TTS ----------------
+    private var screensaverView: FrameLayout? = null
+    private var screensaverClockCol: LinearLayout? = null
+    private var screensaverClock: TextView? = null
+    private var screensaverDate: TextView? = null
+    private var screensaverVisible = false
+    private var screensaverForced = false
+    private var screensaverMode = "clock"
+    private var cameraView: FrameLayout? = null
+    private var cameraWeb: WebView? = null
+    private var cameraTitle: TextView? = null
+    private var cameraHideAt = 0L
+    private var tts: TextToSpeech? = null
+    private var ttsPending: String? = null
+    private var brightnessBeforeScreensaver = -1
+
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private var lastInteraction = System.currentTimeMillis()
+    private var lastReloadAt = System.currentTimeMillis()
+    private var lastClockText = ""
     companion object { @Volatile var instance: MainActivity? = null }
 
-    private fun applyImmersive(hide: Boolean) {
-        try {
+    /**
+     * Wire the Dashboard module's callbacks to this activity. Safe to call more
+     * than once: the service registers modules asynchronously, so the first
+     * call in onCreate usually races it.
+     */
+    private fun bindDashboardModule() {
+        val mod = ModuleManager.get("dashboard") as? DashboardModule ?: return
+        mod.onUrlChanged = { runOnUiThread { loadDashboard(it) } }
+        mod.onWake = { runOnUiThread { loadDashboard(Settings.dashboardUrl) } }
+        mod.onRefresh = { runOnUiThread { reloadDashboard() } }
+        mod.onNavigate = { path -> runOnUiThread { navigateDashboard(path) } }
+        mod.onScreensaverShow = { mode -> runOnUiThread { showScreensaver(mode, true) } }
+        mod.onScreensaverHide = { runOnUiThread { hideScreensaver() } }
+        mod.onCameraShow = { url, title, secs ->
+            runOnUiThread { showCamera(url, title, secs) }
+        }
+        mod.onCameraHide = { runOnUiThread { hideCamera() } }
+        mod.onSpeak = { text -> runOnUiThread { speak(text) } }
+        mod.onToast = { text -> runOnUiThread { toastOnUi(text) } }
+        publishKiosk()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        bindDashboardModule()
+    }
+
+    private fun applyImmersive(hide: Boolean) {        try {
             val decor = window.decorView
             if (hide) {
                 decor.systemUiVisibility = (
@@ -204,15 +254,45 @@ class MainActivity : FragmentActivity() {
         root.addView(loginView, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        // let the Dashboard module drive this view
-        (ModuleManager.get("dashboard") as? DashboardModule)?.let { mod ->
-            mod.onUrlChanged = { runOnUiThread { loadDashboard(it) } }
-            mod.onWake = { runOnUiThread { loadDashboard(Settings.dashboardUrl) } }
-        }
+        // screensaver goes above the login overlay (it is the kiosk idle state)
+        screensaverView = buildScreensaver()
+        root.addView(screensaverView, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+        // camera / doorbell popup is the topmost kiosk overlay
+        cameraView = buildCameraOverlay()
+        root.addView(cameraView, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+        initTts()
+
+        // let the Dashboard module drive this view. The foreground service
+        // registers modules asynchronously, so it may not exist yet: bind now
+        // and retry briefly (onResume also rebinds).
+        bindDashboardModule()
+        uiHandler.post(object : Runnable {
+            private var tries = 0
+            override fun run() {
+                if (ModuleManager.get("dashboard") == null && tries++ < 20) {
+                    uiHandler.postDelayed(this, 250)
+                } else {
+                    bindDashboardModule()
+                }
+            }
+        })
 
         if (savedInstanceState == null) showPage(0)
         // after setup: show the dashboard if one is configured
         if (Settings.dashboardUrl.isNotBlank()) loadDashboard(Settings.dashboardUrl)
+
+        // one ticker drives every idle behaviour (screensaver, auto-return,
+        // scheduled reload, camera timeout) so they cannot fight each other
+        uiHandler.post(object : Runnable {
+            override fun run() {
+                try { tick() } catch (_: Exception) {}
+                uiHandler.postDelayed(this, 1000)
+            }
+        })
     }
 
     private fun buildPages(container: LinearLayout) {
@@ -247,11 +327,301 @@ class MainActivity : FragmentActivity() {
     private fun showPage(index: Int) {
         pagesContainer.visibility = View.VISIBLE
         titleRow?.visibility = View.VISIBLE
+        firmwareShown = true
         val (label, factory) = pages[index]
         titleBar?.text = "NSPanel Nexus — $label"
         supportFragmentManager.beginTransaction()
             .replace(R.id.content, factory() as Fragment)
             .commit()
+        publishKiosk()
+    }
+
+    // ---- kiosk idle behaviour: screensaver, auto-return, reload ------------
+
+    private fun buildScreensaver(): FrameLayout {
+        val f = FrameLayout(this).apply {
+            setBackgroundColor(0xFF000000.toInt())
+            visibility = View.GONE
+            isClickable = true
+        }
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+        }
+        screensaverClock = TextView(this).apply {
+            setTextColor(0xFFF0F4F8.toInt())
+            textSize = 64f
+            typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+            gravity = Gravity.CENTER
+        }
+        screensaverDate = TextView(this).apply {
+            setTextColor(0xFF8A93A0.toInt())
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(10), 0, 0)
+        }
+        col.addView(screensaverClock)
+        col.addView(screensaverDate)
+        screensaverClockCol = col
+        f.addView(col, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.CENTER))
+        return f
+    }
+
+    private fun buildCameraOverlay(): FrameLayout {
+        val f = FrameLayout(this).apply {
+            setBackgroundColor(0xFF000000.toInt())
+            visibility = View.GONE
+        }
+        val wv = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            setBackgroundColor(0xFF000000.toInt())
+        }
+        cameraWeb = wv
+        f.addView(wv, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(0x99000000.toInt())
+            setPadding(dp(14), dp(8), dp(10), dp(8))
+        }
+        cameraTitle = TextView(this).apply {
+            setTextColor(0xFFF0F4F8.toInt())
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        head.addView(cameraTitle, LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        head.addView(TextView(this).apply {
+            text = "✕"
+            setTextColor(0xFFF0F4F8.toInt())
+            textSize = 24f
+            setPadding(dp(16), 0, dp(8), 0)
+            setOnClickListener { hideCamera() }
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        f.addView(head, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.TOP))
+        return f
+    }
+
+    /** One ticker for every idle behaviour — they cannot race each other. */
+    private fun tick() {
+        val now = System.currentTimeMillis()
+        val idle = now - lastInteraction
+        if (cameraView?.visibility == View.VISIBLE && now >= cameraHideAt) hideCamera()
+        val blocking = pinView?.visibility == View.VISIBLE || loginView?.visibility == View.VISIBLE
+        if (blocking) hideScreensaver()
+        if (screensaverView?.visibility == View.VISIBLE) {
+            updateScreensaverClock()
+            // a touch hides an automatic screensaver; an HA-forced one stays
+            if (!screensaverForced &&
+                (idle < Settings.screensaverTimeout * 1000L || !Settings.screensaverEnabled)) {
+                hideScreensaver()
+            }
+        } else if (Settings.screensaverEnabled && !blocking &&
+            cameraView?.visibility != View.VISIBLE &&
+            (dashboardShown() || firmwareShown) &&
+            idle >= Settings.screensaverTimeout * 1000L) {
+            showScreensaver(null, false)
+        }
+        val autoReturn = Settings.autoReturnSeconds
+        if (autoReturn > 0 && firmwareShown && !blocking &&
+            screensaverView?.visibility != View.VISIBLE &&
+            cameraView?.visibility != View.VISIBLE &&
+            idle >= autoReturn * 1000L && Settings.dashboardUrl.isNotBlank()) {
+            loadDashboard(Settings.dashboardUrl)
+        }
+        val reload = Settings.dashboardReloadMinutes
+        if (reload > 0 && dashboardShown() && !blocking &&
+            screensaverView?.visibility != View.VISIBLE &&
+            cameraView?.visibility != View.VISIBLE &&
+            now - lastReloadAt >= reload * 60_000L) {
+            lastReloadAt = now
+            try { dashboardView?.reload() } catch (_: Exception) {}
+        }
+        // self-heal: publishes once the MQTT/dashboard modules exist
+        publishKiosk()
+    }
+
+    private fun showScreensaver(modeOverride: String?, forced: Boolean = false) {
+        if (pinView?.visibility == View.VISIBLE || loginView?.visibility == View.VISIBLE) return
+        val view = screensaverView ?: return
+        if (view.visibility == View.VISIBLE) return
+        screensaverMode = (modeOverride ?: "").ifBlank { Settings.screensaverMode }
+        screensaverForced = forced
+        screensaverClockCol?.visibility =
+            if (screensaverMode == "blank") View.GONE else View.VISIBLE
+        view.setBackgroundColor(
+            if (screensaverMode == "dim") 0xB3000000.toInt() else 0xFF000000.toInt())
+        lastClockText = ""
+        updateScreensaverClock()
+        view.visibility = View.VISIBLE
+        screensaverVisible = true
+        // dim the backlight too, remembering what to restore
+        try {
+            val d = ModuleManager.get("display") as? io.nexus.panel.modules.display.DisplayModule
+            if (d != null && brightnessBeforeScreensaver < 0) {
+                brightnessBeforeScreensaver = d.brightnessValue()
+                d.setBrightness(Settings.screensaverBrightness)
+            }
+        } catch (_: Exception) {}
+        publishKiosk()
+        try {
+            (ModuleManager.get("dashboard") as? DashboardModule)
+                ?.reportScreensaver(screensaverMode)
+        } catch (_: Exception) {}
+    }
+
+    private fun hideScreensaver() {
+        val view = screensaverView ?: return
+        if (view.visibility != View.VISIBLE) return
+        view.visibility = View.GONE
+        screensaverVisible = false
+        screensaverForced = false
+        try {
+            if (brightnessBeforeScreensaver >= 0) {
+                (ModuleManager.get("display") as? io.nexus.panel.modules.display.DisplayModule)
+                    ?.setBrightness(brightnessBeforeScreensaver)
+                brightnessBeforeScreensaver = -1
+            }
+        } catch (_: Exception) {}
+        publishKiosk()
+        try {
+            (ModuleManager.get("dashboard") as? DashboardModule)?.reportScreensaver("off")
+        } catch (_: Exception) {}
+    }
+
+    private fun updateScreensaverClock() {
+        if (screensaverMode == "blank") return
+        val now = java.util.Date()
+        val text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(now)
+        if (text == lastClockText) return
+        lastClockText = text
+        screensaverClock?.text = text
+        screensaverDate?.text =
+            java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(now)
+    }
+
+    /** Camera / doorbell popup: renders the image inside a page on the camera origin. */
+    private fun showCamera(url: String, title: String, seconds: Int) {
+        hideScreensaver()
+        val origin = try {
+            val u = android.net.Uri.parse(url)
+            val port = if (u.port > 0) ":${u.port}" else ""
+            "${u.scheme}://${u.host}$port"
+        } catch (_: Exception) { url }
+        val safe = url.replace("\"", "%22")
+        val html = """
+            <html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+            </head><body style="margin:0;background:#000;height:100vh;display:flex;
+            align-items:center;justify-content:center;overflow:hidden">
+            <img src="$safe" style="max-width:100%;max-height:100%"
+                 onerror="this.style.opacity='0'">
+            </body></html>
+        """.trimIndent()
+        try {
+            cameraWeb?.loadDataWithBaseURL(origin, html, "text/html", "utf-8", null)
+        } catch (_: Exception) {}
+        cameraTitle?.text = title.ifBlank { "Camera" }
+        cameraHideAt = System.currentTimeMillis() +
+            seconds.coerceIn(5, 3600) * 1000L
+        cameraView?.visibility = View.VISIBLE
+        publishKiosk()
+    }
+
+    private fun hideCamera() {
+        if (cameraView?.visibility != View.VISIBLE) return
+        cameraView?.visibility = View.GONE
+        try { cameraWeb?.loadUrl("about:blank") } catch (_: Exception) {}
+        publishKiosk()
+    }
+
+    private fun reloadDashboard() {
+        lastReloadAt = System.currentTimeMillis()
+        if (!dashboardShown()) { loadDashboard(Settings.dashboardUrl); return }
+        try { dashboardView?.reload() } catch (_: Exception) {}
+    }
+
+    private fun navigateDashboard(path: String) {
+        lastInteraction = System.currentTimeMillis()
+        hideScreensaver()
+        val url = if (path.startsWith("http")) path else {
+            val ha = Settings.haUrl.trimEnd('/')
+            if (ha.isBlank()) path else "$ha/${path.trimStart('/')}"
+        }
+        loadDashboard(url)
+    }
+
+    private fun initTts() {
+        try {
+            tts = TextToSpeech(this) { status ->
+                android.util.Log.i("NexusTTS", "init status=$status")
+                if (status != TextToSpeech.SUCCESS) return@TextToSpeech
+                try { tts?.language = java.util.Locale.UK } catch (_: Exception) {}
+                android.util.Log.i("NexusTTS", "language=${try { tts?.language } catch (_: Exception) { null }}")
+                ttsPending?.let { text ->
+                    ttsPending = null
+                    try {
+                        val r = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nexus-tts")
+                        android.util.Log.i("NexusTTS", "pending speak result=$r")
+                    } catch (e: Exception) {
+                        android.util.Log.e("NexusTTS", "pending speak failed", e)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("NexusTTS", "init failed", e)
+            tts = null
+        }
+    }
+
+    /** Speak text on the panel speaker (HA `speak` service / TTS automations). */
+    fun speak(text: String) {
+        if (text.isBlank()) return
+        val t = tts
+        android.util.Log.i("NexusTTS", "speak(${text.length} chars) engine=${t != null}")
+        if (t == null) { ttsPending = text; initTts(); return }
+        try {
+            val r = t.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nexus-tts")
+            android.util.Log.i("NexusTTS", "speak result=$r")
+            if (r != TextToSpeech.SUCCESS) toastOnUi(text)
+        } catch (e: Exception) {
+            android.util.Log.e("NexusTTS", "speak threw", e)
+            toastOnUi(text)
+        }
+    }
+
+    /** Publish which kiosk face is visible + screensaver/camera state. */
+    private var kioskKey: String? = null
+    private var kioskSent = false
+
+    private fun publishKiosk() {
+        val camera = cameraView?.visibility == View.VISIBLE
+        val mode = when {
+            camera -> "camera"
+            screensaverView?.visibility == View.VISIBLE -> "screensaver"
+            pinView?.visibility == View.VISIBLE -> "pin"
+            loginView?.visibility == View.VISIBLE -> "login"
+            dashboardShown() -> "dashboard"
+            else -> "firmware"
+        }
+        val ssMode = if (screensaverView?.visibility == View.VISIBLE) screensaverMode else "off"
+        val key = "$mode|$ssMode|$camera"
+        // Re-publish when the face changes, or once MQTT becomes available
+        // (the module may not have existed on the first call after boot).
+        if (kioskSent && key == kioskKey) return
+        try {
+            val mod = ModuleManager.get("dashboard") as? DashboardModule ?: return
+            mod.reportKiosk(mode, ssMode, camera)
+            kioskKey = key
+            kioskSent = true
+        } catch (_: Exception) {}
     }
 
     // ---- exit PIN (optional; set in Setup) ----------------------------------
@@ -330,11 +700,13 @@ class MainActivity : FragmentActivity() {
         pinRefresh()
         pinView?.visibility = View.VISIBLE
         setImeHidden(true)
+        publishKiosk()
     }
 
     private fun hidePinPad() {
         pinView?.visibility = View.GONE
         setImeHidden(false)
+        publishKiosk()
     }
 
     private fun pinKey(k: String) {
@@ -408,7 +780,10 @@ class MainActivity : FragmentActivity() {
             setTextColor(0xFFF0F4F8.toInt())
             textSize = 14f
             setBackgroundColor(0xFF22252B.toInt())
-            setOnClickListener { loginView?.visibility = View.GONE }
+            setOnClickListener {
+                loginView?.visibility = View.GONE
+                publishKiosk()
+            }
         }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         return pad
@@ -423,6 +798,7 @@ class MainActivity : FragmentActivity() {
         }
         loginWeb?.loadUrl(HaAuth.authorizeUrl(haBase))
         loginView?.visibility = View.VISIBLE
+        publishKiosk()
     }
 
     private fun finishHaLogin(code: String) {
@@ -439,6 +815,7 @@ class MainActivity : FragmentActivity() {
                 loginView?.visibility = View.GONE
                 loginWeb?.loadUrl("about:blank")
                 lastInjectUrl = null  // force session injection on next dashboard load
+                publishKiosk()
                 toastOnUi("Logged in to Home Assistant")
                 val url = Settings.dashboardUrl
                 if (url.isNotBlank()) loadDashboard(url)
@@ -489,6 +866,8 @@ class MainActivity : FragmentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     private fun loadDashboard(url: String) {
         if (url.isBlank()) return hideDashboard()
+        hideScreensaver()
+        lastReloadAt = System.currentTimeMillis()
         pendingInject = HaAuth.isLoggedIn() && url != lastInjectUrl
         try { (ModuleManager.get("dashboard") as? io.nexus.panel.modules.dashboard.DashboardModule)?.reportCurrent(url) } catch (_: Exception) {}
         dashboardView?.let { wv ->
@@ -501,9 +880,11 @@ class MainActivity : FragmentActivity() {
         titleBar?.text = "NSPanel Nexus — dashboard (6 taps to exit)"
         updateReturnButton()
         applyImmersive(true)
+        publishKiosk()
     }
 
     private fun hideDashboard() {
+        hideScreensaver()
         dashboardView?.visibility = View.GONE
         pagesContainer.visibility = View.VISIBLE
         titleRow?.visibility = View.VISIBLE
@@ -511,6 +892,7 @@ class MainActivity : FragmentActivity() {
         firmwareShown = true
         updateReturnButton()
         applyImmersive(false)
+        publishKiosk()
     }
 
 
@@ -560,6 +942,13 @@ class MainActivity : FragmentActivity() {
     override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
         try {
             if (ev != null) {
+                lastInteraction = System.currentTimeMillis()
+                // a tap anywhere dismisses the screensaver and is consumed
+                if (ev.action == android.view.MotionEvent.ACTION_DOWN &&
+                    screensaverView?.visibility == View.VISIBLE) {
+                    hideScreensaver()
+                    return true
+                }
                 when (ev.action) {
                     android.view.MotionEvent.ACTION_DOWN -> {
                         touchDownX = ev.x; touchDownY = ev.y
@@ -609,10 +998,21 @@ class MainActivity : FragmentActivity() {
 
     override fun onDestroy() {
         try {
+            uiHandler.removeCallbacksAndMessages(null)
             (ModuleManager.get("dashboard") as? io.nexus.panel.modules.dashboard.DashboardModule)?.let {
                 it.onUrlChanged = null
                 it.onWake = null
+                it.onRefresh = null
+                it.onNavigate = null
+                it.onScreensaverShow = null
+                it.onScreensaverHide = null
+                it.onCameraShow = null
+                it.onCameraHide = null
+                it.onSpeak = null
+                it.onToast = null
             }
+            try { tts?.shutdown() } catch (_: Exception) {}
+            tts = null
         } catch (_: Exception) {}
         instance = null
         super.onDestroy()

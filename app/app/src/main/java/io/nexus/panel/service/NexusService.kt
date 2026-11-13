@@ -89,6 +89,10 @@ class NexusService : Service() {
             Thread {
                 try {
                     patch.optInt("brightness", -1).takeIf { it >= 0 }?.let { display?.setBrightness(it) }
+                    if (patch.has("brightness_day") || patch.has("brightness_night") ||
+                        patch.has("night_start") || patch.has("night_end")) {
+                        display?.refreshDayNight()
+                    }
                     ModuleManager.all().forEach { m ->
                         val key = "module.${m.name}.enabled"
                         if (patch.has(key)) ModuleManager.applyDesired(this, m.name)
