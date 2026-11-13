@@ -179,12 +179,16 @@ class SetupFragment : androidx.fragment.app.Fragment() {
                 }
                 conn.disconnect()
                 android.os.Handler(c.mainLooper).post {
+                    val uri = try {
+                        androidx.core.content.FileProvider.getUriForFile(
+                            c, c.packageName + ".fileprovider", tmp)
+                    } catch (_: Exception) {
+                        android.net.Uri.fromFile(tmp)
+                    }
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW)
-                    intent.setDataAndType(
-                        android.net.Uri.fromFile(tmp),
-                        "application/vnd.android.package-archive"
-                    )
-                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    intent.setDataAndType(uri, "application/vnd.android.package-archive")
+                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                     c.startActivity(intent)
                 }
             } catch (e: Exception) {

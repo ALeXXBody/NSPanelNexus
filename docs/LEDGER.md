@@ -193,6 +193,19 @@ short labels at the source, denser grids, toggle chips for modules.
 - [x] L2: RD token/port live ONLY in the RD box (removed from generic lists)
 - [x] L3: verify (node --check + headless render), bump + release
 
+### 2.29 OTA end-to-end proven + fixes found by testing it (user follow-up, 2026-11-13)
+
+Testing the real path exposed two blockers: (1) no release ever shipped an APK,
+so there was nothing to download; (2) the installer intent used a bare file://
+URI and the app lacked REQUEST_INSTALL_PACKAGES, so the system installer refused
+it. Fixed with a FileProvider content URI + grant flag, the permission, and APK
+assets attached to releases going forward.
+
+- [x] Add REQUEST_INSTALL_PACKAGES + FileProvider (cache-path) + grant flag
+- [x] Test release proved discovery+download+installer intent; then deleted
+- [x] Real 0.4.67 release ships the APK; panel updated to it live
+- [ ] Docs: note that every release must attach the APK (bump script does it)
+
 ### 2.28 Version split fixed: Nexus app vs system image, OTA channel repaired (user, 2026-11-13)
 
 User: info popup showed "Firmware 1.0.0" with no Nexus version anywhere and no working
