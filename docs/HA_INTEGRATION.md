@@ -29,15 +29,42 @@ NSPanel Nexus), HA creates one device with these entities:
 | Zigbee | switch | enable/disable the Zigbee module |
 | Wake / Sleep / Reboot | button | device commands |
 | Check firmware / Re-read config | button | diagnostics |
-| MQTT host/user/password, topic prefix, HA URL/token, dashboard URL, remote-desktop token, manifest URL, Zigbee topic base, screen schedules | text | full firmware configuration (passwords masked) |
-| MQTT port, remote-desktop port, light thresholds, proximity delta, brightness presets | number | full firmware configuration |
-| Zigbee role | select | coordinator / router |
+| Kiosk mode | sensor | dashboard / firmware / pin / login / screensaver / camera (diagnostic) |
+| Screensaver | sensor | off / clock / blank / dim (diagnostic) |
+| Day/night | sensor | day / night + applied brightness (diagnostic) |
+| Wi-Fi signal | sensor | RSSI in dBm (diagnostic) |
+| Storage free | sensor | free % (diagnostic) |
+| RAM free | sensor | free % (diagnostic) |
+| Zigbee permit join | sensor | seconds remaining open (diagnostic) |
+| **Nexus app** | update | installed vs latest APK, Install runs `app:update` |
+| **System image** | update | installed vs latest system image, Install runs `firmware:install` |
+| Notification | notify | `notify.<panel>` shows a toast on the panel |
+| MQTT host/user/password, topic prefix, HA URL/token, dashboard URL, remote-desktop token, manifest URL, Zigbee topic base, screen schedules, night window | text | full firmware configuration (passwords masked) |
+| MQTT port, remote-desktop port, light thresholds, proximity delta, brightness presets, day/night brightness, screensaver timeout/brightness, auto-return, dashboard reload | number | full firmware configuration |
+| Zigbee role, screensaver mode | select | coordinator / router; clock / blank / dim |
+| Screensaver on/off | switch | enable the kiosk screensaver (config) |
 | Sensors, Display, Dashboard, Firmware, Fleet (+ remote desktop, voice, Zigbee) | switch | enable/disable each module (no MQTT switch: it would silence the panel) |
 
-Plus services: `nspanel_nexus.command` to send any device command
-(`{"device_name": "Conservatory_Panel", "command": "wake_up"}`) and
-`nspanel_nexus.config_update` to patch any setting
-(`{"device_name": "Conservatory_Panel", "config": {"brightness": 180}}`).
+Plus services:
+
+| Service | What it does |
+|---|---|
+| `nspanel_nexus.command` | send any device command (`{"device_name": "…", "command": "wake_up"}`) |
+| `nspanel_nexus.config_update` | patch any setting (`{"device_name": "…", "config": {"brightness": 180}}`) |
+| `nspanel_nexus.speak` | TTS text on the panel speaker |
+| `nspanel_nexus.toast` | short toast message on the panel screen |
+| `nspanel_nexus.show_camera` / `hide_camera` | doorbell/camera full-screen popup (url, title, duration) |
+| `nspanel_nexus.navigate` | open a path or full URL in the panel dashboard |
+| `nspanel_nexus.refresh_dashboard` | reload the panel's dashboard WebView |
+| `nspanel_nexus.show_screensaver` / `hide_screensaver` | force the screensaver on/off (optional mode) |
+| `nspanel_nexus.get_config` | return the panel's current settings (secrets appear as `"<set>"`) |
+| `nspanel_nexus.restore_config` | apply a saved config object (keys set to `"<set>"` are skipped) |
+
+The sidebar Info popup shows kiosk / screensaver / day-night / Wi-Fi /
+storage / RAM / Zigbee rows plus a Speak box and Refresh-dashboard /
+Show-screensaver buttons; the Settings popup has a **Kiosk behaviour**
+accordion (screensaver on/off + mode + timeout/brightness, auto-return,
+dashboard reload, day/night brightness + night window).
 
 Live screen: the sidebar card and Remote popup no longer talk to the panel
 directly (browsers block plain-http streams inside an https page). Home
