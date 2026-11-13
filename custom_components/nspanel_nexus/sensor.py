@@ -63,6 +63,18 @@ class NexusSensor(SensorEntity, NexusEntity):
         if value is None:
             value = msg.payload
         self._attr_native_value = value
+        if self._key == "firmware" and isinstance(data, dict):
+            app_ver = data.get("app")
+            avail = data.get("available")
+            err = data.get("error")
+            attrs: dict[str, object] = {}
+            if app_ver not in (None, ""):
+                attrs["app_version"] = app_ver
+            if avail not in (None, ""):
+                attrs["available_version"] = avail
+            if err not in (None, ""):
+                attrs["update_error"] = err
+            self._attr_extra_state_attributes = attrs
         self.async_write_ha_state()
 
 

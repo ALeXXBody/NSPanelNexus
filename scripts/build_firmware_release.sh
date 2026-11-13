@@ -102,6 +102,9 @@ json.dump(m, open('$OUTDIR/manifest.json','w'), indent=2)
 "
   gh release upload "firmware-$VERSION" --repo "$REPO" --clobber "$OUTDIR/manifest.json"
   echo "  release: https://github.com/$REPO/releases/tag/firmware-$VERSION"
+  # keep the in-repo manifest (the panel's default manifest URL) tracking latest
+  cp "$OUTDIR/manifest.json" "$(dirname "$0")/../firmware/manifest.json"
+  echo "  in-repo firmware/manifest.json updated — commit + push it so panels see the new version"
 else
   echo "[4/5] skipping publish (no --publish flag)"
   echo "  to publish: gh release create firmware-$VERSION --repo $REPO $SYSTEM_IMG $OUTDIR/manifest.json"

@@ -193,6 +193,22 @@ short labels at the source, denser grids, toggle chips for modules.
 - [x] L2: RD token/port live ONLY in the RD box (removed from generic lists)
 - [x] L3: verify (node --check + headless render), bump + release
 
+### 2.28 Version split fixed: Nexus app vs system image, OTA channel repaired (user, 2026-11-13)
+
+User: info popup showed "Firmware 1.0.0" with no Nexus version anywhere and no working
+Nexus update path. Root causes found: (1) no UI ever showed the APK version —
+the firmware sensor only carried the system-image version; (2) releases never
+attached an APK so "Check for app update" could never find one; (3) the default
+manifest URL 404s and the panel's configured manifest pointed at
+releases/latest (an app release, no manifest) so system OTA was dead too.
+
+- [x] V1: panel publishes app version in firmware state (start + check paths)
+- [x] V2: HA firmware sensor exposes app_version/available_version/update_error attributes
+- [x] V3: sidebar Info shows "Nexus app" + "System image" rows; Setup shows both
+- [x] V4: repo firmware/manifest.json tracks latest system release; release script refreshes it
+- [x] V5: attach APK to releases going forward; bump, build, release with APK, install on panel
+- [x] V6: verify live (sensor attribute, sidebar rows, setup text, check-for-update no-op vs 1.0.0)
+
 ### 2.27 Modern compact futuristic settings page (user, 2026-11-13)
 
 Redesign of the HA sidebar Settings popup: glassmorphism modal (gradient, blur,

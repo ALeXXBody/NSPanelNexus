@@ -156,7 +156,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.65";
+      return v || "v0.4.66";
     }
 
     connectedCallback() {
@@ -548,6 +548,7 @@
         const rdp = cur("remote_desktop_switch"); const firmware = cur("firmware");
         const lux = cur("illuminance"); const ip = cur("ip_address");
         const probe = cur("uptime") || ip;
+        const appVer = firmware && firmware.attributes && firmware.attributes.app_version;
         body.innerHTML = `
           <div class="setgrid cols3">
             <div class="field"><div class="lbl">IP</div><div class="statval">${ip ? this._esc(ip.state) : "—"}</div></div>
@@ -555,7 +556,8 @@
             <div class="field"><div class="lbl">Uptime</div><div class="statval">${probe ? this._esc(probe.state) + " s" : "—"}</div></div>
             <div class="field"><div class="lbl">Screen</div><div class="statval">${screen ? screen.state : "—"}</div></div>
             <div class="field"><div class="lbl">Remote desktop</div><div class="statval">${rdp ? rdp.state : "—"}</div></div>
-            <div class="field"><div class="lbl">Firmware</div><div class="statval">${firmware ? this._esc(firmware.state) : "—"}</div></div>
+            <div class="field"><div class="lbl">Nexus app</div><div class="statval">${appVer ? "v" + this._esc(appVer) : "—"}</div></div>
+            <div class="field"><div class="lbl">System image</div><div class="statval">${firmware ? this._esc(firmware.state) : "—"}</div></div>
           </div>
           <div class="field"><div class="lbl">Brightness</div>
             <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br2 title="brightness" style="max-width:220px">

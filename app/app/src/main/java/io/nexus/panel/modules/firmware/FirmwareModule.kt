@@ -40,11 +40,12 @@ class FirmwareModule : Module {
         // Auto-discover firmware on start
         val ver = currentFirmwareVersion()
         Settings.set("nexus_version", ver)
+        val appVer = try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }
         // Publish after a delay so MQTT has time to connect
         Thread {
             Thread.sleep(5000)
-            android.util.Log.d("FirmwareModule", "publishing firmware state: $ver, client connected=${m.status()}")
-            try { m.state("firmware", JSONObject().put("current", ver)); android.util.Log.d("FirmwareModule", "state published") } catch (e: Exception) { android.util.Log.e("FirmwareModule", "state publish failed", e) }
+            android.util.Log.d("FirmwareModule", "publishing firmware state: $ver (app $appVer), client connected=${m.status()}")
+            try { m.state("firmware", JSONObject().put("current", ver).put("app", appVer)); android.util.Log.d("FirmwareModule", "state published") } catch (e: Exception) { android.util.Log.e("FirmwareModule", "state publish failed", e) }
         }.apply { isDaemon = true }.start()
         m.onCommand["firmware:check"] = { _ -> checkForUpdate() }
         m.onCommand["firmware:install"] = { _ -> installPending() }
@@ -109,8 +110,10 @@ class FirmwareModule : Module {
                 val url = manifest.optString("url")
                 val size = manifest.optLong("size")
                 val sha = manifest.optString("sha256")
+                val appVer = try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }
                 mqtt?.state("firmware", JSONObject()
                     .put("current", currentFirmwareVersion())
+                    .put("app", appVer)
                     .put("available", version))
                 val cur = currentFirmwareVersion()
                 if (version.isNotBlank() && version != cur && !cur.startsWith("stock") && cur != "nexus (unknown version)") {
@@ -118,9 +121,13 @@ class FirmwareModule : Module {
                 }
             } catch (e: Exception) {
                 android.util.Log.e("FirmwareModule", "checkForUpdate failed", e)
-                try { mqtt?.state("firmware", JSONObject()
-                    .put("current", currentFirmwareVersion())
-                    .put("error", e.message ?: "unknown")) } catch (_: Exception) {}
+                try {
+                    val appVer2 = try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }
+                    mqtt?.state("firmware", JSONObject()
+                        .put("current", currentFirmwareVersion())
+                        .put("app", appVer2)
+                        .put("error", e.message ?: "unknown"))
+                } catch (_: Exception) {}
             }
         }.start()
     }

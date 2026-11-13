@@ -121,7 +121,8 @@ class SetupFragment : androidx.fragment.app.Fragment() {
         // ---- firmware (OTA) ----
         col.addView(section(c, "Firmware"))
         col += TextView(c).apply {
-            text = "Current: ${Settings.get("nexus_version", "unknown")}  (manifest: ${Settings.get("nexus_manifest_url", "default")})"
+            val appV = try { io.nexus.panel.BuildConfig.VERSION_NAME } catch (_: Exception) { "unknown" }
+            text = "Nexus app v$appV  •  System image ${Settings.get("nexus_version", "unknown")}\nManifest: ${Settings.get("nexus_manifest_url", "default")}"
             setTextColor(0xFF9AA5B1.toInt())
             textSize = 12f
             setPadding(0, dp(2), 0, dp(6))
@@ -141,9 +142,11 @@ class SetupFragment : androidx.fragment.app.Fragment() {
                         Toast.makeText(c, "App update check failed", Toast.LENGTH_LONG).show()
                     } else if (latest == cur) {
                         Toast.makeText(c, "Nexus app is up to date ($cur)", Toast.LENGTH_LONG).show()
+                    } else if (url == null) {
+                        Toast.makeText(c, "Update available: $latest (current $cur), but this release has no APK attached.", Toast.LENGTH_LONG).show()
                     } else {
                         Toast.makeText(c, "Update available: $latest (current $cur). Downloading…", Toast.LENGTH_LONG).show()
-                        if (url != null) downloadAndInstallApk(c, url)
+                        downloadAndInstallApk(c, url)
                     }
                 }
             }
