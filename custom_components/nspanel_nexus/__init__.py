@@ -111,7 +111,7 @@ async def async_setup(hass: HomeAssistant, config) -> bool:
         # proxy reads them live; the options listener reload is harmless).
         patch = {
             k: call.data["config"][k]
-            for k in ("remote_desktop_token", "remote_desktop_port")
+            for k in ("remote_desktop_token", "remote_desktop_port", "dark_mode")
             if k in call.data["config"]
         }
         if patch:

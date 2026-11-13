@@ -152,6 +152,24 @@ verbatim instead of a generic "Dashboard URL failed" toast.
 - [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
 - [ ] H3: docs update, bump + release
 
+### 2.29 Logo-red accent + darker theme + always-visible settings (user, 2026-11-13)
+
+User: (1) too many colours — drop the yellow/orange, use the colour from the logo
+(#F14616 sampled from the brand mark), darker background; (2) settings must always
+show values (except secrets). Implemented: single #F14616 accent everywhere
+(buttons, chevrons, dirty/save indicators, links, tab, toggles), backgrounds
+darkened one step across host/topbar/cards/modal/inputs; greens kept only for
+on-state, red only for destructive. Values resolve entity -> config entry
+(data/options incl. dark_mode, now persisted server-side) -> last-known
+localStorage cache; cached values get a dashed border + dot + tooltip; passwords
+never shown/cached. Dirty tracking + save compare against the same resolved
+values, so edits on cached data save correctly.
+
+- [x] T1: single #F14616 accent, darker surfaces
+- [x] T2: knownOf()/knownVal() resolution chain + stale markers + cache
+- [x] T3: backend persists dark_mode in entry options
+- [x] T4: verify (ruff/node/py + headless render of all three sources + save patch) + bump + release
+
 ### 2.28 Real settings layout overhaul (user: cosmetics are not a redesign, 2026-11-13)
 
 Proper restructure, not a paint job: accordion sections (collapsed advanced ones),

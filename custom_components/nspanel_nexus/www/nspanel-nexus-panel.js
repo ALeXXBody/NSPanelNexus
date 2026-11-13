@@ -8,23 +8,23 @@
  */
 (function () {
   const CSS = `
-    :host{display:block;min-height:100%;background:#181a1f;
+    :host{display:block;min-height:100%;background:#0a0c10;
           font-family:Roboto,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;
           color:#e8ebef}
     .topbar{display:flex;align-items:center;gap:14px;padding:0 18px;height:80px;flex-wrap:wrap;
-            background:#111318;border-bottom:1px solid #22262e;position:sticky;top:0;z-index:5}
+            background:#0d1016;border-bottom:1px solid #1a2029;position:sticky;top:0;z-index:5}
     .topbar img{height:64px;width:64px;border-radius:14px;background:#0d1016;padding:4px}
     .topbar .name{font-size:22px;font-weight:700;color:#fff;letter-spacing:.3px;white-space:nowrap;line-height:1}
-    .topbar .name b{color:#FF8C28}
+    .topbar .name b{color:#F14616}
     .topbar .ver{font-size:11px;color:#8d97a3;margin-top:2px}
     .tabs{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
     .tab{padding:10px 18px;cursor:pointer;font-size:14px;color:#aab2bd;border-radius:0}
     .tab:hover{color:#fff}
-    .tab.active{color:#fff;border-bottom:2px solid #FF8C28}
+    .tab.active{color:#fff;border-bottom:2px solid #F14616}
     .body{padding:16px 16px;max-width:1500px}
     h2{font-size:26px;font-weight:400;margin:4px 0 22px;color:#e8ebef}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
-    .card{background:#22252b;border-radius:4px;border-top:3px solid #757575;
+    .card{background:#141920;border-radius:4px;border-top:3px solid #757575;
           padding:14px 16px 12px;color:#dfe4ea;position:relative;
           box-shadow:0 1px 3px rgba(0,0,0,.35)}
     .card.on{border-top-color:#2e9e44}
@@ -34,20 +34,21 @@
     .gear{position:absolute;bottom:10px;right:12px;border:0;background:transparent;
           color:#9aa2ad;font-size:17px;cursor:pointer;padding:4px}
     .gear:hover{color:#fff}
-    .actions{display:none;margin-top:12px;padding-top:10px;border-top:1px solid #2c323b;
+    .actions{display:none;margin-top:12px;padding-top:10px;border-top:1px solid #232b38;
              flex-wrap:wrap;gap:6px}
     .card.open .actions{display:flex}
     .actions button,.btn{border:0;border-radius:3px;padding:8px 14px;cursor:pointer;
-           font-size:13px;background:#2c323b;color:#dfe4ea}
-    .actions button:hover,.btn:hover{background:#363d47}
-    .actions button.primary{background:#FF8C28;color:#111318;font-weight:600}
+           font-size:13px;background:#1c232e;color:#dfe4ea}
+    .actions button:hover,.btn:hover{background:#242e3b}
+    .actions button.primary{background:#F14616;color:#0b0d11;font-weight:600}
+    .btn.primary{background:#F14616;color:#0b0d11;font-weight:600}
     .actions button.warn{background:#5d1d1d;color:#ff9b9b}
-    input[type=range]{width:100%;max-width:220px;accent-color:#FF8C28;vertical-align:middle}
-    select{padding:8px;border-radius:3px;background:#232830;color:#dfe4ea;border:1px solid #2c323b}
+    input[type=range]{width:100%;max-width:220px;accent-color:#F14616;vertical-align:middle}
+    select{padding:8px;border-radius:3px;background:#0b0e13;color:#dfe4ea;border:1px solid #232b38}
     .rdimg{width:100%;border-radius:6px;background:#0d1016;min-height:120px;display:block;cursor:pointer}
     .rdbtnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
     .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto}
-    .modal{background:#22252b;border-radius:8px;max-width:900px;width:100%;padding:14px 18px;color:#dfe4ea;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+    .modal{background:#10141a;border-radius:8px;max-width:900px;width:100%;padding:14px 18px;color:#dfe4ea;box-shadow:0 4px 24px rgba(0,0,0,.5)}
     .modal.compact .field{margin:4px 0}
     .modal.compact input.txt,.modal.compact select{padding:4px 6px;font-size:12px}
     .modal.compact .lbl{font-size:11px;margin-bottom:1px}
@@ -59,7 +60,7 @@
     .modal .grid{grid-template-columns:1fr;gap:12px} /* modal cards use full popup width */
     .setgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
     @media (max-width:700px){.setgrid{grid-template-columns:1fr}}
-    .rdbox{background:#1a1e25;border:1px solid #2c323b;border-radius:8px;padding:10px 12px;margin:0 0 10px}
+    .rdbox{background:#11161d;border:1px solid #232b38;border-radius:8px;padding:10px 12px;margin:0 0 10px}
     .rdbox .rdhead{font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;display:flex;align-items:center;gap:8px}
     .rdbox .rdpill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#3a414d;color:#cfd6de}
     .rdbox .rdpill.on{background:#2e9e44;color:#fff}
@@ -71,9 +72,9 @@
     .statline{font-size:12px;color:#7a8694;margin:-2px 0 10px;letter-spacing:.3px}
     .acc{border:1px solid #232b38;border-radius:10px;margin:8px 0;overflow:hidden;background:rgba(255,255,255,.012)}
     .acc-head{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:#aeb8c4;user-select:none}
-    .acc-head:hover{background:rgba(255,140,40,.06);color:#fff}
-    .acc-head .cdot{width:7px;height:7px;border-radius:50%;background:#FF8C28;display:none;box-shadow:0 0 8px #FF8C28;flex:none}
-    .acc-head .chev{margin-left:auto;color:#FF8C28;transition:transform .15s;font-size:13px}
+    .acc-head:hover{background:rgba(241,70,22,.06);color:#fff}
+    .acc-head .cdot{width:7px;height:7px;border-radius:50%;background:#F14616;display:none;box-shadow:0 0 8px #F14616;flex:none}
+    .acc-head .chev{margin-left:auto;color:#F14616;transition:transform .15s;font-size:13px}
     .acc.dirty .cdot,.acc.has-changes .cdot{display:inline-block}
     .acc.closed .acc-body{display:none}
     .acc.closed .chev{transform:rotate(-90deg)}
@@ -86,14 +87,16 @@
     .btn.mod{display:flex;align-items:center;gap:7px;justify-content:flex-start}
     .btn.mod .dot{width:8px;height:8px;border-radius:50%;background:#4a5462;flex:none}
     .btn.mod.on .dot{background:#2e9e44;box-shadow:0 0 8px rgba(46,158,68,.7)}
-    input.dirty,select.dirty{border-color:#FF8C28 !important;box-shadow:0 0 0 2px rgba(255,140,40,.25) !important}
+    input.dirty,select.dirty{border-color:#F14616 !important;box-shadow:0 0 0 2px rgba(241,70,22,.25) !important}
     .modal .x{float:right;border:0;background:transparent;color:#9aa2ad;font-size:18px;cursor:pointer}
+    input.txt.stale,select.stale{border-style:dashed;opacity:.92}
+    .stale-tag{color:#F14616;font-weight:700}
     .field{margin:10px 0}
     .lbl{font-size:12px;color:#9aa2ad;margin-bottom:4px}
-    input.txt{width:100%;max-width:420px;box-sizing:border-box;padding:8px 10px;border-radius:3px;background:#232830;color:#dfe4ea;border:1px solid #2c323b;font-size:13px}
+    input.txt{width:100%;max-width:420px;box-sizing:border-box;padding:8px 10px;border-radius:3px;background:#0b0e13;color:#dfe4ea;border:1px solid #232b38;font-size:13px}
     .err{color:#ff8a8a;font-size:13px;white-space:pre-wrap}
     .about{font-size:13px;color:#aab2bd;line-height:1.6}
-    a{color:#FF8C28;text-decoration:none}
+    a{color:#F14616;text-decoration:none}
     @media (max-width:768px){
       .topbar{height:auto;padding:12px 14px;gap:10px}
       .topbar img{height:48px;width:48px;padding:3px}
@@ -151,7 +154,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.63";
+      return v || "v0.4.64";
     }
 
     connectedCallback() {
@@ -450,9 +453,9 @@
         <circle cx="36" cy="27" r="3" fill="#2e9e44"/>
         <text x="48" y="31" fill="#8d97a3" font-family="sans-serif" font-size="10">NSPanel Pro</text>
         <text x="204" y="31" text-anchor="end" fill="#8d97a3" font-family="sans-serif" font-size="10">--:--</text>
-        <text x="120" y="118" text-anchor="middle" fill="#FF8C28" font-family="monospace" font-size="20" font-weight="bold">remote desktop</text>
+        <text x="120" y="118" text-anchor="middle" fill="#F14616" font-family="monospace" font-size="20" font-weight="bold">remote desktop</text>
         <text x="120" y="144" text-anchor="middle" fill="#8d97a3" font-family="monospace" font-size="14">off</text>
-        <rect x="88" y="196" width="64" height="8" rx="4" fill="#2c323b"/>
+        <rect x="88" y="196" width="64" height="8" rx="4" fill="#232b38"/>
       </svg>`;
     }
 
@@ -818,13 +821,32 @@
         const devSafe = rawDev.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "nspanel";
         const ents = this._entityMap(entry, devSafe);
         const st = (id) => (ents[id] ? h.states[ents[id]] : null);
+        // Resolved value for a config key: live entity state first, then the
+        // config entry (data/options), then the last-known value cached locally.
+        // Passwords are never shown (masked as <set> by the panel) and never cached.
+        const cacheKey = (k) => "nexus-cfg-" + entry.entry_id + "-" + k;
+        const cacheGet = (k) => { try { const v = localStorage.getItem(cacheKey(k)); return (v == null || v === "") ? null : v; } catch (_) { return null; } };
+        const cacheSet = (k, v) => { try { localStorage.setItem(cacheKey(k), v); } catch (_) {} };
+        const knownOf = (key) => {
+          const cur = st("cfg_" + key);
+          if (cur && cur.state != null && cur.state !== "unknown" && cur.state !== "unavailable" && cur.state !== "<set>") {
+            cacheSet(key, String(cur.state));
+            return { v: String(cur.state), live: true };
+          }
+          const m = merged && merged[key];
+          if (m != null && m !== "" && m !== "<set>") return { v: String(m), live: true };
+          const c = cacheGet(key);
+          if (c != null) return { v: c, live: false };
+          return { v: "", live: false };
+        };
+        const knownVal = (key) => { const k = knownOf(key); return k.v === "" ? null : k.v; };
         const card = document.createElement("div");
         card.className = "card on";
         const fieldId = (k) => "cfg-" + entry.entry_id + "-" + k;
         const rdpSw = st("module_remote_desktop");
         const rdpIsOn = rdpSw && rdpSw.state === "on";
-        const rdPortSt = st("cfg_remote_desktop_port");
-        const rdPortVal = rdPortSt && rdPortSt.state != null && !isNaN(Number(rdPortSt.state)) ? Number(rdPortSt.state) : 8080;
+        const rdPortKn = knownOf("remote_desktop_port");
+        const rdPortVal = rdPortKn.v !== "" && !isNaN(Number(rdPortKn.v)) ? Number(rdPortKn.v) : 8080;
         const ipS = st("ip_address");
         const fwS = st("firmware");
         const ipTxt = ipS && ipS.state && !["unknown","unavailable",""].includes(ipS.state) ? this._esc(ipS.state) : null;
@@ -854,16 +876,17 @@
         };
         const tfield = (k) => {
           const info = this._textFields.find((f) => f[0] === k) || [k, k, "text"];
-          const cur = st("cfg_" + k);
-          const val = cur && cur.state != null && cur.state !== "unknown" && cur.state !== "unavailable" ? cur.state : "";
-          return `<div class="field"><div class="lbl">${info[1]}</div>` +
-            `<input class="txt" data-cfg="${k}" data-kind="text" type="${info[2]}" value="${info[2] === "password" ? "" : this._esc(val)}" placeholder="${info[2] === "password" ? "\u2022\u2022\u2022" : ""}"></div>`;
+          const kn = knownOf(k);
+          const stale = !kn.live && kn.v !== "";
+          return `<div class="field"><div class="lbl">${info[1]}${stale ? ' <span class="stale-tag" title="Last known value — panel may be offline">•</span>' : ""}</div>` +
+            `<input class="txt${stale ? " stale" : ""}" data-cfg="${k}" data-kind="text" type="${info[2]}" value="${info[2] === "password" ? "" : this._esc(kn.v)}" placeholder="${info[2] === "password" ? "\u2022\u2022\u2022" : ""}"${stale ? ' title="Last known value — panel may be offline"' : ""}></div>`;
         };
         const nfield = ([key, label, lo, hi, step]) => {
-          const cur = st("cfg_" + key);
-          const val = cur && cur.state != null && !isNaN(Number(cur.state)) ? Number(cur.state) : "";
-          return `<div class="field"><div class="lbl">${label}</div>` +
-            `<input class="txt" data-cfg="${key}" data-kind="number" type="number" min="${lo}" max="${hi}" step="${step}" value="${val}"></div>`;
+          const kn = knownOf(key);
+          const val = kn.v !== "" && !isNaN(Number(kn.v)) ? Number(kn.v) : "";
+          const stale = !kn.live && kn.v !== "";
+          return `<div class="field"><div class="lbl">${label}${stale ? ' <span class="stale-tag" title="Last known value — panel may be offline">•</span>' : ""}</div>` +
+            `<input class="txt${stale ? " stale" : ""}" data-cfg="${key}" data-kind="number" type="number" min="${lo}" max="${hi}" step="${step}" value="${val}"${stale ? ' title="Last known value — panel may be offline"' : ""}></div>`;
         };
         const numByKey = Object.fromEntries(this._numFields.map((f) => [f[0], f]));
         const grid2 = (inner) => `<div class="setgrid">${inner}</div>`;
@@ -878,11 +901,12 @@
         ), true);
         html += acc(2, "Exit PIN", grid2(tfield("exit_pin")), true);
         {
-          const cur = st("cfg_zigbee_role");
-          const val = cur ? cur.state : "";
+          const zkn = knownOf("zigbee_role");
+          const val = zkn.v;
+          const zstale = !zkn.live && zkn.v !== "";
           html += acc(3, "Zigbee &amp; screens", grid2(
             tfield("zigbee_topic_base") +
-            `<div class="field"><div class="lbl">Zigbee role</div><select data-cfg="zigbee_role" data-kind="select"><option value="coordinator"${val === "coordinator" ? " selected" : ""}>coordinator</option><option value="router"${val === "router" ? " selected" : ""}>router</option></select></div>` +
+            `<div class="field"><div class="lbl">Zigbee role${zstale ? ' <span class="stale-tag" title="Last known value — panel may be offline">•</span>' : ""}</div><select class="${zstale ? "stale" : ""}" data-cfg="zigbee_role" data-kind="select"><option value="coordinator"${val === "coordinator" ? " selected" : ""}>coordinator</option><option value="router"${val === "router" ? " selected" : ""}>router</option></select></div>` +
             ["screen_on_weekday_begin","screen_on_weekday_end","screen_on_weekend_begin","screen_on_weekend_end"].map(tfield).join("")
           ), false);
         }
@@ -923,13 +947,12 @@
           let n = 0;
           card.querySelectorAll("[data-cfg]").forEach((el) => {
             const key = el.getAttribute("data-cfg");
-            const cur = st("cfg_" + key);
-            const curVal = cur && cur.state != null ? String(cur.state) : null;
+            const curVal = knownVal(key);
             let dirty = false;
             if (el.type === "password") dirty = !!el.value;
             else if (el.tagName === "SELECT") dirty = curVal != null && curVal !== "" && el.value !== curVal;
             else if (el.getAttribute("data-kind") === "number")
-              dirty = el.value !== "" && (curVal == null || ["unknown","unavailable",""].includes(curVal) || Number(el.value) !== Number(curVal));
+              dirty = el.value !== "" && (curVal == null || Number(el.value) !== Number(curVal));
             else dirty = el.value !== "" && el.value !== curVal;
             el.classList.toggle("dirty", dirty);
             if (dirty) n++;
@@ -971,21 +994,20 @@
           card.querySelectorAll("[data-cfg]").forEach((el) => {
             const key = el.getAttribute("data-cfg");
             const kind = el.getAttribute("data-kind");
-            const cur = st("cfg_" + key);
-            const curVal = cur && cur.state != null ? String(cur.state) : null;
+            const curVal = knownVal(key);
             if (kind === "number") {
               if (el.value === "" || el.value == null) return;
               if (curVal != null && Number(el.value) === Number(curVal)) return;
               patch[key] = Number(el.value);
             } else if (kind === "select") {
-              if (curVal != null && el.value === curVal) return;
+              if (curVal != null && curVal !== "" && el.value === curVal) return;
               patch[key] = el.value;
             } else {
               if (el.type === "password") { if (!el.value) return; }
               else if (curVal != null && el.value === curVal) return;
               // Don't wipe a stored value with an empty string when we don't
-              // actually know the current value (entity unavailable).
-              if (el.value === "" && (curVal == null || curVal === "unknown" || curVal === "unavailable")) return;
+              // actually know the current value (no entity, entry or cache).
+              if (el.value === "" && curVal == null) return;
               patch[key] = el.value;
             }
           });
@@ -1043,8 +1065,8 @@
         {
           const darkBtn = card.querySelector('[data-dark="toggle"]');
           if (darkBtn) {
-            const dm = st("cfg_dark_mode");
-            const dmOn = dm && dm.state === "on";
+            const dmKn = knownOf("dark_mode");
+            const dmOn = dmKn.v === "" ? true : ["on","true","1"].includes(String(dmKn.v).toLowerCase());
             darkBtn.textContent = dmOn ? "on" : "off";
             darkBtn.classList.toggle("primary", dmOn);
             darkBtn.onclick = async () => {
@@ -1055,6 +1077,7 @@
               try {
                 await h.callService("nspanel_nexus", "config_update",
                   { device_name: devSafe, config: { dark_mode: turnOn } });
+                try { localStorage.setItem("nexus-cfg-" + entry.entry_id + "-dark_mode", turnOn ? "on" : "off"); } catch (_) {}
                 flash("Dark mode: " + (turnOn ? "on" : "off"));
                 setTimeout(() => this._schedule(true), 1500);
                 msg("");
@@ -1089,7 +1112,7 @@
         firmware, remote desktop) can be switched on or off from the panel app's
         Modules page — or remotely from Home Assistant.<br><br>
         <a href="https://github.com/ALeXXBody/NSPanelNexus" target="_blank" rel="noreferrer"
-           style="color:#FF8C28">Project repository</a>
+           style="color:#F14616">Project repository</a>
       </div>`;
     }
 
