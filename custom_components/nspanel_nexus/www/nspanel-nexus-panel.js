@@ -45,7 +45,9 @@
     .actions button.warn{background:#5d1d1d;color:#ff9b9b}
     input[type=range]{width:100%;max-width:220px;accent-color:#F14616;vertical-align:middle}
     select{padding:8px;border-radius:3px;background:#0b0e13;color:#dfe4ea;border:1px solid #232b38}
-    .rdimg{width:100%;border-radius:6px;background:#0d1016;min-height:120px;display:block;cursor:pointer}
+    .rdimg{width:100%;border-radius:6px;background:#0d1016;min-height:120px;display:block;cursor:pointer;border:1px solid #232b38}
+    .logline{font-size:11px;color:#6b7685;margin-top:8px;line-height:1.4}
+    .statval{font-size:13px;color:#e8ebef;padding:2px 0}
     .rdbtnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
     .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto}
     .modal{background:#10141a;border-radius:8px;max-width:900px;width:100%;padding:14px 18px;color:#dfe4ea;box-shadow:0 4px 24px rgba(0,0,0,.5)}
@@ -154,7 +156,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.64";
+      return v || "v0.4.65";
     }
 
     connectedCallback() {
@@ -462,22 +464,28 @@
     _openRemote(dev, devSafe, entryId) {
       const veil = this._openModal(dev + " — remote desktop");
       if (!veil) return;
+      const modal = veil.querySelector(".modal");
+      if (modal) modal.classList.add("compact");
       const body = veil.querySelector(".mbody");
       if (!body) return;
       body.innerHTML = `
         <img class="rdimg" id="rd-live" alt="live panel screen" style="cursor:crosshair;touch-action:none">
-        <div class="rdbtnrow">
-          <button class="btn" data-k="3">HOME</button>
-          <button class="btn" data-k="4">BACK</button>
-          <button class="btn" data-k="26">POWER</button>
-          <button class="btn" data-s="up">↑ up</button>
-          <button class="btn" data-s="down">↓ down</button>
+        <div class="field" style="margin-top:10px"><div class="lbl">Keys</div>
+          <div class="rdbtnrow" style="margin-top:0">
+            <button class="btn" data-k="3">HOME</button>
+            <button class="btn" data-k="4">BACK</button>
+            <button class="btn" data-k="26">POWER</button>
+            <button class="btn" data-s="up">↑ up</button>
+            <button class="btn" data-s="down">↓ down</button>
+          </div>
         </div>
-        <div class="rdbtnrow">
-          <input class="txt" id="rd-text" placeholder="type text…" style="flex:1;min-width:140px">
-          <button class="btn" data-t="send">Type</button>
+        <div class="field"><div class="lbl">Type text</div>
+          <div class="rdbtnrow" style="margin-top:0">
+            <input class="txt" id="rd-text" placeholder="type text…" style="flex:1;min-width:140px">
+            <button class="btn primary" data-t="send">Type</button>
+          </div>
         </div>
-        <div class="about" id="rd-log">connecting…</div>`;
+        <div class="logline" id="rd-log">connecting…</div>`;
       const img = body.querySelector("#rd-live");
       const log = body.querySelector("#rd-log");
       const say = (t) => { if (log && log.isConnected) log.textContent = t; };
@@ -527,9 +535,11 @@
 
     }
 
-    _openInfoModal(dev, devSafe, ents, h) {
+    _openInfoModal(dev, devSafe, ents, h, entryId) {
       const veil = this._openModal(dev + " — info");
       if (!veil) return;
+      const modal = veil.querySelector(".modal");
+      if (modal) modal.classList.add("compact");
       const body = veil.querySelector(".mbody");
       if (!body) return;
       const renderInfo = () => {
@@ -539,16 +549,19 @@
         const lux = cur("illuminance"); const ip = cur("ip_address");
         const probe = cur("uptime") || ip;
         body.innerHTML = `
-          <div class="stat"><span class="ic">⌂</span>IP: ${ip ? ip.state : "—"}</div>
-          <div class="stat"><span class="ic">☀</span>Ambient: ${lux ? lux.state + " lx" : "—"}</div>
-          <div class="stat"><span class="ic">⏱</span>Uptime: ${probe ? probe.state + " s" : "—"}</div>
-          <div class="stat"><span class="ic">📺</span>Screen: ${screen ? screen.state : "—"}</div>
-          <div class="stat"><span class="ic">☀</span>Brightness: ${bright ? bright.state : "—"}</div>
-          <div class="stat"><span class="ic">📡</span>Remote desktop: ${rdp ? rdp.state : "—"}</div>
-          <div class="stat"><span class="ic">🧠</span>Firmware: ${firmware ? firmware.state : "—"}</div>
+          <div class="setgrid cols3">
+            <div class="field"><div class="lbl">IP</div><div class="statval">${ip ? this._esc(ip.state) : "—"}</div></div>
+            <div class="field"><div class="lbl">Ambient</div><div class="statval">${lux ? this._esc(lux.state) + " lx" : "—"}</div></div>
+            <div class="field"><div class="lbl">Uptime</div><div class="statval">${probe ? this._esc(probe.state) + " s" : "—"}</div></div>
+            <div class="field"><div class="lbl">Screen</div><div class="statval">${screen ? screen.state : "—"}</div></div>
+            <div class="field"><div class="lbl">Remote desktop</div><div class="statval">${rdp ? rdp.state : "—"}</div></div>
+            <div class="field"><div class="lbl">Firmware</div><div class="statval">${firmware ? this._esc(firmware.state) : "—"}</div></div>
+          </div>
+          <div class="field"><div class="lbl">Brightness</div>
+            <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br2 title="brightness" style="max-width:220px">
+          </div>
           <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px">
             <button class="btn primary" data-act="wake">${screen && screen.state === "on" ? "Sleep" : "Wake"}</button>
-            <input type="range" min="0" max="255" value="${bright ? bright.state : 128}" data-br2 title="brightness" style="max-width:180px">
             <button class="btn" data-act="fwcheck">Check firmware</button>
             <button class="btn" data-act="reboot2">Reboot</button>
             <button class="btn" data-act="unlink" style="opacity:.7">Unlink</button>
@@ -571,7 +584,7 @@
           const rb = body.querySelector("[data-act=reboot2]");
           if (rb) rb.onclick = () => { if (!confirm("Reboot " + dev + "?")) return; h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" }).catch(e => alert(e && e.message || e)); };
           const ul = body.querySelector("[data-act=unlink]");
-          if (ul) ul.onclick = () => { if (!confirm("Unlink " + dev + "?")) return; this._deleteEntry(entry.entry_id); this._closeModal(); };
+          if (ul) ul.onclick = () => { if (!confirm("Unlink " + dev + "?")) return; this._deleteEntry(entryId); this._closeModal(); };
       };
       renderInfo();
       const infoTimer = setInterval(() => { if (!this._modal) { clearInterval(infoTimer); return; } renderInfo(); }, 3000);
@@ -690,37 +703,7 @@
           this._deleteEntry(entry.entry_id);
         });
 
-        on("[data-act=info]", () => {
-          const veil = this._openModal(dev + " — info");
-          if (!veil) return;
-          const body = veil.querySelector(".mbody");
-          if (!body) return;
-          const renderInfo = () => {
-            const cur = (id) => (ents[id] ? h.states[ents[id]] : null);
-            const screen = cur("screen"); const bright = cur("brightness");
-            const rdp = cur("remote_desktop_switch"); const firmware = cur("firmware");
-            const lux = cur("illuminance"); const ip = cur("ip_address");
-            const probe = cur("uptime") || ip;
-            body.innerHTML = `
-              <div class="stat"><span class="ic">⌂</span>IP: ${ip ? ip.state : "—"}</div>
-              <div class="stat"><span class="ic">☀</span>Ambient: ${lux ? lux.state + " lx" : "—"}</div>
-              <div class="stat"><span class="ic">⏱</span>Uptime: ${probe ? probe.state + " s" : "—"}</div>
-              <div class="stat"><span class="ic">📺</span>Screen: ${screen ? screen.state : "—"}</div>
-              <div class="stat"><span class="ic">☀</span>Brightness: ${bright ? bright.state : "—"}</div>
-              <div class="stat"><span class="ic">📡</span>Remote desktop: ${rdp ? rdp.state : "—"}</div>
-              <div class="stat"><span class="ic">🧠</span>Firmware: ${firmware ? firmware.state : "—"}</div>
-              <div style="margin-top:12px">
-                <button class="btn primary" data-act="fwcheck">Check for firmware update</button>
-                <button class="btn" data-act="reboot2">Reboot panel</button>
-              </div>`;
-            const fw = body.querySelector("[data-act=fwcheck]");
-            if (fw) fw.onclick = () => h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "firmware:check" }).catch(e => alert(e && e.message || e));
-            const rb = body.querySelector("[data-act=reboot2]");
-            if (rb) rb.onclick = () => { if (!confirm("Reboot " + dev + "?")) return; h.callService("nspanel_nexus", "command", { device_name: devSafe, command: "reboot" }).catch(e => alert(e && e.message || e)); };
-          };
-          renderInfo();
-          const infoTimer = setInterval(() => { if (!this._modal) { clearInterval(infoTimer); return; } renderInfo(); }, 3000);
-        });
+        on("[data-act=info]", () => this._openInfoModal(dev, devSafe, ents, h, entry.entry_id));
 
         on("[data-act=settings]", () => {
           const veil = this._openModal(dev + " — settings");

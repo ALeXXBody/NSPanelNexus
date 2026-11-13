@@ -152,6 +152,19 @@ verbatim instead of a generic "Dashboard URL failed" toast.
 - [ ] H2: diagnose on the live panel (capture logcat + screenshot), fix the real cause, verify
 - [ ] H3: docs update, bump + release
 
+### 2.30 Info + Remote popups match Settings style (user, 2026-11-13)
+
+User: make info and RD screen same style as settings. Done: info popup is now a
+compact 3-col grid of uppercase micro-labels + values with a labeled brightness
+slider and matching buttons; remote popup got micro-label captions (Keys, Type
+text), primary Type button, muted log line, bordered stream frame and compact
+density. Also deduplicated the info popup (the card button delegated to
+_openInfoModal; fixes a latent bare `entry` reference in its Unlink handler).
+
+- [x] U1: restyle info + remote popups to settings look
+- [x] U2: dedupe info renderer into _openInfoModal
+- [x] U3: verify (node --check + headless render of both popups, no errors) + bump + release
+
 ### 2.29 Logo-red accent + darker theme + always-visible settings (user, 2026-11-13)
 
 User: (1) too many colours — drop the yellow/orange, use the colour from the logo
