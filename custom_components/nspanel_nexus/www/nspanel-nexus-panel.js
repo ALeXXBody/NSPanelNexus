@@ -156,7 +156,7 @@
 
     get _version() {
       const v = this._panel && this._panel.config && this._panel.config.version;
-      return v || "v0.4.72";
+      return v || "v0.4.73";
     }
 
     // Panel APK versions reported over MQTT (sensor.nspanel_*_firmware

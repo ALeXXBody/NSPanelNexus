@@ -542,6 +542,13 @@ Remaining program items deferred to the next batch (still open):
 
 ## 3. Rules for development
 
+> **HIGH PRIORITY (user, 2026-11-14): everything implemented or changed must
+> be properly tested BEFORE any release.** No bump, no release, no panel
+> install with a red gate. The gate is `scripts/pre_release_check.sh` — it
+> must exit 0. Live-panel verification (rule 3) still applies on top for
+> anything that touches panel behaviour; the script covers everything
+> automatable locally.
+
 1. **Write in this ledger FIRST** before starting any task
 2. **Verify every change** — don't just code and hope
 3. **Test end-to-end** — check that both halves work together
@@ -552,6 +559,9 @@ Remaining program items deferred to the next batch (still open):
 8. **Verify state payloads** match between publisher and subscriber
 9. **Verify command handlers** are registered and match
 10. **Bump version** and create release after every change
+11. **HIGH PRIORITY: run `scripts/pre_release_check.sh` and fix every failure
+    before bump/release** — a release with a red gate is a rule violation,
+    no exceptions
 
 ---
 
@@ -597,6 +607,7 @@ Remaining program items deferred to the next batch (still open):
 | 36 | 2026-11-13 | Docs catch-up for the ecosystem program: HA_INTEGRATION (entity + 12-service tables, Info/Kiosk UI) and MQTT_COMMANDS (new commands + state topics). No code changes; APK re-versioned, installed, state/firmware shows app 0.4.70 | v0.4.70 |
 | 37 | 2026-11-13 | Version-truth fixes (user: top bar stuck at v0.4.69 while Marketplace showed 0.4.70). Found by reading the code: device_info sw_version was hardcoded "Nexus", and the top bar showed one bare number mixing two products. Top bar now shows "integration vX · panel app vY" (app part live from MQTT firmware sensor); sw_version reads manifest.json. Verified: harness asserts both labels, panel on 0.4.71 (state/firmware app 0.4.71, kiosk dashboard) | v0.4.71 |
 | 38 | 2026-11-13 | Regression suite (user asked: what tests exist? — answer was 2). Added tests/test_release.py (version sync, services==yaml, no hardcoded LAN, MQTT state/event contract, panel.js keys), tests/test_link.py (PanelLink logic with stubbed HA: 11 tests), tests/test_panel_js.py (headless Chromium in-repo, skips without browser). CI runs node --check now. 20/20 green + ruff clean. No functional changes; APK re-versioned, installed, state/firmware app 0.4.72 | v0.4.72 |
+| 39 | 2026-11-14 | HIGH PRIORITY rule (user): test before every release. Added scripts/pre_release_check.sh (ruff, pytest, node, yaml/json, kotlin; exit 1 on any failure) + ledger rule 11. Negative control caught a real bug in the script itself (pipeline swallowed exit code; fixed with pipefail). Gate proven red+green, then shipped | v0.4.73 |
 
 ---
 
@@ -694,6 +705,7 @@ Remaining program items deferred to the next batch (still open):
 | v0.4.70 | 2026-11-13 | Docs for the ecosystem program (no code changes) |
 | v0.4.71 | 2026-11-13 | Labeled versions: top bar shows integration + panel app; device sw_version is real (was hardcoded "Nexus") |
 | v0.4.72 | 2026-11-13 | Regression test suite: 20 tests (release/link/panel.js), CI hardened (no functional changes) |
+| v0.4.73 | 2026-11-14 | Mandatory pre-release test gate (rule 11), proven red+green (no functional changes) |
 
 > **Note:** v0.4.30 was already published by a concurrent session (tag pointed
 > at the pre-fix commit 82c92dd), so this cache-bust fix ships as v0.4.31 to
