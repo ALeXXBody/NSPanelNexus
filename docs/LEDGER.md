@@ -558,7 +558,12 @@ Remaining program items deferred to the next batch (still open):
 7. **Verify MQTT topics** match between Android and HA
 8. **Verify state payloads** match between publisher and subscriber
 9. **Verify command handlers** are registered and match
-10. **Bump version** and create release after every change
+10. **Bump version** and create release after every **product** change (panel
+    APK or HA integration code) — process-only changes (ledger rules, test
+    scripts, CI, docs) do NOT bump versions and do NOT ship APKs
+    (correction 2026-11-14: v0.4.73 wrongly shipped a re-versioned APK for a
+    process-only change; that release stays published to avoid downgrade
+    confusion, but it must not repeat)
 11. **HIGH PRIORITY: run `scripts/pre_release_check.sh` and fix every failure
     before bump/release** — a release with a red gate is a rule violation,
     no exceptions
@@ -608,6 +613,7 @@ Remaining program items deferred to the next batch (still open):
 | 37 | 2026-11-13 | Version-truth fixes (user: top bar stuck at v0.4.69 while Marketplace showed 0.4.70). Found by reading the code: device_info sw_version was hardcoded "Nexus", and the top bar showed one bare number mixing two products. Top bar now shows "integration vX · panel app vY" (app part live from MQTT firmware sensor); sw_version reads manifest.json. Verified: harness asserts both labels, panel on 0.4.71 (state/firmware app 0.4.71, kiosk dashboard) | v0.4.71 |
 | 38 | 2026-11-13 | Regression suite (user asked: what tests exist? — answer was 2). Added tests/test_release.py (version sync, services==yaml, no hardcoded LAN, MQTT state/event contract, panel.js keys), tests/test_link.py (PanelLink logic with stubbed HA: 11 tests), tests/test_panel_js.py (headless Chromium in-repo, skips without browser). CI runs node --check now. 20/20 green + ruff clean. No functional changes; APK re-versioned, installed, state/firmware app 0.4.72 | v0.4.72 |
 | 39 | 2026-11-14 | HIGH PRIORITY rule (user): test before every release. Added scripts/pre_release_check.sh (ruff, pytest, node, yaml/json, kotlin; exit 1 on any failure) + ledger rule 11. Negative control caught a real bug in the script itself (pipeline swallowed exit code; fixed with pipefail). Gate proven red+green, then shipped | v0.4.73 |
+| 40 | 2026-11-14 | Correction (user: process rules are not product releases). v0.4.73 should never have shipped an APK for the gate-script/rule change. Rule 10 rescoped to product changes only; process-only changes ship with no version bump and no release. 0.4.73 stays published (downgrading the panel would be worse) | — (process only, no release) |
 
 ---
 
